@@ -8,7 +8,7 @@ from app.models import TestQuestion
 
 
 # Создание связи между тестом и вопросом (test_question)
-async def create_test_question(db: AsyncSession, test_id: int, question_id: int):
+async def create_test_question(db: AsyncSession, test_id: int, question_id: int, position: int, required: bool, max_score: int):
     # Проверяем, существует ли тест и вопрос
     test = await get_test(db, test_id)
     question = await get_question(db, question_id)
@@ -19,7 +19,7 @@ async def create_test_question(db: AsyncSession, test_id: int, question_id: int)
         raise HTTPException(status_code=404, detail="Question not found")
 
     # Создаём запись в таблице test_question для связи
-    new_test_question = TestQuestion(test_id=test_id, question_id=question_id)
+    new_test_question = TestQuestion(test_id=test_id, question_id=question_id, position=position, required=position, max_score=position)
     db.add(new_test_question)
     try:
         await db.commit()

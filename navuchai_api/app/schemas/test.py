@@ -4,12 +4,36 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class TestBase(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    category_id: int
+    creator_id: int
+    access_timestamp: datetime
+    status: str
+    frozen: bool
+    locale: str
+    time_limit: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class TestWithDetails(TestBase):
+    category_name: str
+    creator_name: str
+
 # Схема для создания нового теста
 class TestCreate(BaseModel):
     title: str
     description: Optional[str] = None
     category_id: int
     creator_id: int
+    access_timestamp: datetime
+    status: str
+    frozen: bool
+    locale: str
     time_limit: Optional[int] = None
 
     class Config:
@@ -23,6 +47,10 @@ class TestResponse(BaseModel):
     description: Optional[str] = None
     category_id: int
     creator_id: int
+    access_timestamp: datetime
+    status: str
+    frozen: bool
+    locale: str
     time_limit: Optional[int] = None
     created_at: datetime
     updated_at: datetime
@@ -38,6 +66,10 @@ class TestListResponse(BaseModel):
     description: Optional[str] = None
     category_id: int
     creator_id: int
+    access_timestamp: datetime
+    status: str
+    frozen: bool
+    locale: str
     time_limit: Optional[int] = None
 
     class Config:

@@ -1,14 +1,38 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models import Test
+from app.models import Test, Category, User
 from app.schemas.test import TestCreate
 
 
 # Получение списка тестов
 async def get_tests(db: AsyncSession):
-    result = await db.execute(select(Test))
-    return result.scalars().all()
+    result = await db.execute(
+        select(Test, Category.name, User.name)
+        .join(Category, Test.category_id == Category.id)
+        .join(User, Test.creator_id == User.id)
+    )
+    rows = result.all()
+
+    return [
+        {
+            "id": test.id,
+            "title": test.title,
+            "description": test.description,
+            "time_limit": test.time_limit,
+            "category_id": test.category_id,
+            "category_name": category_name,
+            "creator_id": test.creator_id,
+            "creator_name": creator_name,
+            "access_timestamp": test.access_timestamp,
+            "status": test.status,
+            "frozen": test.frozen,
+            "locale": test.locale,
+            "created_at": test.created_at,
+            "updated_at": test.updated_at
+        }
+        for test, category_name, creator_name in rows
+    ]
 
 
 # Получение конкретного теста по ID

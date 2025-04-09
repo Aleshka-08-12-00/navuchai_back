@@ -4,10 +4,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.crud import (
     create_test_question, delete_test_question, get_questions,
-    get_question, create_question, update_question, delete_question
+    get_question, create_question, update_question, delete_question, get_questions_by_test_id
 )
 from app.dependencies import get_db
-from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate
+from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
 from app.exceptions import NotFoundException, DatabaseException
 
 router = APIRouter(prefix="/api/questions", tags=["Questions"])
@@ -26,6 +26,14 @@ async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db
     if not question:
         raise NotFoundException("Question not found")
     return question
+
+
+@router.get("/by-test/{test_id}", response_model=list[QuestionWithDetails])
+async def list_questions_by_test(test_id: int, db: AsyncSession = Depends(get_db)):
+    questions = await get_questions_by_test_id(db, test_id)
+    if not questions:
+        raise NotFoundException("No questions found for this test")
+    return questions
 
 
 # Создание нового вопроса
@@ -63,9 +71,9 @@ async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get
 
 # Создание связи между тестом и вопросом
 @router.post("/{question_id}/add-to-test/{test_id}", status_code=status.HTTP_201_CREATED)
-async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db)):
+async def link_test_question(test_id: int, question_id: int, position: int, required: bool, max_score: int, db: AsyncSession = Depends(get_db)):
     try:
-        return await create_test_question(db, test_id, question_id)
+        return await create_test_question(db, test_id, question_id, position, required, max_score)
     except SQLAlchemyError:
         raise DatabaseException("Error linking test and question")
 

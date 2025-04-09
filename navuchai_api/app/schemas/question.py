@@ -4,11 +4,34 @@ from typing import Dict, Optional, Any
 from pydantic import BaseModel
 
 
+class QuestionBase(BaseModel):
+    id: int
+    text: str
+    text_abstract: str
+    type: str
+    reviewable: bool
+    answers: dict
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class QuestionWithDetails(BaseModel):
+    question: QuestionBase
+    position: int
+    required: bool
+    max_score: Optional[int] = None
+
+
 # Схема для создания нового вопроса
 class QuestionCreate(BaseModel):
     text: str
+    text_abstract: str
     type: str
-    options: Dict[str, Any]
+    reviewable: bool
+    answers: Dict[str, Any]
 
     class Config:
         from_attributes = True
@@ -18,8 +41,10 @@ class QuestionCreate(BaseModel):
 class QuestionResponse(BaseModel):
     id: int
     text: str
+    text_abstract: str
     type: str
-    options: Dict[str, Any]
+    reviewable: bool
+    answers: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
@@ -30,8 +55,10 @@ class QuestionResponse(BaseModel):
 # Схема для обновления вопроса
 class QuestionUpdate(BaseModel):
     text: Optional[str] = None
+    text_abstract: Optional[str] = None
     type: Optional[str] = None
-    options: Optional[Dict[str, Any]] = None
+    reviewable: Optional[bool] = None
+    answers: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True

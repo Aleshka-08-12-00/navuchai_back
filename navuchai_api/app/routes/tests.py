@@ -4,14 +4,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.dependencies import get_db
 from app.crud import get_tests, get_test, create_test, delete_test
-from app.schemas import TestCreate, TestResponse
+from app.schemas import TestCreate, TestResponse, TestWithDetails
 from app.exceptions import NotFoundException, DatabaseException
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
 
 # Получение списка всех тестов
-@router.get("/", response_model=list[TestResponse])
+@router.get("/", response_model=list[TestWithDetails])
 async def list_tests(db: AsyncSession = Depends(get_db)):
     return await get_tests(db)
 
