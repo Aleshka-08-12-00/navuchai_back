@@ -17,7 +17,7 @@ async def list_tests(db: AsyncSession = Depends(get_db)):
 
 
 # Получение конкретного теста по ID
-@router.get("/{test_id}", response_model=TestResponse)
+@router.get("/{test_id}", response_model=TestWithDetails)
 async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
     test = await get_test(db, test_id)
     if not test:
