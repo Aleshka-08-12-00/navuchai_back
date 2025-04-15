@@ -3,3 +3,5 @@ pydantic~=2.10.6
 fastapi~=0.115.7
 dotenv~=0.9.9
 python-dotenv~=1.1.0
+uvicorn[standard]
+asyncpg
