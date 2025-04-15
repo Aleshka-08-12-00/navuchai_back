@@ -8,7 +8,7 @@ class Result(Base):
     __tablename__ = 'result'
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     test_id = Column(Integer, ForeignKey('test.id'), nullable=False)
     score = Column(Integer, nullable=False)
     completed_at = Column(TIMESTAMP, nullable=False, server_default=func.now())

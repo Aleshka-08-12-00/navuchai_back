@@ -10,13 +10,11 @@ from app.exceptions import NotFoundException, DatabaseException
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
 
-# Получение списка всех тестов
 @router.get("/", response_model=list[TestWithDetails])
 async def list_tests(db: AsyncSession = Depends(get_db)):
     return await get_tests(db)
 
 
-# Получение конкретного теста по ID
 @router.get("/{test_id}", response_model=TestWithDetails)
 async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
     test = await get_test(db, test_id)
@@ -25,7 +23,6 @@ async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
     return test
 
 
-# Создание нового теста
 @router.post("/", response_model=TestResponse)
 async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db)):
     try:
@@ -34,7 +31,6 @@ async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db)):
         raise DatabaseException("Error creating test")
 
 
-# Удаление теста по ID
 @router.delete("/{test_id}", response_model=TestResponse)
 async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
     try:

@@ -31,6 +31,13 @@ async def get_test(db: AsyncSession, test_id: int):
     return format_test_with_names(*row)
 
 
+async def get_test_by_id(db: AsyncSession, test_id: int):
+    result = await db.execute(
+        select(Test).where(Test.id == test_id)
+    )
+    return result.scalar_one_or_none()
+
+
 # Создание нового теста
 async def create_test(db: AsyncSession, test_data: TestCreate):
     new_test = Test(**test_data.dict())
@@ -42,7 +49,7 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
 
 # Удаление теста
 async def delete_test(db: AsyncSession, test_id: int):
-    test = await get_test(db, test_id)
+    test = await get_test_by_id(db, test_id)
     if test:
         await db.delete(test)
         await db.commit()

@@ -25,7 +25,6 @@ class QuestionWithDetails(BaseModel):
     max_score: Optional[int] = None
 
 
-# Схема для создания нового вопроса
 class QuestionCreate(BaseModel):
     text: str
     text_abstract: str
@@ -37,7 +36,6 @@ class QuestionCreate(BaseModel):
         from_attributes = True
 
 
-# Схема для отображения информации о вопросе (ответ API)
 class QuestionResponse(BaseModel):
     id: int
     text: str
@@ -52,7 +50,6 @@ class QuestionResponse(BaseModel):
         from_attributes = True
 
 
-# Схема для обновления вопроса
 class QuestionUpdate(BaseModel):
     text: Optional[str] = None
     text_abstract: Optional[str] = None

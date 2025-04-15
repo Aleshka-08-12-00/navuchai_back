@@ -11,7 +11,7 @@ class UserAnswer(Base):
     id = Column(Integer, primary_key=True, index=True)
     result_id = Column(Integer, ForeignKey('result.id'), nullable=False)
     question_id = Column(Integer, ForeignKey('question.id'), nullable=False)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     options = Column(JSONB, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())

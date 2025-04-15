@@ -27,7 +27,6 @@ async def get_questions_by_test_id(db: AsyncSession, test_id: int):
     )
     test_question_pairs = result.all()
 
-    # Собираем данные в нужной форме
     return [
         {
             "question": tq.Question,
