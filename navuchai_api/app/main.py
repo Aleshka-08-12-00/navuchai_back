@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from app.config import engine
 from app.models import Base
-from app.routes import tests, questions
+from app.routes import tests, questions, user
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Test API")
@@ -17,6 +17,7 @@ app.add_middleware(
 
 app.include_router(tests.router)
 app.include_router(questions.router)
+app.include_router(user.router)
 
 
 @app.on_event("startup")

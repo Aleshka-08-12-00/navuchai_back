@@ -18,7 +18,6 @@ async def create_test_question(db: AsyncSession, test_id: int, question_id: int,
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    # Создаём запись в таблице test_question для связи
     new_test_question = TestQuestion(test_id=test_id, question_id=question_id, position=position, required=position, max_score=position)
     db.add(new_test_question)
     try:
@@ -33,7 +32,6 @@ async def create_test_question(db: AsyncSession, test_id: int, question_id: int,
 # Удаление связи между тестом и вопросом
 async def delete_test_question(db: AsyncSession, test_id: int, question_id: int):
     async with db.begin():
-        # Находим связь между тестом и вопросом
         test_question = await db.execute(
             select(TestQuestion).filter(
                 TestQuestion.test_id == test_id,
@@ -43,14 +41,13 @@ async def delete_test_question(db: AsyncSession, test_id: int, question_id: int)
         test_question = test_question.scalar_one_or_none()
 
         if not test_question:
-            return None  # Связь не найдена
+            return None
 
-        # Удаляем найденную связь
         await db.delete(test_question)
 
         try:
             await db.commit()
-            return test_question  # Возвращаем удалённую связь
+            return test_question
         except SQLAlchemyError as e:
             await db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

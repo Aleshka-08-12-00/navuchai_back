@@ -9,7 +9,7 @@ class TestBase(BaseModel):
     title: str
     description: Optional[str] = None
     category_id: int
-    creator_id: int
+    creator_id: Optional[int] = None
     access_timestamp: datetime
     status: str
     frozen: bool
@@ -24,12 +24,12 @@ class TestWithDetails(TestBase):
     category_name: str
     creator_name: str
 
-# Схема для создания нового теста
+
 class TestCreate(BaseModel):
     title: str
     description: Optional[str] = None
     category_id: int
-    creator_id: int
+    creator_id: Optional[int] = None
     access_timestamp: datetime
     status: str
     frozen: bool
@@ -40,13 +40,12 @@ class TestCreate(BaseModel):
         from_attributes = True
 
 
-# Схема для отображения информации о тесте (отвечает за вывод данных)
 class TestResponse(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
     category_id: int
-    creator_id: int
+    creator_id: Optional[int] = None
     access_timestamp: datetime
     status: str
     frozen: bool
@@ -59,13 +58,12 @@ class TestResponse(BaseModel):
         from_attributes = True
 
 
-# Схема для списка всех тестов (когда выводим только ключевые данные)
 class TestListResponse(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
     category_id: int
-    creator_id: int
+    creator_id: Optional[int] = None
     access_timestamp: datetime
     status: str
     frozen: bool
