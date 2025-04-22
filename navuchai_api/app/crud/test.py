@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models import Test, Category, User
-from app.schemas.test import TestCreate, TestUpdate
+from app.schemas.test import TestCreate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
 
@@ -75,19 +75,19 @@ async def delete_test(db: AsyncSession, test_id: int):
         raise DatabaseException("Ошибка при удалении теста")
 
 
-async def update_test(db: AsyncSession, test_id: int, test: TestUpdate):
-    try:
-        existing_test = await get_test(db, test_id)
-        if not existing_test:
-            raise NotFoundException("Тест не найден")
-
-        update_data = test.dict(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(existing_test, key, value)
-
-        await db.commit()
-        await db.refresh(existing_test)
-        return existing_test
-    except SQLAlchemyError:
-        await db.rollback()
-        raise DatabaseException("Ошибка при обновлении теста")
+# async def update_test(db: AsyncSession, test_id: int, test: TestUpdate):
+#     try:
+#         existing_test = await get_test(db, test_id)
+#         if not existing_test:
+#             raise NotFoundException("Тест не найден")
+#
+#         update_data = test.dict(exclude_unset=True)
+#         for key, value in update_data.items():
+#             setattr(existing_test, key, value)
+#
+#         await db.commit()
+#         await db.refresh(existing_test)
+#         return existing_test
+#     except SQLAlchemyError:
+#         await db.rollback()
+#         raise DatabaseException("Ошибка при обновлении теста")
