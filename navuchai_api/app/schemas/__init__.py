@@ -2,3 +2,5 @@ from .question import QuestionCreate, QuestionResponse, QuestionUpdate, Question
 from .test import TestCreate, TestResponse, TestListResponse, TestWithDetails
 from .test_question import TestQuestionResponse
 from .user import UserCreate, UserUpdate, UserResponse
+from .user_auth import Token, UserLogin, UserOut
+from .role import RoleBase

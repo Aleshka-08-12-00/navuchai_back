@@ -17,12 +17,14 @@ def format_test_with_names(test, category_name: str, creator_name: str) -> dict:
     }
 
 
-def format_user(user, role_name: str) -> dict:
-    return {
-        "id": user.id,
-        "name": user.name,
-        "role_id": user.role_id,
-        "role_name": role_name,
-        "created_at": user.created_at,
-        "updated_at": user.updated_at
-    }
+# def format_user(user, role_name: str) -> dict:
+#     return {
+#         "id": user.id,
+#         "name": user.name,
+#         "username": user.username,
+#         "email": user.email,
+#         "role_id": user.role_id,
+#         "role_name": role_name,
+#         "created_at": user.created_at,
+#         "updated_at": user.updated_at
+#     }

@@ -1,27 +1,40 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from app.schemas.role import RoleBase
+from app.models.role_enum import RoleCode
 
 
 class UserBase(BaseModel):
     name: str
     role_id: int
+    username: str
+    email: str
 
 
 class UserCreate(UserBase):
-    pass
+    password: str
 
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     role_id: Optional[int] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
 
 
 class UserResponse(UserBase):
     id: int
-    role_name: Optional[str] = None
+    username: str
+    email: str
+    role: RoleBase
     created_at: datetime
     updated_at: datetime
 
     class Config:
         orm_mode = True
+
+
+class UserRoleUpdate(BaseModel):
+    role_code: RoleCode
