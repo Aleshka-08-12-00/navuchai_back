@@ -18,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(
-            select(User).where(User.name == form_data.username)
+            select(User).where(User.username == form_data.username)
         )
         user = result.scalar_one_or_none()
 
