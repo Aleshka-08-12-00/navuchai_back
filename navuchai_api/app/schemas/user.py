@@ -24,6 +24,13 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
 
 
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+
+
 class UserResponse(UserBase):
     id: int
     username: str
