@@ -1,8 +1,8 @@
-from sqlalchemy import Integer, String, Column, TIMESTAMP
+from sqlalchemy import Column, Integer, String, TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.models.base import Base
 
+from app.models.base import Base
 
 class Category(Base):
     __tablename__ = 'category'
@@ -12,4 +12,5 @@ class Category(Base):
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
+    # Связь с тестами
     tests = relationship("Test", back_populates="category")
