@@ -16,6 +16,7 @@ class Test(Base):
     status = Column(String, nullable=False)
     frozen = Column(Boolean, nullable=False)
     locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
+    img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
@@ -24,3 +25,4 @@ class Test(Base):
     test_questions = relationship("TestQuestion", back_populates="test", cascade="all, delete-orphan")
     results = relationship("Result", back_populates="test")
     locale = relationship("Locale", back_populates="tests")
+    image = relationship("File", foreign_keys=[img_id])

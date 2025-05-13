@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.orm import selectinload
 
-from app.models import Test, Category, User, Locale
+from app.models import Test, Category, User, Locale, File
 from app.schemas.test import TestCreate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
@@ -17,6 +18,7 @@ async def get_tests(db: AsyncSession):
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
+            .options(selectinload(Test.image))
         )
         rows = result.all()
         return [format_test_with_names(test, category_name, creator_name, locale_code) 
@@ -33,6 +35,7 @@ async def get_test(db: AsyncSession, test_id: int):
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
+            .options(selectinload(Test.image))
             .filter(Test.id == test_id)
         )
         row = result.one_or_none()
@@ -45,22 +48,72 @@ async def get_test(db: AsyncSession, test_id: int):
 
 async def get_test_by_id(db: AsyncSession, test_id: int):
     result = await db.execute(
-        select(Test).where(Test.id == test_id)
+        select(Test)
+        .options(selectinload(Test.image))
+        .where(Test.id == test_id)
     )
     return result.scalar_one_or_none()
 
 
 # Создание нового теста
 async def create_test(db: AsyncSession, test_data: TestCreate):
-    new_test = Test(**test_data.dict())
-    db.add(new_test)
     try:
+        # Проверяем существование связанных сущностей
+        category_result = await db.execute(
+            select(Category).where(Category.id == test_data.category_id)
+        )
+        category = category_result.scalar_one_or_none()
+        if not category:
+            raise NotFoundException(f"Категория с ID {test_data.category_id} не найдена")
+
+        locale_result = await db.execute(
+            select(Locale).where(Locale.id == test_data.locale_id)
+        )
+        locale = locale_result.scalar_one_or_none()
+        if not locale:
+            raise NotFoundException(f"Локаль с ID {test_data.locale_id} не найдена")
+
+        # Получаем создателя теста
+        creator_result = await db.execute(
+            select(User).where(User.id == test_data.creator_id)
+        )
+        creator = creator_result.scalar_one_or_none()
+        if not creator:
+            raise NotFoundException(f"Пользователь с ID {test_data.creator_id} не найден")
+
+        # Если указан img_id, проверяем существование файла
+        if test_data.img_id:
+            file_result = await db.execute(
+                select(File).where(File.id == test_data.img_id)
+            )
+            file = file_result.scalar_one_or_none()
+            if not file:
+                raise NotFoundException(f"Файл с ID {test_data.img_id} не найден")
+
+        new_test = Test(**test_data.dict())
+        db.add(new_test)
         await db.commit()
         await db.refresh(new_test)
-        return new_test
-    except SQLAlchemyError:
+
+        # Форматируем ответ с дополнительными данными
+        return format_test_with_names(
+            new_test,
+            category.name,
+            creator.name,
+            locale.code
+        )
+    except IntegrityError as e:
         await db.rollback()
-        raise DatabaseException("Ошибка при создании теста")
+        error_msg = str(e.orig)
+        if "foreign key constraint" in error_msg.lower():
+            raise DatabaseException("Ошибка при создании теста: нарушение внешнего ключа. Проверьте существование связанных сущностей.")
+        elif "unique constraint" in error_msg.lower():
+            raise DatabaseException("Ошибка при создании теста: нарушение уникального ограничения.")
+        else:
+            raise DatabaseException(f"Ошибка при создании теста: {error_msg}")
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при создании теста: {str(e)}")
 
 
 # Удаление теста

@@ -4,12 +4,15 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from datetime import datetime
+import uuid
+import os
 
 from app.dependencies import get_db
 from app.models import User
 from app.crud import admin_teacher_required
 from app.exceptions import DatabaseException
-from app.schemas.file import FileUploadResponse
+from app.schemas.file import FileUploadResponse, FileCreate
+from app.crud import file as file_crud
 from app.config import (
     MINIO_URL,
     MINIO_ACCESS_KEY,
@@ -42,20 +45,36 @@ async def upload_file(
         content = await file.read()
         file_size = len(content)
         
+        # Генерация уникального имени файла
+        ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        
         # Загрузка файла в MinIO
         s3.put_object(
             Bucket=MINIO_BUCKET_NAME,
-            Key=file.filename,
+            Key=unique_filename,
             Body=content,
             ContentLength=file_size,
             ContentType=file.content_type
         )
         
         # Формирование URL для доступа к файлу
-        file_url = f"{MINIO_URL}/{MINIO_BUCKET_NAME}/{file.filename}"
+        file_url = f"{MINIO_URL}/{MINIO_BUCKET_NAME}/{unique_filename}"
+        
+        # Создание записи о файле в БД
+        file_data = FileCreate(
+            type=file.content_type,
+            name=unique_filename,
+            size=file_size,
+            path=file_url,
+            provider="minio",
+            creator_id=current_user.id
+        )
+        db_file = await file_crud.create_file(db, file_data)
         
         return FileUploadResponse(
-            filename=file.filename,
+            id=db_file.id,
+            filename=unique_filename,
             content_type=file.content_type,
             size=file_size,
             url=file_url,

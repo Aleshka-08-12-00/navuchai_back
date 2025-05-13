@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
+from app.schemas.file import FileInDB
 
 
 class TestBase(BaseModel):
@@ -15,6 +16,7 @@ class TestBase(BaseModel):
     frozen: bool
     locale_id: int
     time_limit: Optional[int] = None
+    img_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -24,6 +26,7 @@ class TestWithDetails(TestBase):
     category_name: str
     creator_name: str
     locale_code: str
+    image: Optional[FileInDB] = None
 
 
 class TestCreate(BaseModel):
@@ -36,6 +39,7 @@ class TestCreate(BaseModel):
     frozen: bool
     locale_id: int
     time_limit: Optional[int] = None
+    img_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -53,6 +57,8 @@ class TestResponse(BaseModel):
     locale_id: int
     locale_code: str
     time_limit: Optional[int] = None
+    img_id: Optional[int] = None
+    image: Optional[FileInDB] = None
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +78,8 @@ class TestListResponse(BaseModel):
     locale_id: int
     locale_code: str
     time_limit: Optional[int] = None
+    img_id: Optional[int] = None
+    image: Optional[FileInDB] = None
 
     class Config:
         from_attributes = True

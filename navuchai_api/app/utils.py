@@ -13,6 +13,8 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "frozen": test.frozen,
         "locale_id": test.locale_id,
         "locale_code": locale_code,
+        "img_id": test.img_id,
+        "image": test.image,
         "created_at": test.created_at,
         "updated_at": test.updated_at
     }
