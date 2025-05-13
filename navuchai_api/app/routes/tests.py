@@ -1,21 +1,19 @@
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import get_db
 from app.crud import (
     get_tests,
     get_test,
     create_test,
     delete_test,
-    get_questions_by_test_id,
-    get_current_user,
     admin_teacher_required,
     authorized_required
 )
-from app.schemas.test import TestCreate, TestResponse, TestWithDetails
-from app.models import User
+from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
+from app.models import User
+from app.schemas.test import TestCreate, TestResponse, TestWithDetails
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 

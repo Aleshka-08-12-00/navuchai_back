@@ -12,4 +12,4 @@ class Locale(Base):
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
-    tests = relationship("Test", back_populates="locale") 
+    tests = relationship("Test", back_populates="locale")
