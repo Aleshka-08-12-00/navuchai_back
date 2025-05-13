@@ -13,7 +13,7 @@ class TestBase(BaseModel):
     access_timestamp: datetime
     status: str
     frozen: bool
-    locale: str
+    locale_id: int
     time_limit: Optional[int] = None
 
     class Config:
@@ -23,6 +23,7 @@ class TestBase(BaseModel):
 class TestWithDetails(TestBase):
     category_name: str
     creator_name: str
+    locale_code: str
 
 
 class TestCreate(BaseModel):
@@ -33,7 +34,7 @@ class TestCreate(BaseModel):
     access_timestamp: datetime
     status: str
     frozen: bool
-    locale: str
+    locale_id: int
     time_limit: Optional[int] = None
 
     class Config:
@@ -49,7 +50,8 @@ class TestResponse(BaseModel):
     access_timestamp: datetime
     status: str
     frozen: bool
-    locale: str
+    locale_id: int
+    locale_code: str
     time_limit: Optional[int] = None
     created_at: datetime
     updated_at: datetime
@@ -67,7 +69,8 @@ class TestListResponse(BaseModel):
     access_timestamp: datetime
     status: str
     frozen: bool
-    locale: str
+    locale_id: int
+    locale_code: str
     time_limit: Optional[int] = None
 
     class Config:

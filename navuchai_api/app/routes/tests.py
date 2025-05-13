@@ -7,21 +7,21 @@ from app.crud import (
     get_tests,
     get_test,
     create_test,
-    #update_test,
     delete_test,
     get_questions_by_test_id,
     get_current_user,
-    admin_teacher_required
+    admin_teacher_required,
+    authorized_required
 )
 from app.schemas.test import TestCreate, TestResponse, TestWithDetails
 from app.models import User
 from app.exceptions import NotFoundException, DatabaseException
 
-router = APIRouter(prefix="/api/tests", tags=["Tests"], dependencies=[Depends(admin_teacher_required)])
+router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
 
 @router.get("/", response_model=list[TestWithDetails])
-async def get_all_tests(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def get_all_tests(db: AsyncSession = Depends(get_db), user: User = Depends(authorized_required)):
     try:
         return await get_tests(db)
     except SQLAlchemyError:
@@ -29,7 +29,7 @@ async def get_all_tests(db: AsyncSession = Depends(get_db), user: User = Depends
 
 
 @router.get("/{test_id}", response_model=TestWithDetails)
-async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
+async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(authorized_required)):
     try:
         test = await get_test(db, test_id)
         if not test:
@@ -40,7 +40,7 @@ async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/", response_model=TestResponse)
-async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db)):
+async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
     try:
         return await create_test(db, test)
     except SQLAlchemyError:
@@ -59,7 +59,7 @@ async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/{test_id}", response_model=TestResponse)
-async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
     try:
         test = await delete_test(db, test_id)
         if not test:

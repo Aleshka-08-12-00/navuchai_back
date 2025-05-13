@@ -7,3 +7,4 @@ from .user_answer import UserAnswer
 from .result import Result
 from .base import Base
 from .role import Role
+from .locale import Locale

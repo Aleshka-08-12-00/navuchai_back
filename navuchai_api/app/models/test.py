@@ -15,7 +15,7 @@ class Test(Base):
     access_timestamp = Column(TIMESTAMP, nullable=False)
     status = Column(String, nullable=False)
     frozen = Column(Boolean, nullable=False)
-    locale = Column(String, nullable=False)
+    locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
@@ -23,3 +23,4 @@ class Test(Base):
     creator = relationship("User", back_populates="created_tests")
     test_questions = relationship("TestQuestion", back_populates="test", cascade="all, delete-orphan")
     results = relationship("Result", back_populates="test")
+    locale = relationship("Locale", back_populates="tests")

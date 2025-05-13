@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.models import Test, Category, User
+from app.models import Test, Category, User, Locale
 from app.schemas.test import TestCreate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
@@ -13,12 +13,14 @@ from app.exceptions import NotFoundException, DatabaseException
 async def get_tests(db: AsyncSession):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name)
+            select(Test, Category.name, User.name, Locale.code)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
+            .join(Locale, Test.locale_id == Locale.id)
         )
         rows = result.all()
-        return [format_test_with_names(test, category_name, creator_name) for test, category_name, creator_name in rows]
+        return [format_test_with_names(test, category_name, creator_name, locale_code) 
+                for test, category_name, creator_name, locale_code in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов")
 
@@ -27,9 +29,10 @@ async def get_tests(db: AsyncSession):
 async def get_test(db: AsyncSession, test_id: int):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name)
+            select(Test, Category.name, User.name, Locale.code)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
+            .join(Locale, Test.locale_id == Locale.id)
             .filter(Test.id == test_id)
         )
         row = result.one_or_none()
