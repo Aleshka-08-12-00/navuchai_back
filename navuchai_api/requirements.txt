@@ -10,3 +10,4 @@ python-jose
 passlib~=1.7.4
 python-multipart
 bcrypt
+boto3~=1.34.0

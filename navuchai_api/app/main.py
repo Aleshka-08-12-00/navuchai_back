@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from app.config import engine
 from app.models import Base
-from app.routes import tests, questions, user, auth, profile, category, locale, files
+from app.routes import tests, questions, user, auth, profile, category, locale, files, role
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Test API")
@@ -23,6 +23,7 @@ app.include_router(profile.router)
 app.include_router(category.router)
 app.include_router(locale.router)
 app.include_router(files.router)
+app.include_router(role.router)
 
 
 @app.on_event("startup")
