@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 
 from app.models.base import Base
 
+
 class Category(Base):
     __tablename__ = 'category'
 

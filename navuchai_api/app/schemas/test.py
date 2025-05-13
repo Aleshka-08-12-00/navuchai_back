@@ -12,7 +12,7 @@ class TestBase(BaseModel):
     category_id: int
     creator_id: Optional[int] = None
     access_timestamp: datetime
-    status: str
+    status_id: int
     frozen: bool
     locale_id: int
     time_limit: Optional[int] = None
@@ -35,7 +35,7 @@ class TestCreate(BaseModel):
     category_id: int
     creator_id: Optional[int] = None
     access_timestamp: datetime
-    status: str
+    status_id: int
     frozen: bool
     locale_id: int
     time_limit: Optional[int] = None
@@ -52,7 +52,7 @@ class TestResponse(BaseModel):
     category_id: int
     creator_id: Optional[int] = None
     access_timestamp: datetime
-    status: str
+    status_id: int
     frozen: bool
     locale_id: int
     locale_code: str
@@ -73,7 +73,7 @@ class TestListResponse(BaseModel):
     category_id: int
     creator_id: Optional[int] = None
     access_timestamp: datetime
-    status: str
+    status_id: int
     frozen: bool
     locale_id: int
     locale_code: str

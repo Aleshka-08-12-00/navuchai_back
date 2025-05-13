@@ -9,6 +9,7 @@ from .locale import Locale
 from .file import File
 from .result import Result
 from .user_answer import UserAnswer
+from .test_status import TestStatus
 
 __all__ = [
     "Base",
@@ -21,5 +22,6 @@ __all__ = [
     "Locale",
     "File",
     "Result",
-    "UserAnswer"
+    "UserAnswer",
+    "TestStatus"
 ]

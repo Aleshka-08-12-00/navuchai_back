@@ -9,7 +9,7 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "creator_id": test.creator_id,
         "creator_name": creator_name,
         "access_timestamp": test.access_timestamp,
-        "status": test.status,
+        "status_id": test.status_id,
         "frozen": test.frozen,
         "locale_id": test.locale_id,
         "locale_code": locale_code,

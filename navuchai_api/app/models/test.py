@@ -13,7 +13,7 @@ class Test(Base):
     creator_id = Column(Integer, ForeignKey('user.id'))
     time_limit = Column(Integer)
     access_timestamp = Column(TIMESTAMP, nullable=False)
-    status = Column(String, nullable=False)
+    status_id = Column(Integer, ForeignKey("test_status.id"), nullable=False)
     frozen = Column(Boolean, nullable=False)
     locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
@@ -26,3 +26,4 @@ class Test(Base):
     results = relationship("Result", back_populates="test")
     locale = relationship("Locale", back_populates="tests")
     image = relationship("File", foreign_keys=[img_id])
+    status = relationship("TestStatus", back_populates="tests")

@@ -1,10 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.models import Test, Category, User, Locale, File
+from app.models import Test, Category, User, Locale, File, TestStatus
 from app.schemas.test import TestCreate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
@@ -66,6 +65,13 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
         if not category:
             raise NotFoundException(f"Категория с ID {test_data.category_id} не найдена")
 
+        status_result = await db.execute(
+            select(TestStatus).where(TestStatus.id == test_data.status_id)
+        )
+        status = status_result.scalar_one_or_none()
+        if not status:
+            raise NotFoundException(f"Статус с ID {test_data.category_id} не найден")
+
         locale_result = await db.execute(
             select(Locale).where(Locale.id == test_data.locale_id)
         )
@@ -100,7 +106,8 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
             new_test,
             category.name,
             creator.name,
-            locale.code
+            locale.code,
+
         )
     except IntegrityError as e:
         await db.rollback()
