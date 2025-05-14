@@ -10,6 +10,9 @@ from .file import File
 from .result import Result
 from .user_answer import UserAnswer
 from .test_status import TestStatus
+from .user_group import UserGroup
+from .user_group_member import UserGroupMember
+from .test_access import TestAccess
 
 __all__ = [
     "Base",
@@ -23,5 +26,8 @@ __all__ = [
     "File",
     "Result",
     "UserAnswer",
-    "TestStatus"
+    "TestStatus",
+    "UserGroup",
+    "UserGroupMember",
+    "TestAccess"
 ]
