@@ -26,6 +26,7 @@ class TestWithDetails(TestBase):
     category_name: str
     creator_name: str
     locale_code: str
+    status_name: str
     image: Optional[FileInDB] = None
 
 
@@ -53,6 +54,7 @@ class TestResponse(BaseModel):
     creator_id: Optional[int] = None
     access_timestamp: datetime
     status_id: int
+    status_name: str
     frozen: bool
     locale_id: int
     locale_code: str
@@ -74,6 +76,7 @@ class TestListResponse(BaseModel):
     creator_id: Optional[int] = None
     access_timestamp: datetime
     status_id: int
+    status_name: str
     frozen: bool
     locale_id: int
     locale_code: str

@@ -13,15 +13,16 @@ from app.exceptions import NotFoundException, DatabaseException
 async def get_tests(db: AsyncSession):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code)
+            select(Test, Category.name, User.name, Locale.code, TestStatus.name)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
+            .join(TestStatus, Test.status_id == TestStatus.id)
             .options(selectinload(Test.image))
         )
         rows = result.all()
-        return [format_test_with_names(test, category_name, creator_name, locale_code) 
-                for test, category_name, creator_name, locale_code in rows]
+        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name)
+                for test, category_name, creator_name, locale_code, status_name in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов")
 
@@ -30,10 +31,11 @@ async def get_tests(db: AsyncSession):
 async def get_test(db: AsyncSession, test_id: int):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code)
+            select(Test, Category.name, User.name, Locale.code, TestStatus.name)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
+            .join(TestStatus, Test.status_id == TestStatus.id)
             .options(selectinload(Test.image))
             .filter(Test.id == test_id)
         )
@@ -107,7 +109,7 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
             category.name,
             creator.name,
             locale.code,
-
+            status.name
         )
     except IntegrityError as e:
         await db.rollback()
