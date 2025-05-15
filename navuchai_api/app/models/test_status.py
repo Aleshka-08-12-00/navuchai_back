@@ -10,7 +10,10 @@ class TestStatus(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
     code = Column(String(50), nullable=False)
+    name_ru = Column(String(50), nullable=False)
+    color = Column(String(7), nullable=False)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     tests = relationship("Test", back_populates="status")
+    test_accesses = relationship("TestAccess", back_populates="status")

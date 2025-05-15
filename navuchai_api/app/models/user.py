@@ -22,3 +22,4 @@ class User(Base):
     results = relationship("Result", back_populates="user", cascade="all, delete-orphan")
     user_answers = relationship("UserAnswer", back_populates="user", cascade="all, delete-orphan")
     role = relationship("Role", back_populates="users", lazy="joined")
+    test_accesses = relationship("TestAccess", back_populates="user", cascade="all, delete-orphan")

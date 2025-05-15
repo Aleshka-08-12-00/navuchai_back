@@ -1,8 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
+import uuid
+import secrets
 
 from app.models.test_access import TestAccess
 from app.models.user_group_member import UserGroupMember
@@ -10,29 +12,52 @@ from app.models.test_status import TestStatus
 from app.schemas.test_access import TestAccessCreate
 from app.exceptions import DatabaseException, NotFoundException
 
+OPAQUE_TOKEN_NUM_BYTES = 16
+
+
+def _generate_access_code() -> str:
+    return secrets.token_urlsafe(OPAQUE_TOKEN_NUM_BYTES)
+
 
 async def create_test_access(
-    db: AsyncSession,
-    test_access: TestAccessCreate
+        db: AsyncSession,
+        test_access_data: TestAccessCreate
 ) -> TestAccess:
     """Создание доступа к тесту для одного пользователя"""
     try:
-        db_test_access = TestAccess(**test_access.model_dump())
+        data_for_model = test_access_data.model_dump(exclude_none=True)
+        if 'access_code' in data_for_model:
+            del data_for_model['access_code']
+
+        db_test_access = TestAccess(**data_for_model)
+
+        if test_access_data.user_id:
+            db_test_access.access_code = _generate_access_code(
+                test_id=test_access_data.test_id,
+                user_id=test_access_data.user_id
+            )
+        else:
+            # Если user_id не предоставлен, генерация access_code для него может быть невозможна
+            # или должна быть особая логика. Пока оставляем pass.
+            pass
+
         db.add(db_test_access)
         await db.commit()
         await db.refresh(db_test_access)
         return db_test_access
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         raise DatabaseException("Ошибка при создании доступа к тесту")
+    except Exception as e:
+        raise DatabaseException(f"Неожиданная ошибка при создании доступа к тесту: {e}")
 
 
 async def create_group_test_access(
-    db: AsyncSession,
-    test_id: int,
-    group_id: int,
-    start_date: datetime = None,
-    end_date: datetime = None,
-    status_id: int = None
+        db: AsyncSession,
+        test_id: int,
+        group_id: int,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        status_id: int = None
 ) -> list[TestAccess]:
     """Создание доступа к тесту для группы пользователей"""
     try:
@@ -54,10 +79,10 @@ async def create_group_test_access(
             raise NotFoundException(f"В группе с ID {group_id} нет пользователей")
 
         created_accesses = []
-        
+
         # Создаем доступ к тесту для каждого пользователя
         for member in group_members:
-            test_access = TestAccessCreate(
+            test_access_payload = TestAccessCreate(
                 test_id=test_id,
                 user_id=member.user_id,
                 group_id=group_id,
@@ -65,7 +90,7 @@ async def create_group_test_access(
                 end_date=end_date,
                 status_id=status_id
             )
-            created_access = await create_test_access(db, test_access)
+            created_access = await create_test_access(db, test_access_payload)
             created_accesses.append(created_access)
 
         return created_accesses
@@ -74,11 +99,14 @@ async def create_group_test_access(
 
 
 async def get_test_access(
-    db: AsyncSession,
-    test_id: int,
-    user_id: int
+        db: AsyncSession,
+        test_id: int,
+        user_id: int
 ) -> TestAccess:
-    """Получение информации о доступе пользователя к тесту"""
+    """Получение информации о доступе пользователя к тесту (по test_id и user_id)
+       Это не для валидации access_code. Для валидации нужен будет другой метод,
+       который ищет по access_code.
+    """
     try:
         query = select(TestAccess).where(
             TestAccess.test_id == test_id,
@@ -87,4 +115,4 @@ async def get_test_access(
         result = await db.execute(query)
         return result.scalar_one_or_none()
     except SQLAlchemyError:
-        raise DatabaseException("Ошибка при получении информации о доступе к тесту") 
+        raise DatabaseException("Ошибка при получении информации о доступе к тесту")

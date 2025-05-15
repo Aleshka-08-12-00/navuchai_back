@@ -14,4 +14,5 @@ class UserGroup(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     creator = relationship("User", back_populates="created_groups")
-    members = relationship("UserGroupMember", back_populates="group", cascade="all, delete-orphan") 
+    members = relationship("UserGroupMember", back_populates="group", cascade="all, delete-orphan")
+    test_accesses = relationship("TestAccess", back_populates="group", cascade="all, delete-orphan") 

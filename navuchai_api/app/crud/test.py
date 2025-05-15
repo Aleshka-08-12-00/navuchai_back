@@ -13,7 +13,7 @@ from app.exceptions import NotFoundException, DatabaseException
 async def get_tests(db: AsyncSession):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code, TestStatus.name)
+            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
@@ -21,8 +21,8 @@ async def get_tests(db: AsyncSession):
             .options(selectinload(Test.image))
         )
         rows = result.all()
-        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name)
-                for test, category_name, creator_name, locale_code, status_name in rows]
+        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color)
+                for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов")
 
@@ -31,7 +31,7 @@ async def get_tests(db: AsyncSession):
 async def get_test(db: AsyncSession, test_id: int):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code, TestStatus.name)
+            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
@@ -72,7 +72,7 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
         )
         status = status_result.scalar_one_or_none()
         if not status:
-            raise NotFoundException(f"Статус с ID {test_data.category_id} не найден")
+            raise NotFoundException(f"Статус с ID {test_data.status_id} не найдена")
 
         locale_result = await db.execute(
             select(Locale).where(Locale.id == test_data.locale_id)
@@ -109,7 +109,9 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
             category.name,
             creator.name,
             locale.code,
-            status.name
+            status.name,
+            status.name_ru,
+            status.color
         )
     except IntegrityError as e:
         await db.rollback()

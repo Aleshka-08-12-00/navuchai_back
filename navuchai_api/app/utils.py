@@ -1,4 +1,4 @@
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str) -> dict:
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str) -> dict:
     return {
         "id": test.id,
         "title": test.title,
@@ -11,6 +11,10 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "access_timestamp": test.access_timestamp,
         "status_id": test.status_id,
         "status_name": status_name,
+        "status_name_ru": status_name_ru,
+        "status_color": status_color,
+        "percent": test.avg_percent,
+        "completed": test.completed_number,
         "frozen": test.frozen,
         "locale_id": test.locale_id,
         "locale_code": locale_code,

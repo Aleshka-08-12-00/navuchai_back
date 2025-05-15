@@ -17,6 +17,8 @@ class Test(Base):
     frozen = Column(Boolean, nullable=False)
     locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
+    avg_percent = Column(Integer, nullable=True, default=0)
+    completed_number = Column(Integer, nullable=True, default=0)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
@@ -27,3 +29,4 @@ class Test(Base):
     locale = relationship("Locale", back_populates="tests")
     image = relationship("File", foreign_keys=[img_id])
     status = relationship("TestStatus", back_populates="tests")
+    test_accesses = relationship("TestAccess", back_populates="test", cascade="all, delete-orphan")

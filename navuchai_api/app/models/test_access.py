@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, TIMESTAMP
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, TIMESTAMP, String
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -17,6 +17,7 @@ class TestAccess(Base):
     status_id = Column(Integer, ForeignKey("test_status.id"))
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    access_code = Column(String, nullable=True, unique=True, index=True)
 
     test = relationship("Test", back_populates="test_accesses")
     user = relationship("User", back_populates="test_accesses")
