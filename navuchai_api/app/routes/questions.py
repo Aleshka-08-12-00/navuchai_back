@@ -77,9 +77,9 @@ async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get
 
 # Создание связи между тестом и вопросом
 @router.post("/{question_id}/add-to-test/{test_id}", status_code=status.HTTP_201_CREATED)
-async def link_test_question(test_id: int, question_id: int, position: int, required: bool, max_score: int, db: AsyncSession = Depends(get_db)):
+async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db)):
     try:
-        return await create_test_question(db, test_id, question_id, position, required, max_score)
+        return await create_test_question(db, test_id, question_id)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при связывании теста и вопроса")
 
