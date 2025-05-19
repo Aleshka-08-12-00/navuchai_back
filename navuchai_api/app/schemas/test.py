@@ -41,11 +41,23 @@ class TestCreate(BaseModel):
     creator_id: Optional[int] = None
     access_timestamp: datetime
     status_id: int
-    status_name: str
-    status_name_ru: Optional[str] = None
-    status_color: Optional[str] = None
     frozen: bool
     locale_id: int
+    time_limit: Optional[int] = None
+    img_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TestUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category_id: Optional[int] = None
+    access_timestamp: Optional[datetime] = None
+    status_id: Optional[int] = None
+    frozen: Optional[bool] = None
+    locale_id: Optional[int] = None
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
 
@@ -61,15 +73,10 @@ class TestResponse(BaseModel):
     creator_id: Optional[int] = None
     access_timestamp: datetime
     status_id: int
-    status_name: str
-    status_name_ru: Optional[str] = None
-    status_color: Optional[str] = None
     frozen: bool
     locale_id: int
-    locale_code: str
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
-    image: Optional[FileInDB] = None
     created_at: datetime
     updated_at: datetime
     percent: Optional[int] = None

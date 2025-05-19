@@ -7,13 +7,14 @@ from app.crud import (
     get_test,
     create_test,
     delete_test,
+    update_test,
     admin_teacher_required,
     authorized_required
 )
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
-from app.schemas.test import TestCreate, TestResponse, TestWithDetails
+from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
@@ -45,15 +46,15 @@ async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), 
         raise DatabaseException("Ошибка при создании теста")
 
 
-# @router.put("/{test_id}", response_model=TestResponse)
-# async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = Depends(get_db)):
-#     try:
-#         updated_test = await update_test(db, test_id, test)
-#         if not updated_test:
-#             raise NotFoundException("Тест не найден")
-#         return updated_test
-#     except SQLAlchemyError:
-#         raise DatabaseException("Ошибка при обновлении теста")
+@router.put("/{test_id}", response_model=TestResponse)
+async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
+    try:
+        updated_test = await update_test(db, test_id, test)
+        if not updated_test:
+            raise NotFoundException("Тест не найден")
+        return updated_test
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при обновлении теста")
 
 
 @router.delete("/{test_id}", response_model=TestResponse)

@@ -17,8 +17,8 @@ class Test(Base):
     frozen = Column(Boolean, nullable=False)
     locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
-    avg_percent = Column(Integer, nullable=True, default=0)
-    completed_number = Column(Integer, nullable=True, default=0)
+    avg_percent = Column(Integer, nullable=True, default=50)
+    completed_number = Column(Integer, nullable=True, default=40)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

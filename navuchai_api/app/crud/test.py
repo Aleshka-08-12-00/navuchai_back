@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.models import Test, Category, User, Locale, File, TestStatus
-from app.schemas.test import TestCreate
+from app.schemas.test import TestCreate, TestUpdate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
 
@@ -125,6 +125,24 @@ async def create_test(db: AsyncSession, test_data: TestCreate):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при создании теста: {str(e)}")
+
+
+async def update_test(db: AsyncSession, test_id: int, test_update: TestUpdate):
+    try:
+        test = await get_test_by_id(db, test_id)
+        if not test:
+            raise NotFoundException("Тест не найден")
+
+        update_data = test_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(test, field, value)
+
+        await db.commit()
+        await db.refresh(test)
+        return test
+    except SQLAlchemyError:
+        await db.rollback()
+        raise DatabaseException("Ошибка при обновлении теста")
 
 
 # Удаление теста
