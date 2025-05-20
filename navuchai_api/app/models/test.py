@@ -19,6 +19,8 @@ class Test(Base):
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
     avg_percent = Column(Integer, nullable=True, default=50)
     completed_number = Column(Integer, nullable=True, default=40)
+    welcome_message = Column(String(255), nullable=True)
+    goodbye_message = Column(String(255), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

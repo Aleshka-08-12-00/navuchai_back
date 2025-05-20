@@ -31,18 +31,29 @@ async def get_tests(db: AsyncSession):
 async def get_test(db: AsyncSession, test_id: int):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
-            .join(Category, Test.category_id == Category.id)
-            .join(User, Test.creator_id == User.id)
-            .join(Locale, Test.locale_id == Locale.id)
-            .join(TestStatus, Test.status_id == TestStatus.id)
-            .options(selectinload(Test.image))
-            .filter(Test.id == test_id)
+            select(Test)
+            .options(
+                selectinload(Test.image),
+                selectinload(Test.category),
+                selectinload(Test.creator),
+                selectinload(Test.locale),
+                selectinload(Test.status)
+            )
+            .where(Test.id == test_id)
         )
-        row = result.one_or_none()
-        if not row:
+        test = result.scalar_one_or_none()
+        if not test:
             raise NotFoundException("Тест не найден")
-        return format_test_with_names(*row)
+            
+        return format_test_with_names(
+            test,
+            test.category.name,
+            test.creator.name if test.creator else None,
+            test.locale.code,
+            test.status.name,
+            test.status.name_ru,
+            test.status.color
+        )
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении данных теста")
 
@@ -57,89 +68,52 @@ async def get_test_by_id(db: AsyncSession, test_id: int):
 
 
 # Создание нового теста
-async def create_test(db: AsyncSession, test_data: TestCreate):
+async def create_test(db: AsyncSession, test: TestCreate) -> Test:
+    """
+    Создает новый тест
+    """
     try:
-        # Проверяем существование связанных сущностей
-        category_result = await db.execute(
-            select(Category).where(Category.id == test_data.category_id)
+        new_test = Test(
+            title=test.title,
+            description=test.description,
+            category_id=test.category_id,
+            creator_id=test.creator_id,
+            access_timestamp=test.access_timestamp,
+            status_id=test.status_id,
+            frozen=test.frozen,
+            locale_id=test.locale_id,
+            time_limit=test.time_limit,
+            img_id=test.img_id,
+            welcome_message=test.welcome_message,
+            goodbye_message=test.goodbye_message
         )
-        category = category_result.scalar_one_or_none()
-        if not category:
-            raise NotFoundException(f"Категория с ID {test_data.category_id} не найдена")
-
-        status_result = await db.execute(
-            select(TestStatus).where(TestStatus.id == test_data.status_id)
-        )
-        status = status_result.scalar_one_or_none()
-        if not status:
-            raise NotFoundException(f"Статус с ID {test_data.status_id} не найдена")
-
-        locale_result = await db.execute(
-            select(Locale).where(Locale.id == test_data.locale_id)
-        )
-        locale = locale_result.scalar_one_or_none()
-        if not locale:
-            raise NotFoundException(f"Локаль с ID {test_data.locale_id} не найдена")
-
-        # Получаем создателя теста
-        creator_result = await db.execute(
-            select(User).where(User.id == test_data.creator_id)
-        )
-        creator = creator_result.scalar_one_or_none()
-        if not creator:
-            raise NotFoundException(f"Пользователь с ID {test_data.creator_id} не найден")
-
-        # Если указан img_id, проверяем существование файла
-        if test_data.img_id:
-            file_result = await db.execute(
-                select(File).where(File.id == test_data.img_id)
-            )
-            file = file_result.scalar_one_or_none()
-            if not file:
-                raise NotFoundException(f"Файл с ID {test_data.img_id} не найден")
-
-        new_test = Test(**test_data.dict())
         db.add(new_test)
         await db.commit()
         await db.refresh(new_test)
-
-        # Форматируем ответ с дополнительными данными
-        return format_test_with_names(
-            new_test,
-            category.name,
-            creator.name,
-            locale.code,
-            status.name,
-            status.name_ru,
-            status.color
-        )
-    except IntegrityError as e:
+        return new_test
+    except SQLAlchemyError:
         await db.rollback()
-        error_msg = str(e.orig)
-        if "foreign key constraint" in error_msg.lower():
-            raise DatabaseException("Ошибка при создании теста: нарушение внешнего ключа. Проверьте существование связанных сущностей.")
-        elif "unique constraint" in error_msg.lower():
-            raise DatabaseException("Ошибка при создании теста: нарушение уникального ограничения.")
-        else:
-            raise DatabaseException(f"Ошибка при создании теста: {error_msg}")
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise DatabaseException(f"Ошибка при создании теста: {str(e)}")
+        raise DatabaseException("Ошибка при создании теста")
 
 
-async def update_test(db: AsyncSession, test_id: int, test_update: TestUpdate):
+async def update_test(db: AsyncSession, test_id: int, test: TestUpdate) -> Test:
+    """
+    Обновляет существующий тест
+    """
     try:
-        test = await get_test_by_id(db, test_id)
-        if not test:
+        result = await db.execute(select(Test).where(Test.id == test_id))
+        existing_test = result.scalar_one_or_none()
+        
+        if not existing_test:
             raise NotFoundException("Тест не найден")
-
-        update_data = test_update.model_dump(exclude_unset=True)
+        
+        update_data = test.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(test, field, value)
-
+            setattr(existing_test, field, value)
+        
         await db.commit()
-        await db.refresh(test)
-        return test
+        await db.refresh(existing_test)
+        return existing_test
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при обновлении теста")
@@ -158,21 +132,3 @@ async def delete_test(db: AsyncSession, test_id: int):
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при удалении теста")
-
-
-# async def update_test(db: AsyncSession, test_id: int, test: TestUpdate):
-#     try:
-#         existing_test = await get_test(db, test_id)
-#         if not existing_test:
-#             raise NotFoundException("Тест не найден")
-#
-#         update_data = test.dict(exclude_unset=True)
-#         for key, value in update_data.items():
-#             setattr(existing_test, key, value)
-#
-#         await db.commit()
-#         await db.refresh(existing_test)
-#         return existing_test
-#     except SQLAlchemyError:
-#         await db.rollback()
-#         raise DatabaseException("Ошибка при обновлении теста")

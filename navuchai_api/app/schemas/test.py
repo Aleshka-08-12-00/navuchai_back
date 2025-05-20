@@ -19,6 +19,8 @@ class TestBase(BaseModel):
     img_id: Optional[int] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
+    welcome_message: Optional[str] = None
+    goodbye_message: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -45,6 +47,10 @@ class TestCreate(BaseModel):
     locale_id: int
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    welcome_message: Optional[str] = None
+    goodbye_message: Optional[str] = None
+    percent: Optional[int] = None
+    completed: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -60,6 +66,8 @@ class TestUpdate(BaseModel):
     locale_id: Optional[int] = None
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    welcome_message: Optional[str] = None
+    goodbye_message: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -81,6 +89,8 @@ class TestResponse(BaseModel):
     updated_at: datetime
     percent: Optional[int] = None
     completed: Optional[int] = None
+    welcome_message: Optional[str] = None
+    goodbye_message: Optional[str] = None
 
     class Config:
         from_attributes = True

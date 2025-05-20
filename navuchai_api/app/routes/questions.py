@@ -42,6 +42,48 @@ async def list_questions_by_test(test_id: int, db: AsyncSession = Depends(get_db
     return questions
 
 
+@router.get("/by-test/{test_id}/public", response_model=list[QuestionWithDetails])
+async def list_questions_by_test_public(test_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Получение вопросов теста без правильных ответов для публичного доступа
+    """
+    questions = await get_questions_by_test_id(db, test_id)
+    if not questions:
+        raise NotFoundException("No questions found for this test")
+    
+    # Преобразуем вопросы в словари и удаляем correctAnswer
+    result = []
+    for question in questions:
+        # Преобразуем объект Question в словарь
+        question_dict = {
+            'question': {
+                'id': question['question'].id,
+                'text': question['question'].text,
+                'text_abstract': question['question'].text_abstract,
+                'type': question['question'].type,
+                'reviewable': question['question'].reviewable,
+                'answers': question['question'].answers,
+                'created_at': question['question'].created_at,
+                'updated_at': question['question'].updated_at
+            },
+            'position': question['position'],
+            'required': question['required'],
+            'max_score': question['max_score']
+        }
+        
+        # Удаляем правильные ответы
+        if 'answers' in question_dict['question']:
+            answers = question_dict['question']['answers']
+            if 'correctAnswer' in answers:
+                del answers['correctAnswer']
+            if 'correct' in answers:
+                del answers['correct']
+        
+        result.append(question_dict)
+    
+    return result
+
+
 # Создание нового вопроса
 @router.post("/", response_model=QuestionResponse)
 async def create_new_question(question: QuestionCreate, db: AsyncSession = Depends(get_db)):
