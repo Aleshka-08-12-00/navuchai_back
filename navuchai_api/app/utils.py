@@ -1,7 +1,8 @@
-def format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color):
-    """
-    Форматирует тест с дополнительными данными из связанных таблиц
-    """
+from app.models import Result, UserAnswer
+from app.schemas.result import ResultResponse, UserAnswerResponse
+
+
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str) -> dict:
     return {
         "id": test.id,
         "title": test.title,
@@ -41,3 +42,30 @@ def format_test_with_names(test, category_name, creator_name, locale_code, statu
 #         "created_at": user.created_at,
 #         "updated_at": user.updated_at
 #     }
+
+
+def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
+    """Преобразует модель UserAnswer в схему UserAnswerResponse"""
+    return UserAnswerResponse(
+        id=answer.id,
+        result_id=answer.result_id,
+        question_id=answer.question_id,
+        user_id=answer.user_id,
+        options=answer.options,
+        created_at=answer.created_at,
+        updated_at=answer.updated_at
+    )
+
+
+def convert_result(result: Result) -> ResultResponse:
+    """Преобразует модель Result в схему ResultResponse"""
+    return ResultResponse(
+        id=result.id,
+        user_id=result.user_id,
+        test_id=result.test_id,
+        score=result.score,
+        completed_at=result.completed_at,
+        created_at=result.created_at,
+        updated_at=result.updated_at,
+        answers=[convert_user_answer(answer) for answer in result.user_answers]
+    )

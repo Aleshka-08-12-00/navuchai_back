@@ -5,7 +5,7 @@ from app.models import Base
 from app.routes import (
     tests, questions, user, auth, profile,
     category, locale, files, role, user_groups,
-    test_access, test_status
+    test_access, test_status, results
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -31,6 +31,7 @@ app.include_router(role.router)
 app.include_router(user_groups.router)
 app.include_router(test_access.router)
 app.include_router(test_status.router)
+app.include_router(results.router)
 
 
 @app.on_event("startup")

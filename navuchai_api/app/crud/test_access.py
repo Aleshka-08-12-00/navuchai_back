@@ -32,10 +32,7 @@ async def create_test_access(
         db_test_access = TestAccess(**data_for_model)
 
         if test_access_data.user_id:
-            db_test_access.access_code = _generate_access_code(
-                test_id=test_access_data.test_id,
-                user_id=test_access_data.user_id
-            )
+            db_test_access.access_code = _generate_access_code()
         else:
             # Если user_id не предоставлен, генерация access_code для него может быть невозможна
             # или должна быть особая логика. Пока оставляем pass.
