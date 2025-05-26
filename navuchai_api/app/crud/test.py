@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.models import Test, Category, User, Locale, File, TestStatus
+from app.models.test import TestAccessEnum
 from app.schemas.test import TestCreate, TestUpdate
 from app.utils import format_test_with_names
 from app.exceptions import NotFoundException, DatabaseException
@@ -85,15 +86,23 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             time_limit=test.time_limit,
             img_id=test.img_id,
             welcome_message=test.welcome_message,
-            goodbye_message=test.goodbye_message
+            goodbye_message=test.goodbye_message,
+            access=test.access,
+            avg_percent=test.percent,
+            completed_number=test.completed
         )
         db.add(new_test)
         await db.commit()
         await db.refresh(new_test)
         return new_test
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await db.rollback()
-        raise DatabaseException("Ошибка при создании теста")
+        print(f"Ошибка при создании теста: {str(e)}")
+        raise DatabaseException(f"Ошибка при создании теста: {str(e)}")
+    except Exception as e:
+        await db.rollback()
+        print(f"Неожиданная ошибка при создании теста: {str(e)}")
+        raise DatabaseException(f"Неожиданная ошибка при создании теста: {str(e)}")
 
 
 async def update_test(db: AsyncSession, test_id: int, test: TestUpdate) -> Test:

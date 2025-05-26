@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
+from app.models.test import TestAccessEnum
 
 
 class TestBase(BaseModel):
@@ -21,6 +22,7 @@ class TestBase(BaseModel):
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
+    access: TestAccessEnum
 
     class Config:
         orm_mode = True
@@ -51,6 +53,7 @@ class TestCreate(BaseModel):
     goodbye_message: Optional[str] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
+    access: TestAccessEnum = TestAccessEnum.PRIVATE
 
     class Config:
         from_attributes = True
@@ -85,12 +88,13 @@ class TestResponse(BaseModel):
     locale_id: int
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
-    created_at: datetime
-    updated_at: datetime
     percent: Optional[int] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
+    access: TestAccessEnum
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -115,6 +119,7 @@ class TestListResponse(BaseModel):
     image: Optional[FileInDB] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
+    access: TestAccessEnum
 
     class Config:
         from_attributes = True

@@ -8,6 +8,7 @@ from app.crud import admin_teacher_required
 from app.crud import test_access as crud
 from app.models.user import User
 from app.schemas.test_access import TestAccessCreate, TestAccessResponse
+from app.schemas.test import TestResponse
 from app.exceptions import DatabaseException, NotFoundException
 
 router = APIRouter(prefix="/api/test-access", tags=["Test Access"])
@@ -58,5 +59,38 @@ async def create_group_test_access(
             end_date=end_date,
             status_id=status_id
         )
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{test_id}/access", response_model=TestResponse)
+async def update_test_access_type(
+    test_id: int,
+    access: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_teacher_required)
+) -> TestResponse:
+    """
+    Изменение типа доступа к тесту (public/private)
+    """
+    try:
+        return await crud.update_test_access(db, test_id, access)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{test_id}/code", response_model=dict)
+async def get_test_access_code(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_teacher_required)
+) -> dict:
+    """
+    Получение кода доступа к тесту:
+    - Если тест публичный, возвращает code из таблицы tests
+    - Если тест приватный, возвращает access_code из таблицы test_access
+    """
+    try:
+        return await crud.get_test_access_code(db, test_id, current_user.id)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e)) 

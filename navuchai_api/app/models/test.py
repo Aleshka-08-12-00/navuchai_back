@@ -1,7 +1,13 @@
-from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean
+from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
+import enum
+
+
+class TestAccessEnum(str, enum.Enum):
+    PUBLIC = 'public'
+    PRIVATE = 'private'
 
 
 class Test(Base):
@@ -21,6 +27,8 @@ class Test(Base):
     completed_number = Column(Integer, nullable=True, default=40)
     welcome_message = Column(String(255), nullable=True)
     goodbye_message = Column(String(255), nullable=True)
+    access = Column(Enum(TestAccessEnum, name='test_access_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=TestAccessEnum.PRIVATE)
+    code = Column(String, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

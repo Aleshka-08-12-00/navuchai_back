@@ -27,7 +27,8 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "welcome_message": test.welcome_message,
         "goodbye_message": test.goodbye_message,
         "created_at": test.created_at,
-        "updated_at": test.updated_at
+        "updated_at": test.updated_at,
+        "access": test.access
     }
 
 

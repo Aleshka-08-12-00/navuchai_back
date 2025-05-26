@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,6 +9,7 @@ import secrets
 from app.models.test_access import TestAccess
 from app.models.user_group_member import UserGroupMember
 from app.models.test_status import TestStatus
+from app.models.test import Test, TestAccessEnum
 from app.schemas.test_access import TestAccessCreate
 from app.exceptions import DatabaseException, NotFoundException
 
@@ -113,3 +114,69 @@ async def get_test_access(
         return result.scalar_one_or_none()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении информации о доступе к тесту")
+
+
+async def update_test_access(
+        db: AsyncSession,
+        test_id: int,
+        access: str
+) -> Test:
+    """Изменение значения access в тесте"""
+    try:
+        if access not in ['public', 'private']:
+            raise ValueError("Значение access должно быть 'public' или 'private'")
+
+        # Проверяем существование теста
+        query = select(Test).where(Test.id == test_id)
+        result = await db.execute(query)
+        test = result.scalar_one_or_none()
+        
+        if not test:
+            raise NotFoundException(f"Тест с ID {test_id} не найден")
+
+        # Обновляем значение access
+        stmt = update(Test).where(Test.id == test_id).values(access=access)
+        await db.execute(stmt)
+        await db.commit()
+
+        # Получаем обновленный тест
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при обновлении доступа к тесту")
+    except ValueError as e:
+        raise DatabaseException(str(e))
+
+
+async def get_test_access_code(db: AsyncSession, test_id: int, user_id: int) -> dict:
+    """
+    Получение кода доступа к тесту:
+    - Если тест публичный, возвращает code из таблицы tests
+    - Если тест приватный, возвращает access_code из таблицы test_access
+    """
+    # Получаем тест
+    test = await db.execute(
+        select(Test).where(Test.id == test_id)
+    )
+    test = test.scalar_one_or_none()
+    
+    if not test:
+        raise NotFoundException(f"Тест с id {test_id} не найден")
+    
+    # Если тест публичный, возвращаем его code
+    if test.access == TestAccessEnum.PUBLIC:
+        return {"code": test.code}
+    
+    # Если тест приватный, ищем access_code в таблице test_access
+    test_access = await db.execute(
+        select(TestAccess).where(
+            TestAccess.test_id == test_id,
+            TestAccess.user_id == user_id
+        )
+    )
+    test_access = test_access.scalar_one_or_none()
+    
+    if not test_access:
+        raise NotFoundException(f"Доступ к тесту {test_id} для пользователя {user_id} не найден")
+    
+    return {"access_code": test_access.access_code}
