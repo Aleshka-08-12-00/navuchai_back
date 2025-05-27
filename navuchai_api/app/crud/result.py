@@ -6,6 +6,8 @@ from sqlalchemy.orm import selectinload
 from app.models import Result, UserAnswer, Test, Question, User
 from app.schemas.result import ResultCreate
 from app.exceptions import NotFoundException, DatabaseException
+from app.utils.answer_checker import process_test_results
+from app.crud.question import get_questions_by_test_id
 
 
 async def create_result(db: AsyncSession, result_data: ResultCreate):
@@ -26,14 +28,21 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         if not user:
             raise NotFoundException(f"Пользователь с ID {result_data.user_id} не найден")
 
+        # Получаем все вопросы теста с их параметрами
+        questions = await get_questions_by_test_id(db, result_data.test_id)
+        
+        # Обрабатываем ответы и получаем результаты
+        test_results = process_test_results(questions, result_data.answers)
+        
         # Создаем результат
         new_result = Result(
             test_id=result_data.test_id,
             user_id=result_data.user_id,
-            score=result_data.score
+            score=test_results['total_score'],
+            result=test_results
         )
         db.add(new_result)
-        await db.flush()  # Получаем ID результата
+        await db.flush()
 
         # Создаем ответы пользователя
         for answer in result_data.answers:
@@ -75,11 +84,11 @@ async def get_result(db: AsyncSession, result_id: int):
         result_obj = result.scalar_one_or_none()
 
         if not result_obj:
-            return None
+            raise NotFoundException(f"Результат с ID {result_id} не найден")
 
         return result_obj
     except SQLAlchemyError as e:
-        print(f"Ошибка при получении результата: {str(e)}")
+        await db.rollback()
         raise DatabaseException(f"Ошибка при получении результата: {str(e)}")
 
 
@@ -96,7 +105,7 @@ async def get_user_results(db: AsyncSession, user_id: int):
 
         return results
     except SQLAlchemyError as e:
-        print(f"Ошибка при получении результатов пользователя: {str(e)}")
+        await db.rollback()
         raise DatabaseException(f"Ошибка при получении результатов пользователя: {str(e)}")
 
 
@@ -113,5 +122,5 @@ async def get_test_results(db: AsyncSession, test_id: int):
 
         return results
     except SQLAlchemyError as e:
-        print(f"Ошибка при получении результатов теста: {str(e)}")
+        await db.rollback()
         raise DatabaseException(f"Ошибка при получении результатов теста: {str(e)}")
