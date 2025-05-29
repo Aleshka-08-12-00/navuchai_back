@@ -90,4 +90,16 @@ async def get_test_results(
         results = await result_crud.get_test_results(db, test_id)
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
-        raise DatabaseException("Ошибка при получении результатов теста") 
+        raise DatabaseException("Ошибка при получении результатов теста")
+
+
+@router.get("/", response_model=List[ResultResponse])
+async def get_all_results(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)  # user: User = Depends(admin_teacher_required)):
+):
+    try:
+        results = await result_crud.get_all_results(db)
+        return [convert_result(result) for result in results]
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка результатов") 

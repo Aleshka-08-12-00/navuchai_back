@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from typing import List
 
 from app.models import Result, UserAnswer, Test, Question, User
 from app.schemas.result import ResultCreate
@@ -92,21 +93,16 @@ async def get_result(db: AsyncSession, result_id: int):
         raise DatabaseException(f"Ошибка при получении результата: {str(e)}")
 
 
-async def get_user_results(db: AsyncSession, user_id: int):
+async def get_user_results(db: AsyncSession, user_id: int) -> List[Result]:
     try:
-        # Получаем результаты с ответами
-        stmt = (
+        result = await db.execute(
             select(Result)
-            .options(selectinload(Result.user_answers))
             .where(Result.user_id == user_id)
+            .order_by(Result.created_at.desc())
         )
-        result = await db.execute(stmt)
-        results = result.scalars().all()
-
-        return results
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise DatabaseException(f"Ошибка при получении результатов пользователя: {str(e)}")
+        return result.scalars().all()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении результатов пользователя")
 
 
 async def get_test_results(db: AsyncSession, test_id: int):
@@ -124,3 +120,20 @@ async def get_test_results(db: AsyncSession, test_id: int):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при получении результатов теста: {str(e)}")
+
+
+async def get_all_results(db: AsyncSession) -> List[Result]:
+    try:
+        # Получаем результаты с ответами
+        stmt = (
+            select(Result)
+            .options(selectinload(Result.user_answers))
+            .order_by(Result.created_at.desc())
+        )
+        result = await db.execute(stmt)
+        results = result.scalars().all()
+
+        return results
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при получении списка результатов: {str(e)}")
