@@ -28,7 +28,9 @@ class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     email: Optional[str] = None
-    password: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class UserResponse(UserBase):
@@ -45,3 +47,11 @@ class UserResponse(UserBase):
 
 class UserRoleUpdate(BaseModel):
     role_code: RoleCode
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+    class Config:
+        from_attributes = True
