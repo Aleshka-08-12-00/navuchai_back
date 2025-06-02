@@ -54,8 +54,6 @@ class TestCreate(BaseModel):
     thumbnail_id: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
-    percent: Optional[int] = None
-    completed: Optional[int] = None
     access: TestAccessEnum = TestAccessEnum.PRIVATE
 
     class Config:
