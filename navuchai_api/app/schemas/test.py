@@ -18,6 +18,7 @@ class TestBase(BaseModel):
     locale_id: int
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
@@ -36,6 +37,7 @@ class TestWithDetails(TestBase):
     status_name_ru: Optional[str] = None
     status_color: Optional[str] = None
     image: Optional[FileInDB] = None
+    thumbnail: Optional[FileInDB] = None
 
 
 class TestCreate(BaseModel):
@@ -49,6 +51,7 @@ class TestCreate(BaseModel):
     locale_id: int
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     percent: Optional[int] = None
@@ -69,6 +72,7 @@ class TestUpdate(BaseModel):
     locale_id: Optional[int] = None
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
 
@@ -88,6 +92,7 @@ class TestResponse(BaseModel):
     locale_id: int
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
@@ -116,7 +121,9 @@ class TestListResponse(BaseModel):
     locale_code: str
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     image: Optional[FileInDB] = None
+    thumbnail: Optional[FileInDB] = None
     percent: Optional[int] = None
     completed: Optional[int] = None
     access: TestAccessEnum

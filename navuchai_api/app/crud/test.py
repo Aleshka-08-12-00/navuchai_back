@@ -20,6 +20,7 @@ async def get_tests(db: AsyncSession):
             .join(Locale, Test.locale_id == Locale.id)
             .join(TestStatus, Test.status_id == TestStatus.id)
             .options(selectinload(Test.image))
+            .options(selectinload(Test.thumbnail))
         )
         rows = result.all()
         return [format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color)
@@ -35,6 +36,7 @@ async def get_test(db: AsyncSession, test_id: int):
             select(Test)
             .options(
                 selectinload(Test.image),
+                selectinload(Test.thumbnail),
                 selectinload(Test.category),
                 selectinload(Test.creator),
                 selectinload(Test.locale),
@@ -85,6 +87,7 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             locale_id=test.locale_id,
             time_limit=test.time_limit,
             img_id=test.img_id,
+            thumbnail_id=test.thumbnail_id,
             welcome_message=test.welcome_message,
             goodbye_message=test.goodbye_message,
             access=test.access,
