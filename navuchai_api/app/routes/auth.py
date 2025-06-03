@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 
-from app.auth import verify_password, create_access_token, get_password_hash
+from app.auth import verify_password, create_access_token, get_password_hash, create_refresh_token, decode_token
 from app.crud import authorized_required
 from app.dependencies import get_db
 from app.exceptions import BadRequestException, DatabaseException
@@ -41,8 +41,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             raise BadRequestException("Неверное имя пользователя или пароль")
 
         token = create_access_token({"sub": str(user.id)})
+        refresh_token = create_refresh_token({"sub": str(user.id)})
         logger.info(f"Успешный вход пользователя: {form_data.username}")
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при входе: {str(e)}")
         raise DatabaseException(f"Ошибка при аутентификации: {str(e)}")
@@ -79,8 +80,9 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         await db.refresh(new_user)
 
         token = create_access_token({"sub": str(new_user.id)})
+        refresh_token = create_refresh_token({"sub": str(new_user.id)})
         logger.info(f"Успешная регистрация пользователя: {user_data.username}")
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при регистрации: {str(e)}")
         raise DatabaseException(f"Ошибка при регистрации пользователя: {str(e)}")
@@ -105,3 +107,19 @@ async def get_me(user=Depends(authorized_required)):
     except Exception as e:
         logger.error(f"Ошибка при получении информации о пользователе: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+
+
+from pydantic import BaseModel
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token_endpoint(data: RefreshTokenRequest):
+    payload = decode_token(data.refresh_token)
+    if not payload or payload.get("type") != "refresh" or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Недействительный refresh token")
+    user_id = payload["sub"]
+    access_token = create_access_token({"sub": str(user_id)})
+    new_refresh_token = create_refresh_token({"sub": str(user_id)})
+    return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
