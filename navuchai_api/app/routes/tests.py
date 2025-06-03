@@ -8,7 +8,7 @@ from app.crud import (
     create_test,
     delete_test,
     update_test,
-    admin_teacher_required,
+    admin_moderator_required,
     authorized_required
 )
 from app.dependencies import get_db
@@ -39,7 +39,7 @@ async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)): #, u
 
 
 @router.post("/", response_model=TestResponse)
-async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
+async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         return await create_test(db, test)
     except SQLAlchemyError:
@@ -47,7 +47,7 @@ async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), 
 
 
 @router.put("/{test_id}", response_model=TestResponse)
-async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
+async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         updated_test = await update_test(db, test_id, test)
         if not updated_test:
@@ -58,7 +58,7 @@ async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = D
 
 
 @router.delete("/{test_id}", response_model=TestResponse)
-async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_teacher_required)):
+async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         test = await delete_test(db, test_id)
         if not test:

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 
 from app.dependencies import get_db
-from app.crud import admin_teacher_required
+from app.crud import admin_moderator_required
 from app.crud import test_access as crud
 from app.models.user import User
 from app.schemas.test_access import TestAccessCreate, TestAccessResponse
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/test-access", tags=["Test Access"])
 async def create_user_test_access(
     test_access: TestAccessCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> TestAccessResponse:
     try:
         if test_access.group_id is not None:
@@ -48,7 +48,7 @@ async def create_group_test_access(
     end_date: datetime = None,
     status_id: int = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> List[TestAccessResponse]:
     try:
         return await crud.create_group_test_access(
@@ -68,7 +68,7 @@ async def update_test_access_type(
     test_id: int,
     access: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> TestResponse:
     """
     Изменение типа доступа к тесту (public/private)
@@ -83,7 +83,7 @@ async def update_test_access_type(
 async def get_test_access_code(
     test_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> dict:
     """
     Получение кода доступа к тесту:

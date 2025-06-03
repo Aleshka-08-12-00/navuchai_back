@@ -9,7 +9,7 @@ import os
 
 from app.dependencies import get_db
 from app.models import User
-from app.crud import admin_teacher_required
+from app.crud import admin_moderator_required
 from app.exceptions import DatabaseException
 from app.schemas.file import FileUploadResponse, FileCreate
 from app.crud import file as file_crud
@@ -37,7 +37,7 @@ router = APIRouter(prefix="/api/files", tags=["Files"])
 @router.post("/upload/", response_model=FileUploadResponse)
 async def upload_file(
         file: UploadFile = File(...),
-        current_user: User = Depends(admin_teacher_required),
+        current_user: User = Depends(admin_moderator_required),
         db: AsyncSession = Depends(get_db)
 ):
 

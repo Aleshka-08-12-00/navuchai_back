@@ -1,4 +1,4 @@
-from .permissions import role_required, admin_required, teacher_required, student_required, admin_teacher_required, \
+from .permissions import role_required, admin_required, moderator_required, user_required, admin_moderator_required, \
     authorized_required
 from .question import get_questions, get_question, create_question, update_question, delete_question, \
     get_questions_by_test_id

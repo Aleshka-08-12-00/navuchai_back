@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.crud import admin_teacher_required, authorized_required
+from app.crud import admin_moderator_required, authorized_required
 from app.crud import user_group as crud
 from app.schemas.user_group import (
     UserGroupCreate,
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/user-groups", tags=["User Groups"])
 async def create_user_group(
     group_data: UserGroupCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> UserGroupResponse:
     return await crud.create_group(db, group_data, current_user.id)
 
@@ -47,7 +47,7 @@ async def update_user_group(
     group_id: int,
     group_data: UserGroupUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> UserGroupResponse:
     group = await crud.get_group(db, group_id)
     if group.creator_id != current_user.id and current_user.role.code != "admin":
@@ -59,7 +59,7 @@ async def update_user_group(
 async def delete_user_group(
     group_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> UserGroupResponse:
     group = await crud.get_group(db, group_id)
     if group.creator_id != current_user.id and current_user.role.code != "admin":
@@ -72,7 +72,7 @@ async def add_user_to_group(
     group_id: int,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> UserGroupMemberInDB:
     group = await crud.get_group(db, group_id)
     if group.creator_id != current_user.id and current_user.role.code != "admin":
@@ -85,7 +85,7 @@ async def remove_user_from_group(
     group_id: int,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_teacher_required)
+    current_user: User = Depends(admin_moderator_required)
 ) -> UserGroupMemberInDB:
     group = await crud.get_group(db, group_id)
     if group.creator_id != current_user.id and current_user.role.code != "admin":
