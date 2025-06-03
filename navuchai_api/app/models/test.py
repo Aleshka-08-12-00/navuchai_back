@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean, Enum
+from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean, Enum, text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -29,7 +29,7 @@ class Test(Base):
     welcome_message = Column(String(255), nullable=True)
     goodbye_message = Column(String(255), nullable=True)
     access = Column(Enum(TestAccessEnum, name='test_access_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=TestAccessEnum.PRIVATE)
-    code = Column(String, nullable=True)
+    code = Column(String, nullable=True, server_default=text("encode(gen_random_bytes(16), 'base64')"))
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
