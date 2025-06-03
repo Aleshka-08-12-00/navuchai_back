@@ -40,8 +40,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             logger.warning(f"Неверный пароль для пользователя: {form_data.username}")
             raise BadRequestException("Неверное имя пользователя или пароль")
 
-        token = create_access_token({"sub": str(user.id)})
-        refresh_token = create_refresh_token({"sub": str(user.id)})
+        token = create_access_token({"sub": str(user.id), "role": user.role.code})
+        refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.code})
         logger.info(f"Успешный вход пользователя: {form_data.username}")
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
@@ -79,8 +79,19 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         await db.commit()
         await db.refresh(new_user)
 
-        token = create_access_token({"sub": str(new_user.id)})
-        refresh_token = create_refresh_token({"sub": str(new_user.id)})
+        # Получаем роль пользователя
+        role_code = None
+        if new_user.role:
+            role_code = new_user.role.code
+        else:
+            # Если роль не подгрузилась, делаем отдельный запрос
+            result = await db.execute(select(User).options(selectinload(User.role)).where(User.id == new_user.id))
+            user_with_role = result.scalar_one_or_none()
+            if user_with_role and user_with_role.role:
+                role_code = user_with_role.role.code
+
+        token = create_access_token({"sub": str(new_user.id), "role": role_code})
+        refresh_token = create_refresh_token({"sub": str(new_user.id), "role": role_code})
         logger.info(f"Успешная регистрация пользователя: {user_data.username}")
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
@@ -115,11 +126,13 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token_endpoint(data: RefreshTokenRequest):
+async def refresh_token_endpoint(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(data.refresh_token)
     if not payload or payload.get("type") != "refresh" or "sub" not in payload:
         raise HTTPException(status_code=401, detail="Недействительный refresh token")
     user_id = payload["sub"]
-    access_token = create_access_token({"sub": str(user_id)})
-    new_refresh_token = create_refresh_token({"sub": str(user_id)})
+    role = payload.get("role")
+    # На всякий случай можно получить роль из БД, если нужно
+    access_token = create_access_token({"sub": str(user_id), "role": role})
+    new_refresh_token = create_refresh_token({"sub": str(user_id), "role": role})
     return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
