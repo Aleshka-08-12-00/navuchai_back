@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List
+from fastapi.responses import StreamingResponse
+import pandas as pd
+from io import BytesIO
 
 from app.crud import result as result_crud
 from app.crud import authorized_required
@@ -10,7 +13,6 @@ from app.exceptions import NotFoundException, DatabaseException, ForbiddenExcept
 from app.models import User, Result, UserAnswer
 from app.schemas.result import ResultCreate, ResultResponse, UserAnswerResponse
 from app.utils import convert_result
-
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -28,17 +30,51 @@ def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
     )
 
 
+@router.get("/excel")
+async def export_results_excel(
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
+):
+    try:
+        results = await result_crud.get_all_results(db)
+        # Преобразуем результаты в список словарей
+        data = []
+        for r in results:
+            data.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "test_id": r.test_id,
+                "score": r.score,
+                "completed_at": r.completed_at,
+                "created_at": r.created_at,
+                "updated_at": r.updated_at,
+                # Можно добавить больше полей по необходимости
+            })
+        df = pd.DataFrame(data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=results.xlsx"}
+        )
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при экспорте результатов в Excel")
+
+
 @router.post("/", response_model=ResultResponse)
 async def create_test_result(
-    result: ResultCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        result: ResultCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     try:
         # Проверяем, что пользователь создает результат для себя
         if result.user_id != current_user.id:
             raise ForbiddenException("Нельзя создать результат для другого пользователя")
-        
+
         created_result = await result_crud.create_result(db, result)
         return convert_result(created_result)
     except SQLAlchemyError:
@@ -47,17 +83,17 @@ async def create_test_result(
 
 @router.get("/{result_id}", response_model=ResultResponse)
 async def get_result_by_id(
-    result_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        result_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     try:
         result = await result_crud.get_result(db, result_id)
-        
+
         # Проверяем, что пользователь запрашивает свой результат
         if result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
-        
+
         return convert_result(result)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результата")
@@ -65,15 +101,15 @@ async def get_result_by_id(
 
 @router.get("/user/{user_id}", response_model=List[ResultResponse])
 async def get_user_results(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        user_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     try:
         # Проверяем, что пользователь запрашивает свои результаты
         if user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
-            
+
         results = await result_crud.get_user_results(db, user_id)
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
@@ -82,9 +118,9 @@ async def get_user_results(
 
 @router.get("/test/{test_id}", response_model=List[ResultResponse])
 async def get_test_results(
-    test_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     try:
         results = await result_crud.get_test_results(db, test_id)
@@ -95,11 +131,11 @@ async def get_test_results(
 
 @router.get("/", response_model=List[ResultResponse])
 async def get_all_results(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)  # user: User = Depends(admin_teacher_required)):
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)  # user: User = Depends(admin_teacher_required)):
 ):
     try:
         results = await result_crud.get_all_results(db)
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
-        raise DatabaseException("Ошибка при получении списка результатов") 
+        raise DatabaseException("Ошибка при получении списка результатов")
