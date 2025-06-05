@@ -37,19 +37,31 @@ async def export_results_excel(
 ):
     try:
         results = await result_crud.get_all_results(db)
-        # Преобразуем результаты в список словарей
         data = []
         for r in results:
-            data.append({
-                "id": r.id,
-                "user_id": r.user_id,
-                "test_id": r.test_id,
-                "score": r.score,
-                "completed_at": r.completed_at,
-                "created_at": r.created_at,
-                "updated_at": r.updated_at,
-                # Можно добавить больше полей по необходимости
-            })
+            # result.result может быть None, если старые записи
+            result_json = r.result or {}
+            checked_answers = result_json.get("checked_answers", [])
+            percentage = result_json.get("percentage", None)
+            for ans in checked_answers:
+                data.append({
+                    "attempt_id": r.id,
+                    "test_id": r.test_id,
+                    "user_id": r.user_id,
+                    "score": r.score,
+                    "percentage": percentage,
+                    "completed_at": r.completed_at,
+                    "created_at": r.created_at,
+                    "updated_at": r.updated_at,
+                    "question_id": ans.get("question_id"),
+                    "question_text": ans.get("question_text"),
+                    "question_type": ans.get("question_type"),
+                    "user_answer": str(ans.get("check_details", {}).get("user_answer")),
+                    "correct_answer": str(ans.get("check_details", {}).get("correct_answer")),
+                    "is_correct": ans.get("is_correct"),
+                    "score_for_question": ans.get("score"),
+                    "max_score": ans.get("max_score"),
+                })
         df = pd.DataFrame(data)
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:

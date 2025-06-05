@@ -24,32 +24,31 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     try:
         logger.info(f"Попытка входа пользователя: {form_data.username}")
-        
+        # Сначала ищем по username
         result = await db.execute(
             select(User)
             .options(selectinload(User.role))
             .where(User.username == form_data.username)
         )
         user = result.scalar_one_or_none()
-
+        # Если не найдено — ищем по email
         if not user:
-            logger.warning(f"Пользователь не найден: {form_data.username}")
-            raise BadRequestException("Неверное имя пользователя или пароль")
-
-        if not verify_password(form_data.password, user.password):
-            logger.warning(f"Неверный пароль для пользователя: {form_data.username}")
-            raise BadRequestException("Неверное имя пользователя или пароль")
-
+            result = await db.execute(
+                select(User)
+                .options(selectinload(User.role))
+                .where(User.email == form_data.username)
+            )
+            user = result.scalar_one_or_none()
+        if not user or not verify_password(form_data.password, user.password):
+            logger.warning(f"Ошибка входа: пользователь не найден или неверный пароль: {form_data.username}")
+            raise BadRequestException("Неверное имя пользователя/email или пароль")
         token = create_access_token({"sub": str(user.id), "role": user.role.code})
         refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.code})
         logger.info(f"Успешный вход пользователя: {form_data.username}")
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при входе: {str(e)}")
-        raise DatabaseException(f"Ошибка при аутентификации: {str(e)}")
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка при входе: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
+        raise DatabaseException("Ошибка при аутентификации пользователя")
 
 
 @router.post("/register", response_model=Token)
