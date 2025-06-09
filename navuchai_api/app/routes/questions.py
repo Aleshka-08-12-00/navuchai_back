@@ -64,6 +64,7 @@ async def list_questions_by_test_public(test_id: int, db: AsyncSession = Depends
                 'type': question['question'].type,
                 'reviewable': question['question'].reviewable,
                 'answers': question['question'].answers,
+                'time_limit': question['question'].time_limit,
                 'created_at': question['question'].created_at,
                 'updated_at': question['question'].updated_at
             },

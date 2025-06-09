@@ -11,6 +11,7 @@ class QuestionBase(BaseModel):
     type: str
     reviewable: bool
     answers: dict
+    time_limit: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
 
@@ -31,6 +32,7 @@ class QuestionCreate(BaseModel):
     type: str
     reviewable: bool
     answers: Dict[str, Any]
+    time_limit: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -43,6 +45,7 @@ class QuestionResponse(BaseModel):
     type: str
     reviewable: bool
     answers: Dict[str, Any]
+    time_limit: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
 
@@ -56,6 +59,7 @@ class QuestionUpdate(BaseModel):
     type: Optional[str] = None
     reviewable: Optional[bool] = None
     answers: Optional[Dict[str, Any]] = None
+    time_limit: Optional[int] = None
 
     class Config:
         from_attributes = True

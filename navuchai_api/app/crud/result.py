@@ -3,13 +3,16 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from typing import List
+from datetime import datetime
 
 from app.models import Result, UserAnswer, Test, Question, User
 from app.schemas.result import ResultCreate
 from app.exceptions import NotFoundException, DatabaseException
 from app.utils.answer_checker import process_test_results
 from app.crud.question import get_questions_by_test_id
+import logging
 
+logger = logging.getLogger(__name__)
 
 async def create_result(db: AsyncSession, result_data: ResultCreate):
     try:
@@ -33,7 +36,19 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         questions = await get_questions_by_test_id(db, result_data.test_id)
         
         # Обрабатываем ответы и получаем результаты
-        test_results = process_test_results(questions, result_data.answers)
+        test_results = process_test_results(questions, result_data.answers, test.time_limit)
+        
+        # Преобразуем datetime в строки
+        for answer in test_results['checked_answers']:
+            if isinstance(answer.get('time_start'), datetime):
+                answer['time_start'] = answer['time_start'].isoformat()
+            if isinstance(answer.get('time_end'), datetime):
+                answer['time_end'] = answer['time_end'].isoformat()
+        
+        # Добавляем информацию о времени в результаты
+        test_results['time_start'] = result_data.time_start.isoformat()
+        test_results['time_end'] = result_data.time_end.isoformat()
+        test_results['total_time_seconds'] = int((result_data.time_end - result_data.time_start).total_seconds())
         
         # Создаем результат
         new_result = Result(
@@ -55,11 +70,16 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
             if not question:
                 raise NotFoundException(f"Вопрос с ID {answer.question_id} не найден")
 
+            # Добавляем время в JSON ответа
+            answer_data = answer.answer.copy()
+            answer_data['time_start'] = answer.time_start.isoformat()
+            answer_data['time_end'] = answer.time_end.isoformat()
+
             new_answer = UserAnswer(
                 result_id=new_result.id,
                 question_id=answer.question_id,
                 user_id=result_data.user_id,
-                answer=answer.answer
+                answer=answer_data
             )
             db.add(new_answer)
 
@@ -70,6 +90,7 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
 
     except SQLAlchemyError as e:
         await db.rollback()
+        logger.error(f"Ошибка при создании результата: {str(e)}")
         raise DatabaseException(f"Ошибка при сохранении результата: {str(e)}")
 
 
