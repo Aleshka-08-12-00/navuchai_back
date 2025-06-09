@@ -42,8 +42,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         if not user or not verify_password(form_data.password, user.password):
             logger.warning(f"Ошибка входа: пользователь не найден или неверный пароль: {form_data.username}")
             raise BadRequestException("Неверное имя пользователя/email или пароль")
-        token = create_access_token({"sub": str(user.id), "role": user.role.code})
-        refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role.code})
+        token = create_access_token({
+            "sub": str(user.id), 
+            "role": user.role.code,
+            "username": user.username,
+            "email": user.email
+        })
+        refresh_token = create_refresh_token({
+            "sub": str(user.id), 
+            "role": user.role.code,
+            "username": user.username,
+            "email": user.email
+        })
         logger.info(f"Успешный вход пользователя: {form_data.username}")
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
@@ -89,8 +99,18 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
             if user_with_role and user_with_role.role:
                 role_code = user_with_role.role.code
 
-        token = create_access_token({"sub": str(new_user.id), "role": role_code})
-        refresh_token = create_refresh_token({"sub": str(new_user.id), "role": role_code})
+        token = create_access_token({
+            "sub": str(new_user.id), 
+            "role": role_code,
+            "username": new_user.username,
+            "email": new_user.email
+        })
+        refresh_token = create_refresh_token({
+            "sub": str(new_user.id), 
+            "role": role_code,
+            "username": new_user.username,
+            "email": new_user.email
+        })
         logger.info(f"Успешная регистрация пользователя: {user_data.username}")
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
@@ -131,7 +151,19 @@ async def refresh_token_endpoint(data: RefreshTokenRequest, db: AsyncSession = D
         raise HTTPException(status_code=401, detail="Недействительный refresh token")
     user_id = payload["sub"]
     role = payload.get("role")
+    username = payload.get("username")
+    email = payload.get("email")
     # На всякий случай можно получить роль из БД, если нужно
-    access_token = create_access_token({"sub": str(user_id), "role": role})
-    new_refresh_token = create_refresh_token({"sub": str(user_id), "role": role})
+    access_token = create_access_token({
+        "sub": str(user_id), 
+        "role": role,
+        "username": username,
+        "email": email
+    })
+    new_refresh_token = create_refresh_token({
+        "sub": str(user_id), 
+        "role": role,
+        "username": username,
+        "email": email
+    })
     return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
