@@ -15,15 +15,15 @@ def clean_html(text: str) -> str:
 def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnswerCreate], test_time_limit: int = 0) -> Dict[str, Any]:
     """
     Обрабатывает результаты теста и возвращает словарь с результатами
-    
+
     Args:
         questions: Список вопросов с их параметрами
         answers: Список ответов пользователя
         test_time_limit: Лимит времени на весь тест в секундах (0 - без лимита)
-        
+
     Returns:
         Dict[str, Any]: Словарь с результатами теста
-        
+
     Raises:
         BadRequestException: При некорректных данных или превышении лимита времени
     """
@@ -52,15 +52,15 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
         question = question_data['question']
         max_possible_score += question_data['max_score']
         answer = answers_dict.get(question.id)
-        
+
         if answer:
             # Рассчитываем время на вопрос
             question_time_seconds = int((answer.time_end - answer.time_start).total_seconds())
-            
+
             # Проверяем лимит времени на вопрос
             question_time_limit = question.time_limit or 0
             is_time_exceeded = question_time_limit > 0 and question_time_seconds > question_time_limit
-            
+
             # Если превышен лимит времени, не засчитываем ответ
             if is_time_exceeded:
                 score = 0
@@ -68,7 +68,7 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
                 check_details = {"message": f"Превышен лимит времени на вопрос ({question_time_limit} секунд)"}
             else:
                 score, is_correct, check_details = check_answer(question, answer.answer)
-            
+
             checked_answers.append({
                 "question_id": question.id,
                 "question_text": question.text,
@@ -103,31 +103,37 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
 
 
 def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
-    """
-    Проверяет ответ на вопрос и возвращает кортеж (score, is_correct, check_details)
-    
-    Args:
-        question: Объект вопроса
-        answer: Ответ пользователя
-        
-    Returns:
-        Tuple[int, bool, Dict[str, Any]]: (балл, правильность ответа, детали проверки)
-        
-    Raises:
-        BadRequestException: При неизвестном типе вопроса
-    """
-    if question.type == "single_choice":
+    if question.type == "SINGLE_CHOICE":
         return check_single_choice(question, answer)
-    elif question.type == "multiple_choice" or question.type == "MULTIPLE_CHOICE":
+    elif question.type == "MULTIPLE_CHOICE":
         return check_multiple_choice(question, answer)
-    elif question.type == "text":
+    elif question.type == "TEXT":
         return check_text(question, answer)
-    elif question.type == "number":
+    elif question.type == "NUMBER":
         return check_number(question, answer)
     elif question.type == "TRUE_FALSE":
         return check_true_false(question, answer)
+    elif question.type in ["SHORT_ANSWER", "SURVEY", "DESCRIPTIVE"]:
+        # Для этих типов вопросов не проверяем правильность ответа
+        return 1, True, {
+            "user_answer": answer.get("value", ""),
+            "message": "Ответ принят без проверки"
+        }
     else:
         raise BadRequestException(f"Неизвестный тип вопроса: {question.type}")
+    """
+    Проверяет ответ на вопрос и возвращает кортеж (score, is_correct, check_details)
+
+    Args:
+        question: Объект вопроса
+        answer: Ответ пользователя
+
+    Returns:
+        Tuple[int, bool, Dict[str, Any]]: (балл, правильность ответа, детали проверки)
+
+    Raises:
+        BadRequestException: При неизвестном типе вопроса
+    """
 
 
 def check_single_choice(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
