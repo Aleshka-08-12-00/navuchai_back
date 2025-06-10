@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
 import uuid
 import secrets
+import logging
 
 from app.models.test_access import TestAccess
 from app.models.user_group_member import UserGroupMember
@@ -12,6 +13,10 @@ from app.models.test_status import TestStatus
 from app.models.test import Test, TestAccessEnum
 from app.schemas.test_access import TestAccessCreate
 from app.exceptions import DatabaseException, NotFoundException
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 OPAQUE_TOKEN_NUM_BYTES = 16
 
@@ -26,27 +31,38 @@ async def create_test_access(
 ) -> TestAccess:
     """Создание доступа к тесту для одного пользователя"""
     try:
+        logger.info(f"Начало создания доступа к тесту. Данные: {test_access_data.model_dump()}")
+        
+        # Проверяем существование теста
+        test_result = await db.execute(select(Test).where(Test.id == test_access_data.test_id))
+        test = test_result.scalar_one_or_none()
+        if not test:
+            logger.error(f"Тест с ID {test_access_data.test_id} не найден")
+            raise NotFoundException(f"Тест с ID {test_access_data.test_id} не найден")
+
         data_for_model = test_access_data.model_dump(exclude_none=True)
         if 'access_code' in data_for_model:
             del data_for_model['access_code']
+
+        logger.info(f"Подготовленные данные для модели: {data_for_model}")
 
         db_test_access = TestAccess(**data_for_model)
 
         if test_access_data.user_id:
             db_test_access.access_code = _generate_access_code()
-        else:
-            # Если user_id не предоставлен, генерация access_code для него может быть невозможна
-            # или должна быть особая логика. Пока оставляем pass.
-            pass
+            logger.info(f"Сгенерирован код доступа для пользователя {test_access_data.user_id}")
 
         db.add(db_test_access)
         await db.commit()
         await db.refresh(db_test_access)
+        logger.info(f"Успешно создан доступ к тесту. ID: {db_test_access.id}")
         return db_test_access
     except SQLAlchemyError as e:
-        raise DatabaseException("Ошибка при создании доступа к тесту")
+        logger.error(f"Ошибка SQLAlchemy при создании доступа к тесту: {str(e)}")
+        raise DatabaseException(f"Ошибка при создании доступа к тесту: {str(e)}")
     except Exception as e:
-        raise DatabaseException(f"Неожиданная ошибка при создании доступа к тесту: {e}")
+        logger.error(f"Неожиданная ошибка при создании доступа к тесту: {str(e)}")
+        raise DatabaseException(f"Неожиданная ошибка при создании доступа к тесту: {str(e)}")
 
 
 async def create_group_test_access(

@@ -8,6 +8,7 @@ from app.crud import (
     create_test,
     delete_test,
     update_test,
+    get_user_tests,
     admin_moderator_required,
     authorized_required
 )
@@ -25,6 +26,17 @@ async def get_all_tests(db: AsyncSession = Depends(get_db)): #, user: User = Dep
         return await get_tests(db)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов")
+
+
+@router.get("/my", response_model=list[TestWithDetails])
+async def get_my_tests(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    try:
+        return await get_user_tests(db, current_user.id)
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка тестов пользователя")
 
 
 @router.get("/{test_id}", response_model=TestWithDetails)

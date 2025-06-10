@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.models import Test, Category, User, Locale, File, TestStatus
+from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess
 from app.models.test import TestAccessEnum
 from app.schemas.test import TestCreate, TestUpdate
 from app.utils import format_test_with_names
@@ -142,3 +142,40 @@ async def delete_test(db: AsyncSession, test_id: int):
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при удалении теста")
+
+
+async def get_user_tests(db: AsyncSession, user_id: int):
+    """Получение списка тестов, доступных пользователю"""
+    try:
+        # Получаем пользователя с его ролью
+        user_result = await db.execute(
+            select(User)
+            .options(selectinload(User.role))
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if not user:
+            raise NotFoundException(f"Пользователь с ID {user_id} не найден")
+            
+        # Если пользователь админ, возвращаем все тесты
+        if user.role.code == 'admin':
+            return await get_tests(db)
+            
+        # Получаем тесты, к которым у пользователя есть прямой доступ
+        result = await db.execute(
+            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
+            .join(TestAccess, Test.id == TestAccess.test_id)
+            .join(Category, Test.category_id == Category.id)
+            .join(User, Test.creator_id == User.id)
+            .join(Locale, Test.locale_id == Locale.id)
+            .join(TestStatus, Test.status_id == TestStatus.id)
+            .options(selectinload(Test.image))
+            .options(selectinload(Test.thumbnail))
+            .where(TestAccess.user_id == user_id)
+        )
+        rows = result.all()
+        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color)
+                for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows]
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка тестов пользователя")
