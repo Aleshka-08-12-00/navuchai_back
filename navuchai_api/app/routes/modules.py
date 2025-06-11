@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
-from app.crud import create_module, get_module, update_module, delete_module, admin_teacher_required, get_lessons_by_module, create_lesson_for_module
+from app.crud import create_module, get_module, update_module, delete_module, admin_moderator_required, get_lessons_by_module, create_lesson_for_module
 from app.schemas.module import ModuleCreate, ModuleWithLessons
 from app.schemas.lesson import LessonResponse, LessonCreate
 from app.exceptions import NotFoundException
 
 
 
-router = APIRouter(prefix="/api/modules", tags=["Modules"], dependencies=[Depends(admin_teacher_required)])
+router = APIRouter(prefix="/api/modules", tags=["Modules"], dependencies=[Depends(admin_moderator_required)])
 
 @router.post("/", response_model=ModuleWithLessons, status_code=status.HTTP_201_CREATED)
 async def create(data: ModuleCreate, db: AsyncSession = Depends(get_db)):

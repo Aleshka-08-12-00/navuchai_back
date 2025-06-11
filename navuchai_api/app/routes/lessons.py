@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
-from app.crud import create_lesson, get_lesson, update_lesson, delete_lesson, admin_teacher_required
+from app.crud import create_lesson, get_lesson, update_lesson, delete_lesson, admin_moderator_required
 from app.schemas.lesson import LessonCreate, LessonResponse
-router = APIRouter(prefix="/api/lessons", tags=["Lessons"], dependencies=[Depends(admin_teacher_required)])
+router = APIRouter(prefix="/api/lessons", tags=["Lessons"], dependencies=[Depends(admin_moderator_required)])
 
 @router.post("/", response_model=LessonResponse, status_code=status.HTTP_201_CREATED)
 async def create(data: LessonCreate, db: AsyncSession = Depends(get_db)):
