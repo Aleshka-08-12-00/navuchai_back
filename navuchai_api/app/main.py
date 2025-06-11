@@ -8,6 +8,8 @@ from app.routes import (
     test_access, test_status, results
 )
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes import courses, modules, lessons, enrollment
+
 
 app = FastAPI(title="Test API")
 
@@ -32,6 +34,10 @@ app.include_router(user_groups.router)
 app.include_router(test_access.router)
 app.include_router(test_status.router)
 app.include_router(results.router)
+app.include_router(courses.router)
+app.include_router(modules.router)
+app.include_router(lessons.router)
+app.include_router(enrollment.router)
 
 
 @app.on_event("startup")
