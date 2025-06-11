@@ -14,6 +14,7 @@ class Question(Base):
     type = Column(String, nullable=False)
     reviewable = Column(Boolean, nullable=False)
     answers = Column(JSONB, nullable=False)
+    time_limit = Column(Integer, nullable=True, default=0)  # Лимит времени в секундах, 0 - без лимита
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

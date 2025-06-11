@@ -17,6 +17,9 @@ class User(Base):
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
     created_tests = relationship("Test", back_populates="creator")
+    created_groups = relationship("UserGroup", back_populates="creator")
+    group_memberships = relationship("UserGroupMember", back_populates="user", cascade="all, delete-orphan")
     results = relationship("Result", back_populates="user", cascade="all, delete-orphan")
     user_answers = relationship("UserAnswer", back_populates="user", cascade="all, delete-orphan")
     role = relationship("Role", back_populates="users", lazy="joined")
+    test_accesses = relationship("TestAccess", back_populates="user", cascade="all, delete-orphan")

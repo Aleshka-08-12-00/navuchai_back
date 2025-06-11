@@ -1,14 +1,39 @@
-from .category import Category
-from .question import Question
-from .test import Test
-from .test_question import TestQuestion
-from .user import User
-from .user_answer import UserAnswer
-from .result import Result
 from .base import Base
+from .user import User
 from .role import Role
 from .course import Course
 from .module import Module
 from .lesson import Lesson
 from .lesson_test import LessonTest
 from .course_enrollment import CourseEnrollment
+from .test import Test
+from .question import Question
+from .test_question import TestQuestion
+from .category import Category
+from .locale import Locale
+from .file import File
+from .result import Result
+from .user_answer import UserAnswer
+from .test_status import TestStatus
+from .user_group import UserGroup
+from .user_group_member import UserGroupMember
+from .test_access import TestAccess
+
+__all__ = [
+    "Base",
+    "User",
+    "Role",
+    "Test",
+    "Question",
+    "TestQuestion",
+    "Category",
+    "Locale",
+    "File",
+    "Result",
+    "UserAnswer",
+    "TestStatus",
+    "UserGroup",
+    "UserGroupMember",
+    "TestAccess"
+]
+
