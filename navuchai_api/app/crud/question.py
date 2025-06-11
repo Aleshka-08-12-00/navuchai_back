@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.models import Question, TestQuestion
 from app.schemas.question import QuestionCreate, QuestionUpdate
@@ -34,6 +35,7 @@ async def get_questions_by_test_id(db: AsyncSession, test_id: int):
         result = await db.execute(
             select(TestQuestion, Question)
             .join(Question, TestQuestion.question_id == Question.id)
+            .options(selectinload(Question.test_questions))
             .where(TestQuestion.test_id == test_id)
         )
         test_question_pairs = result.all()
@@ -47,7 +49,8 @@ async def get_questions_by_test_id(db: AsyncSession, test_id: int):
             }
             for tq in test_question_pairs
         ]
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
+        logger.error(f"Ошибка при получении вопросов теста: {str(e)}")
         raise DatabaseException("Ошибка при получении вопросов теста")
 
 

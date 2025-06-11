@@ -14,7 +14,7 @@ def role_required(*allowed_roles: RoleCode):
 
 
 admin_required = role_required(RoleCode.ADMIN)
-teacher_required = role_required(RoleCode.TEACHER)
-admin_teacher_required = role_required(RoleCode.ADMIN, RoleCode.TEACHER)
-student_required = role_required(RoleCode.STUDENT)
-authorized_required = role_required(RoleCode.ADMIN, RoleCode.TEACHER, RoleCode.STUDENT)
+moderator_required = role_required(RoleCode.MODERATOR)
+admin_moderator_required = role_required(RoleCode.ADMIN, RoleCode.MODERATOR)
+user_required = role_required(RoleCode.USER)
+authorized_required = role_required(RoleCode.ADMIN, RoleCode.MODERATOR, RoleCode.USER)

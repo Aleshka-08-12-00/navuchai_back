@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.crud import get_users, get_user, update_user, delete_user, admin_teacher_required, admin_required, update_user_role
+from app.crud import get_users, get_user, update_user, delete_user, admin_moderator_required, admin_required, update_user_role
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
 from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate
 
-router = APIRouter(prefix="/api/users", tags=["Users"], dependencies=[Depends(admin_teacher_required)])
+router = APIRouter(prefix="/api/users", tags=["Users"], dependencies=[Depends(admin_moderator_required)])
 
 
 @router.get("/", response_model=list[UserResponse])
