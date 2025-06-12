@@ -1,6 +1,11 @@
 from .base import Base
 from .user import User
 from .role import Role
+from .course import Course
+from .module import Module
+from .lesson import Lesson
+from .lesson_test import LessonTest
+from .course_enrollment import CourseEnrollment
 from .test import Test
 from .question import Question
 from .test_question import TestQuestion
@@ -39,3 +44,4 @@ from .module import Module
 from .lesson import Lesson
 from .lesson_test import LessonTest
 from .course_enrollment import CourseEnrollment
+

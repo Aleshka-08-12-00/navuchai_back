@@ -37,6 +37,7 @@ async def update_lesson(db: AsyncSession, lesson_id: int, data: LessonCreate):
     # Обновляем только те поля, которые действительно нужно менять.
     lesson.title = data.title
     lesson.content = data.content
+    lesson.video = data.video
     # НЕ переписываем lesson.order = data.order, иначе попадёт None и в БД будет ошибка.
 
     await db.commit()
@@ -78,6 +79,7 @@ async def create_lesson_for_module(
     new = Lesson(
         title=lesson_in.title,
         content=lesson_in.content,
+        video=lesson_in.video,
         order=new_order,
         module_id=module_id
     )

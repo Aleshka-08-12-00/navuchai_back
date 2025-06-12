@@ -7,6 +7,7 @@ class LessonBase(BaseModel):
     module_id: int
     title: str
     content: Optional[str] = None
+    video: Optional[str] = None
     order: Optional[int] = None
     class Config:
         from_attributes = True
@@ -15,6 +16,7 @@ class LessonCreate(BaseModel):
     # module_id: int
     title: str
     content: Optional[str] = None
+    video: Optional[str] = None
     order: Optional[int] = None
 
 class LessonResponse(LessonBase):
@@ -31,6 +33,7 @@ class LessonRead(BaseModel):
     id: int
     title: str
     content: str
+    video: Optional[str] = None
     order: int
 
     model_config = {
