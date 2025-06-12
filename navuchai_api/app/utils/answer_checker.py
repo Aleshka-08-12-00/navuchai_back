@@ -86,7 +86,7 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
             })
             total_score += score
 
-    percentage = (total_score / max_possible_score * 100) if max_possible_score > 0 else 0
+    percentage = round((total_score / max_possible_score * 100), 1) if max_possible_score > 0 else 0
     is_passed = percentage >= 60
 
     return {
