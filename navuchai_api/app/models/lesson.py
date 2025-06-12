@@ -8,6 +8,7 @@ class Lesson(Base):
     module_id = Column(Integer, ForeignKey('module.id'), nullable=False)
     title = Column(String, nullable=False)
     content = Column(Text)
+    video = Column(String)
     order = Column(Integer, default=0)
     module = relationship('Module', back_populates='lessons')
     tests = relationship('LessonTest', back_populates='lesson', cascade='all, delete-orphan')
