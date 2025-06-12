@@ -36,7 +36,7 @@ class Test(Base):
     category = relationship("Category", back_populates="tests", single_parent=True)
     creator = relationship("User", back_populates="created_tests")
     test_questions = relationship("TestQuestion", back_populates="test", cascade="all, delete-orphan")
-    results = relationship("Result", back_populates="test")
+    results = relationship("Result", back_populates="test", cascade="all, delete-orphan")
     locale = relationship("Locale", back_populates="tests")
     image = relationship("File", foreign_keys=[img_id], lazy="selectin")
     thumbnail = relationship("File", foreign_keys=[thumbnail_id], lazy="selectin")
