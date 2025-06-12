@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from app.dependencies import get_db
-from app.crud import get_courses, get_course, create_course, update_course, delete_course, get_current_user, admin_teacher_required, get_course_with_content, get_modules_by_course, create_module_for_course
+from app.crud import get_courses, get_course, create_course, update_course, delete_course, get_current_user, admin_moderator_required, get_course_with_content, get_modules_by_course, create_module_for_course
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
@@ -21,15 +21,15 @@ async def read_course(id: int, db=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Курс не найден")
     return course
 
-@router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_teacher_required)])
+@router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_moderator_required)])
 async def create(course: CourseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     return await create_course(db, course, user.id)
 
-@router.put("/{course_id}", response_model=CourseResponse, dependencies=[Depends(admin_teacher_required)])
+@router.put("/{course_id}", response_model=CourseResponse, dependencies=[Depends(admin_moderator_required)])
 async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db)):
     return await update_course(db, course_id, data)
 
-@router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_teacher_required)])
+@router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
 async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
     await delete_course(db, course_id)
 

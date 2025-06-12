@@ -36,4 +36,12 @@ __all__ = [
     "UserGroupMember",
     "TestAccess"
 ]
+from .result import Result
+from .base import Base
+from .role import Role
+from .course import Course
+from .module import Module
+from .lesson import Lesson
+from .lesson_test import LessonTest
+from .course_enrollment import CourseEnrollment
 
