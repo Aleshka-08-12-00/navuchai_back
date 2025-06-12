@@ -77,6 +77,7 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
                 "score": score,
                 "is_correct": is_correct,
                 "check_details": check_details,
+                "options": question.answers,
                 "time_start": answer.time_start,
                 "time_end": answer.time_end,
                 "time_seconds": question_time_seconds,
