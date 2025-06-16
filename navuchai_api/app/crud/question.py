@@ -76,7 +76,13 @@ async def create_question(db: AsyncSession, question: QuestionCreate):
     try:
         await db.commit()
         await db.refresh(new_question)
-        return new_question
+        # Загружаем связанные данные
+        result = await db.execute(
+            select(Question)
+            .options(selectinload(Question.type))
+            .where(Question.id == new_question.id)
+        )
+        return result.scalar_one()
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при создании вопроса")
