@@ -18,6 +18,7 @@ from .test_status import TestStatus
 from .user_group import UserGroup
 from .user_group_member import UserGroupMember
 from .test_access import TestAccess
+from .question_type import QuestionType
 
 __all__ = [
     "Base",
@@ -34,7 +35,8 @@ __all__ = [
     "TestStatus",
     "UserGroup",
     "UserGroupMember",
-    "TestAccess"
+    "TestAccess",
+    "QuestionType"
 ]
 from .result import Result
 from .base import Base

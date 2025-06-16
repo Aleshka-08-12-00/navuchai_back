@@ -12,7 +12,10 @@ from app.exceptions import NotFoundException, DatabaseException
 # Получение списка вопросов
 async def get_questions(db: AsyncSession):
     try:
-        result = await db.execute(select(Question))
+        result = await db.execute(
+            select(Question)
+            .options(selectinload(Question.type))
+        )
         return result.scalars().all()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка вопросов")
@@ -21,7 +24,11 @@ async def get_questions(db: AsyncSession):
 # Получение конкретного вопроса
 async def get_question(db: AsyncSession, question_id: int):
     try:
-        result = await db.execute(select(Question).filter(Question.id == question_id))
+        result = await db.execute(
+            select(Question)
+            .options(selectinload(Question.type))
+            .filter(Question.id == question_id)
+        )
         question = result.scalar_one_or_none()
         if not question:
             raise NotFoundException("Вопрос не найден")
@@ -35,6 +42,7 @@ async def get_questions_by_test_id(db: AsyncSession, test_id: int):
         result = await db.execute(
             select(TestQuestion, Question)
             .join(Question, TestQuestion.question_id == Question.id)
+            .options(selectinload(Question.type))
             .options(selectinload(Question.test_questions))
             .where(TestQuestion.test_id == test_id)
         )
@@ -59,9 +67,10 @@ async def create_question(db: AsyncSession, question: QuestionCreate):
     new_question = Question(
         text=question.text,
         text_abstract=question.text_abstract,
-        type=question.type,
+        type_id=question.type_id,
         reviewable=question.reviewable,
-        answers=question.answers
+        answers=question.answers,
+        time_limit=question.time_limit
     )
     db.add(new_question)
     try:
@@ -79,11 +88,9 @@ async def update_question(db: AsyncSession, question_id: int, question: Question
     if not existing_question:
         raise NotFoundException("Вопрос не найден")
 
-    existing_question.text = question.text
-    existing_question.text_abstract = question.text_abstract
-    existing_question.type = question.type
-    existing_question.reviewable = question.reviewable
-    existing_question.answers = question.answers
+    update_data = question.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(existing_question, key, value)
 
     try:
         await db.commit()

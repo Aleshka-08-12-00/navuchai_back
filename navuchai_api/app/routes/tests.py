@@ -21,7 +21,10 @@ router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
 
 @router.get("/", response_model=list[TestWithDetails])
-async def get_all_tests(db: AsyncSession = Depends(get_db)): #, user: User = Depends(authorized_required)):
+async def get_all_tests(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(admin_moderator_required)
+):
     try:
         return await get_tests(db)
     except SQLAlchemyError:
@@ -40,7 +43,11 @@ async def get_my_tests(
 
 
 @router.get("/{test_id}", response_model=TestWithDetails)
-async def get_test_by_id(test_id: int, db: AsyncSession = Depends(get_db)): #, user: User = Depends(authorized_required)):
+async def get_test_by_id(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(admin_moderator_required)
+):
     try:
         test = await get_test(db, test_id)
         if not test:

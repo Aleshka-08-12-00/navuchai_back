@@ -4,7 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.crud import (
     create_test_question, delete_test_question, get_questions,
-    get_question, create_question, update_question, delete_question, get_questions_by_test_id, admin_moderator_required
+    get_question, create_question, update_question, delete_question, get_questions_by_test_id, admin_moderator_required, authorized_required
 )
 from app.dependencies import get_db
 from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
@@ -36,7 +36,11 @@ async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db
 
 
 @router.get("/by-test/{test_id}", response_model=list[QuestionWithDetails])
-async def list_questions_by_test(test_id: int, db: AsyncSession = Depends(get_db)):  # user: User = Depends(admin_moderator_required)):
+async def list_questions_by_test(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(admin_moderator_required)
+):
     questions = await get_questions_by_test_id(db, test_id)
     if not questions:
         raise NotFoundException("No questions found for this test")
@@ -44,7 +48,11 @@ async def list_questions_by_test(test_id: int, db: AsyncSession = Depends(get_db
 
 
 @router.get("/by-test/{test_id}/public", response_model=list[QuestionWithDetails])
-async def list_questions_by_test_public(test_id: int, db: AsyncSession = Depends(get_db)):  # user: User = Depends(admin_moderator_required)):
+async def list_questions_by_test_public(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(authorized_required)
+):
     """
     Получение вопросов теста без правильных ответов для публичного доступа
     """
@@ -61,6 +69,7 @@ async def list_questions_by_test_public(test_id: int, db: AsyncSession = Depends
                 'id': question['question'].id,
                 'text': question['question'].text,
                 'text_abstract': question['question'].text_abstract,
+                'type_id': question['question'].type_id,
                 'type': question['question'].type,
                 'reviewable': question['question'].reviewable,
                 'answers': question['question'].answers,
