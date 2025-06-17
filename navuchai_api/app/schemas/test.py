@@ -44,7 +44,7 @@ class TestWithAccessDetails(TestWithDetails):
     access_status_name: Optional[str] = None
     access_status_code: Optional[str] = None
     access_status_color: Optional[str] = None
-    user_percent: Optional[int] = None
+    user_percent: Optional[float] = None
     user_completed: Optional[int] = None
 
 
