@@ -1,6 +1,7 @@
 from typing import Optional, List
 from app.schemas.lesson_test import LessonTestBase
 from pydantic import BaseModel
+from app.models.test import TestAccessEnum
 
 class LessonBase(BaseModel):
     id: int
@@ -9,6 +10,7 @@ class LessonBase(BaseModel):
     content: Optional[str] = None
     video: Optional[str] = None
     order: Optional[int] = None
+    access: TestAccessEnum
     class Config:
         from_attributes = True
 
@@ -18,6 +20,7 @@ class LessonCreate(BaseModel):
     content: Optional[str] = None
     video: Optional[str] = None
     order: Optional[int] = None
+    access: TestAccessEnum = TestAccessEnum.PRIVATE
 
 class LessonResponse(LessonBase):
     pass
@@ -35,6 +38,7 @@ class LessonRead(BaseModel):
     content: str
     video: Optional[str] = None
     order: int
+    access: TestAccessEnum
 
     model_config = {
         "from_attributes": True

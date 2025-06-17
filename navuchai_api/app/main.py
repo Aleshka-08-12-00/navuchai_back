@@ -5,7 +5,8 @@ from app.models import Base
 from app.routes import (
     tests, questions, user, auth, profile,
     category, locale, files, role, user_groups,
-    test_access, test_status, results
+    test_access, test_status, results,
+    course_access, module_access, lesson_access
 )
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import courses, modules, lessons, enrollment
@@ -34,6 +35,9 @@ app.include_router(user_groups.router)
 app.include_router(test_access.router)
 app.include_router(test_status.router)
 app.include_router(results.router)
+app.include_router(course_access.router)
+app.include_router(module_access.router)
+app.include_router(lesson_access.router)
 app.include_router(courses.router)
 app.include_router(modules.router)
 app.include_router(lessons.router)

@@ -5,6 +5,8 @@ from .course import Course
 from .module import Module
 from .lesson import Lesson
 from .lesson_test import LessonTest
+from .course_test import CourseTest
+from .module_test import ModuleTest
 from .course_enrollment import CourseEnrollment
 from .test import Test
 from .question import Question
@@ -18,6 +20,9 @@ from .test_status import TestStatus
 from .user_group import UserGroup
 from .user_group_member import UserGroupMember
 from .test_access import TestAccess
+from .course_access import CourseAccess
+from .module_access import ModuleAccess
+from .lesson_access import LessonAccess
 
 __all__ = [
     "Base",
@@ -34,14 +39,11 @@ __all__ = [
     "TestStatus",
     "UserGroup",
     "UserGroupMember",
-    "TestAccess"
+    "TestAccess",
+    "CourseAccess",
+    "ModuleAccess",
+    "LessonAccess",
+    "CourseTest",
+    "ModuleTest",
 ]
-from .result import Result
-from .base import Base
-from .role import Role
-from .course import Course
-from .module import Module
-from .lesson import Lesson
-from .lesson_test import LessonTest
-from .course_enrollment import CourseEnrollment
 
