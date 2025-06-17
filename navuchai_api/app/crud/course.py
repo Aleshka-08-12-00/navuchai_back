@@ -31,7 +31,12 @@ async def get_course(db: AsyncSession, course_id: int):
     return course
 
 async def create_course(db: AsyncSession, data: CourseCreate, author_id: int):
-    new_course = Course(title=data.title, description=data.description, author_id=author_id)
+    new_course = Course(
+        title=data.title,
+        description=data.description,
+        author_id=author_id,
+        access=data.access
+    )
     db.add(new_course)
     await db.commit()
     await db.refresh(new_course)
@@ -41,6 +46,7 @@ async def update_course(db: AsyncSession, course_id: int, data: CourseCreate):
     course = await get_course(db, course_id)
     course.title = data.title
     course.description = data.description
+    course.access = data.access
     await db.commit()
     await db.refresh(course)
     return course
