@@ -38,3 +38,8 @@ class FileUploadResponse(BaseModel):
     url: str
     uploaded_at: datetime = datetime.now()
     message: Optional[str] = None
+
+
+class FileUploadWithMobileResponse(BaseModel):
+    original: FileUploadResponse
+    mobile: FileUploadResponse
