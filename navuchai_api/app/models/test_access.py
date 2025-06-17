@@ -15,6 +15,8 @@ class TestAccess(Base):
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     status_id = Column(Integer, ForeignKey("test_access_status.id"))
+    completed_number = Column(Integer, nullable=True)
+    avg_percent = Column(Integer, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     access_code = Column(String, nullable=True, unique=True, index=True)

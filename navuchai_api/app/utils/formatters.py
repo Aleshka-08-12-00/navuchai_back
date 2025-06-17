@@ -3,7 +3,7 @@ from app.schemas.result import ResultResponse, UserAnswerResponse
 from datetime import datetime
 
 
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None) -> dict:
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None) -> dict:
     result = {
         "id": test.id,
         "title": test.title,
@@ -40,6 +40,12 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
             "access_status_code": access_status_code,
             "access_status_color": access_status_color
         })
+    
+    if user_percent is not None:
+        result["user_percent"] = user_percent
+    
+    if user_completed is not None:
+        result["user_completed"] = user_completed
     
     return result
 

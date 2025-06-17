@@ -152,27 +152,22 @@ async def delete_test(db: AsyncSession, test_id: int):
 async def get_user_tests(db: AsyncSession, user_id: int):
     """Получение списка тестов, доступных пользователю"""
     try:
-        # Получаем пользователя с его ролью
         user_result = await db.execute(
             select(User)
             .options(selectinload(User.role))
             .where(User.id == user_id)
         )
         user = user_result.scalar_one_or_none()
-        
         if not user:
             raise NotFoundException(f"Пользователь с ID {user_id} не найден")
-            
-        # Если пользователь админ, возвращаем все тесты
         if user.role.code == 'admin':
             return await get_tests(db)
-            
-        # Получаем тесты, к которым у пользователя есть прямой доступ
         result = await db.execute(
             select(
                 Test, Category.name, User.name, Locale.code, 
                 TestStatus.name, TestStatus.name_ru, TestStatus.color,
-                TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color
+                TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
+                TestAccess.completed_number, TestAccess.avg_percent
             )
             .join(TestAccess, Test.id == TestAccess.test_id)
             .join(Category, Test.category_id == Category.id)
@@ -188,7 +183,8 @@ async def get_user_tests(db: AsyncSession, user_id: int):
         return [format_test_with_names(
             test, category_name, creator_name, locale_code, 
             status_name, status_name_ru, status_color,
-            access_status_name, access_status_code, access_status_color
-        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color in rows]
+            access_status_name, access_status_code, access_status_color,
+            user_completed, user_percent
+        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов пользователя")

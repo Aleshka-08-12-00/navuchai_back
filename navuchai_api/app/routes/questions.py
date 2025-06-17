@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/questions", tags=["Questions"])
 
 # Получение списка всех вопросов
 @router.get("/", response_model=list[QuestionResponse])
-async def get_all_questions(db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def get_all_questions(db: AsyncSession = Depends(get_db), user: User = Depends(authorized_required)):
     try:
         return await get_questions(db)
     except SQLAlchemyError:
@@ -25,7 +25,7 @@ async def get_all_questions(db: AsyncSession = Depends(get_db), user: User = Dep
 
 # Получение конкретного вопроса по ID
 @router.get("/{question_id}", response_model=QuestionResponse)
-async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(authorized_required)):
     try:
         question = await get_question(db, question_id)
         if not question:
@@ -39,7 +39,7 @@ async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db
 async def list_questions_by_test(
     test_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required)
+    user: User = Depends(authorized_required)
 ):
     questions = await get_questions_by_test_id(db, test_id)
     if not questions:
