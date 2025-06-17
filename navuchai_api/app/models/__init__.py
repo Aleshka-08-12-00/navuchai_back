@@ -19,6 +19,7 @@ from .user_group import UserGroup
 from .user_group_member import UserGroupMember
 from .test_access import TestAccess
 from .question_type import QuestionType
+from .test_access_status import TestAccessStatus
 
 __all__ = [
     "Base",
@@ -36,14 +37,7 @@ __all__ = [
     "UserGroup",
     "UserGroupMember",
     "TestAccess",
-    "QuestionType"
+    "QuestionType",
+    "TestAccessStatus"
 ]
-from .result import Result
-from .base import Base
-from .role import Role
-from .course import Course
-from .module import Module
-from .lesson import Lesson
-from .lesson_test import LessonTest
-from .course_enrollment import CourseEnrollment
 

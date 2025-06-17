@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from app.crud import (
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
-from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate
+from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate, TestWithAccessDetails
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
@@ -31,7 +31,7 @@ async def get_all_tests(
         raise DatabaseException("Ошибка при получении списка тестов")
 
 
-@router.get("/my", response_model=list[TestWithDetails])
+@router.get("/my", response_model=list[TestWithAccessDetails])
 async def get_my_tests(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
@@ -46,19 +46,22 @@ async def get_my_tests(
 async def get_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(authorized_required)
 ):
     try:
-        test = await get_test(db, test_id)
-        if not test:
-            raise NotFoundException("Тест не найден")
-        return test
+        return await get_test(db, test_id)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
-        raise DatabaseException("Ошибка при получении данных теста")
+        raise DatabaseException("Ошибка при получении теста")
 
 
 @router.post("/", response_model=TestResponse)
-async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def create_new_test(
+    test: TestCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
     try:
         return await create_test(db, test)
     except SQLAlchemyError:
@@ -66,22 +69,29 @@ async def create_new_test(test: TestCreate, db: AsyncSession = Depends(get_db), 
 
 
 @router.put("/{test_id}", response_model=TestResponse)
-async def update_test_by_id(test_id: int, test: TestUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def update_test_by_id(
+    test_id: int,
+    test: TestUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
     try:
-        updated_test = await update_test(db, test_id, test)
-        if not updated_test:
-            raise NotFoundException("Тест не найден")
-        return updated_test
+        return await update_test(db, test_id, test)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при обновлении теста")
 
 
 @router.delete("/{test_id}", response_model=TestResponse)
-async def delete_test_by_id(test_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def delete_test_by_id(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
     try:
-        test = await delete_test(db, test_id)
-        if not test:
-            raise NotFoundException("Тест не найден")
-        return test
+        return await delete_test(db, test_id)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при удалении теста")

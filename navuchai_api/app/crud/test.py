@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess
+from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess, TestAccessStatus
 from app.models.test import TestAccessEnum
 from app.schemas.test import TestCreate, TestUpdate
 from app.utils import format_test_with_names
@@ -14,7 +14,10 @@ from app.exceptions import NotFoundException, DatabaseException
 async def get_tests(db: AsyncSession):
     try:
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
+            select(
+                Test, Category.name, User.name, Locale.code, 
+                TestStatus.name, TestStatus.name_ru, TestStatus.color
+            )
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
@@ -23,8 +26,10 @@ async def get_tests(db: AsyncSession):
             .options(selectinload(Test.thumbnail))
         )
         rows = result.all()
-        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color)
-                for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows]
+        return [format_test_with_names(
+            test, category_name, creator_name, locale_code, 
+            status_name, status_name_ru, status_color
+        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов")
 
@@ -164,18 +169,26 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             
         # Получаем тесты, к которым у пользователя есть прямой доступ
         result = await db.execute(
-            select(Test, Category.name, User.name, Locale.code, TestStatus.name, TestStatus.name_ru, TestStatus.color)
+            select(
+                Test, Category.name, User.name, Locale.code, 
+                TestStatus.name, TestStatus.name_ru, TestStatus.color,
+                TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color
+            )
             .join(TestAccess, Test.id == TestAccess.test_id)
             .join(Category, Test.category_id == Category.id)
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
             .join(TestStatus, Test.status_id == TestStatus.id)
+            .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
             .options(selectinload(Test.image))
             .options(selectinload(Test.thumbnail))
             .where(TestAccess.user_id == user_id)
         )
         rows = result.all()
-        return [format_test_with_names(test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color)
-                for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows]
+        return [format_test_with_names(
+            test, category_name, creator_name, locale_code, 
+            status_name, status_name_ru, status_color,
+            access_status_name, access_status_code, access_status_color
+        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов пользователя")

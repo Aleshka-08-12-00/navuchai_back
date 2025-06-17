@@ -69,10 +69,13 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
             else:
                 score, is_correct, check_details = check_answer(question, answer.answer)
 
+            # Получаем тип вопроса в виде строки
+            question_type = question.type.code if question.type else "UNKNOWN"
+
             checked_answers.append({
                 "question_id": question.id,
                 "question_text": question.text,
-                "question_type": question.type,
+                "question_type": question_type,
                 "max_score": question_data['max_score'],
                 "score": score,
                 "is_correct": is_correct,
@@ -104,24 +107,6 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
 
 
 def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
-    if question.type == "SINGLE_CHOICE":
-        return check_single_choice(question, answer)
-    elif question.type == "MULTIPLE_CHOICE":
-        return check_multiple_choice(question, answer)
-    elif question.type == "TEXT":
-        return check_text(question, answer)
-    elif question.type == "NUMBER":
-        return check_number(question, answer)
-    elif question.type == "TRUE_FALSE":
-        return check_true_false(question, answer)
-    elif question.type in ["SHORT_ANSWER", "SURVEY", "DESCRIPTIVE"]:
-        # Для этих типов вопросов не проверяем правильность ответа
-        return 1, True, {
-            "user_answer": answer.get("value", ""),
-            "message": "Ответ принят без проверки"
-        }
-    else:
-        raise BadRequestException(f"Неизвестный тип вопроса: {question.type}")
     """
     Проверяет ответ на вопрос и возвращает кортеж (score, is_correct, check_details)
 
@@ -135,6 +120,26 @@ def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool,
     Raises:
         BadRequestException: При неизвестном типе вопроса
     """
+    question_type = question.type.code if question.type else None
+    
+    if question_type == "SINGLE_CHOICE":
+        return check_single_choice(question, answer)
+    elif question_type == "MULTIPLE_CHOICE":
+        return check_multiple_choice(question, answer)
+    elif question_type == "TEXT":
+        return check_text(question, answer)
+    elif question_type == "NUMBER":
+        return check_number(question, answer)
+    elif question_type == "TRUE_FALSE":
+        return check_true_false(question, answer)
+    elif question_type in ["SHORT_ANSWER", "SURVEY", "DESCRIPTIVE"]:
+        # Для этих типов вопросов не проверяем правильность ответа
+        return 1, True, {
+            "user_answer": answer.get("value", ""),
+            "message": "Ответ принят без проверки"
+        }
+    else:
+        raise BadRequestException(f"Неизвестный тип вопроса: {question_type}")
 
 
 def check_single_choice(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:

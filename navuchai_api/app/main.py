@@ -5,10 +5,10 @@ from app.models import Base
 from app.routes import (
     tests, questions, user, auth, profile,
     category, locale, files, role, user_groups,
-    test_access, test_status, results, question_type
+    test_access, test_status, results, question_type,
+    test_access_status, courses, modules, lessons, enrollment
 )
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import courses, modules, lessons, enrollment
 
 
 app = FastAPI(title="Test API")
@@ -21,24 +21,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(tests.router)
-app.include_router(questions.router)
-app.include_router(auth.router)
-app.include_router(user.router)
-app.include_router(profile.router)
-app.include_router(category.router)
-app.include_router(locale.router)
-app.include_router(files.router)
-app.include_router(role.router)
-app.include_router(user_groups.router)
-app.include_router(test_access.router)
-app.include_router(test_status.router)
-app.include_router(results.router)
-app.include_router(courses.router)
-app.include_router(modules.router)
-app.include_router(lessons.router)
-app.include_router(enrollment.router)
-app.include_router(question_type.router)
+app.include_router(tests)
+app.include_router(questions)
+app.include_router(auth)
+app.include_router(user)
+app.include_router(profile)
+app.include_router(category)
+app.include_router(locale)
+app.include_router(files)
+app.include_router(role)
+app.include_router(user_groups)
+app.include_router(test_access)
+app.include_router(test_status)
+app.include_router(results)
+app.include_router(courses)
+app.include_router(modules)
+app.include_router(lessons)
+app.include_router(enrollment)
+app.include_router(question_type)
+app.include_router(test_access_status)
 
 
 @app.on_event("startup")

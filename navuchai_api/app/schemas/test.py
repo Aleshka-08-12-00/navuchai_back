@@ -26,7 +26,7 @@ class TestBase(BaseModel):
     access: TestAccessEnum
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TestWithDetails(TestBase):
@@ -38,6 +38,12 @@ class TestWithDetails(TestBase):
     status_color: Optional[str] = None
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+
+
+class TestWithAccessDetails(TestWithDetails):
+    access_status_name: Optional[str] = None
+    access_status_code: Optional[str] = None
+    access_status_color: Optional[str] = None
 
 
 class TestCreate(BaseModel):

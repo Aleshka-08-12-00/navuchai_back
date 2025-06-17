@@ -16,4 +16,3 @@ class TestStatus(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     tests = relationship("Test", back_populates="status")
-    test_accesses = relationship("TestAccess", back_populates="status")

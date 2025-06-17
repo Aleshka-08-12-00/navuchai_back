@@ -3,8 +3,8 @@ from app.schemas.result import ResultResponse, UserAnswerResponse
 from datetime import datetime
 
 
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str) -> dict:
-    return {
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None) -> dict:
+    result = {
         "id": test.id,
         "title": test.title,
         "description": test.description,
@@ -33,6 +33,15 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "updated_at": test.updated_at,
         "access": test.access
     }
+    
+    if access_status_name is not None:
+        result.update({
+            "access_status_name": access_status_name,
+            "access_status_code": access_status_code,
+            "access_status_color": access_status_color
+        })
+    
+    return result
 
 
 def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:

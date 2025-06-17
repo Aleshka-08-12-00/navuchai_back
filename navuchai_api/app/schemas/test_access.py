@@ -35,6 +35,8 @@ class TestAccessResponse(BaseModel):
     end_date: Optional[datetime] = None
     status_id: Optional[int] = None
     status_name: Optional[str] = None
+    status_code: Optional[str] = None
+    status_color: Optional[str] = None
     access_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
