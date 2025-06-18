@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.config import engine
 from app.models import Base
+from sqlalchemy import text
 from app.routes import (
     tests, questions, user, auth, profile,
     category, locale, files, role, user_groups,
@@ -48,3 +49,23 @@ app.include_router(enrollment.router)
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # ensure the "access" column exists for the course table
+        result = await conn.execute(
+            text(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='course' AND column_name='access'
+                """
+            )
+        )
+        if result.scalar() is None:
+            await conn.execute(
+                text(
+                    "CREATE TYPE IF NOT EXISTS course_access_enum AS ENUM ('public','private')"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE course ADD COLUMN IF NOT EXISTS access course_access_enum NOT NULL DEFAULT 'private'"
+                )
+            )
