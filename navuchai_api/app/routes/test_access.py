@@ -22,12 +22,6 @@ async def create_user_test_access(
     current_user: User = Depends(admin_moderator_required)
 ) -> TestAccessResponse:
     try:
-        if test_access.group_id is not None:
-            raise HTTPException(
-                status_code=400,
-                detail="Для предоставления доступа группе используйте endpoint /group"
-            )
-        
         # Проверяем, нет ли уже доступа у пользователя к этому тесту
         existing_access = await crud.get_test_access(db, test_access.test_id, test_access.user_id)
         if existing_access:
@@ -35,7 +29,8 @@ async def create_user_test_access(
                 status_code=400,
                 detail="У пользователя уже есть доступ к этому тесту"
             )
-        
+        if test_access.status_id is None:
+            test_access.status_id = 1
         return await crud.create_test_access(db, test_access)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))

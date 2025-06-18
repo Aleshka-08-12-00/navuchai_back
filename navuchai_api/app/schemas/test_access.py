@@ -15,17 +15,8 @@ class TestAccessBase(BaseModel):
 
 class TestAccessCreate(BaseModel):
     test_id: int
-    user_id: Optional[int] = None
-    group_id: Optional[int] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
-    status_id: int
-    access_code: Optional[str] = None
-    completed_number: Optional[int] = 0
-    avg_percent: Optional[int] = 0
-    status_name: Optional[str] = None
-    status_code: Optional[str] = None
-    status_color: Optional[str] = None
+    user_id: int
+    status_id: int = 1
 
     class Config:
         from_attributes = True
