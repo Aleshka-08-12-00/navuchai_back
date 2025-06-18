@@ -331,3 +331,22 @@ async def get_test_groups(db: AsyncSession, test_id: int):
         return groups_with_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}")
+
+
+async def update_test_access_status_by_user(db: AsyncSession, test_id: int, user_id: int, status_id: int):
+    try:
+        test_access = await get_test_access(db, test_id, user_id)
+        if not test_access:
+            raise NotFoundException(f"Доступ к тесту {test_id} для пользователя {user_id} не найден")
+        status_result = await db.execute(
+            select(TestAccessStatus).where(TestAccessStatus.id == status_id)
+        )
+        status = status_result.scalar_one_or_none()
+        if not status:
+            raise NotFoundException(f"Статус с ID {status_id} не найден")
+        test_access.status_id = status_id
+        await db.commit()
+        await db.refresh(test_access)
+        return test_access
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при обновлении статуса доступа: {str(e)}")

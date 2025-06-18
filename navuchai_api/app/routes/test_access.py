@@ -2,6 +2,7 @@ from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
+from pydantic import BaseModel
 
 from app.dependencies import get_db
 from app.crud import admin_moderator_required
@@ -159,5 +160,23 @@ async def get_test_groups_route(
     """Получить список групп, назначенных на тест"""
     try:
         return await crud.get_test_groups(db, test_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class UpdateTestAccessStatusRequest(BaseModel):
+    status_id: int
+
+@router.put("/user/{test_id}/{user_id}/status", response_model=TestAccessResponse)
+async def update_test_access_status_by_user_route(
+    test_id: int,
+    user_id: int,
+    body: UpdateTestAccessStatusRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
+    """Обновить статус доступа к тесту по test_id и user_id"""
+    try:
+        return await crud.update_test_access_status_by_user(db, test_id, user_id, body.status_id)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e)) 
