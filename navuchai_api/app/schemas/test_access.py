@@ -22,6 +22,15 @@ class TestAccessCreate(BaseModel):
         from_attributes = True
 
 
+class TestAccessGroupCreate(BaseModel):
+    test_id: int
+    group_id: int
+    status_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class TestAccessResponse(BaseModel):
     id: int
     test_id: int

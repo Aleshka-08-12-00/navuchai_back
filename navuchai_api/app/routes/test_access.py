@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.crud import admin_moderator_required
 from app.crud import test_access as crud
 from app.models.user import User
-from app.schemas.test_access import TestAccessCreate, TestAccessResponse
+from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate
 from app.schemas.test import TestResponse
 from app.exceptions import DatabaseException, NotFoundException
 
@@ -38,22 +38,16 @@ async def create_user_test_access(
 
 @router.post("/group", response_model=List[TestAccessResponse])
 async def create_group_test_access(
-    test_id: int,
-    group_id: int,
-    start_date: datetime = None,
-    end_date: datetime = None,
-    status_id: int = None,
+    data: TestAccessGroupCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(admin_moderator_required)
 ) -> List[TestAccessResponse]:
     try:
         return await crud.create_group_test_access(
             db=db,
-            test_id=test_id,
-            group_id=group_id,
-            start_date=start_date,
-            end_date=end_date,
-            status_id=status_id
+            test_id=data.test_id,
+            group_id=data.group_id,
+            status_id=data.status_id
         )
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
