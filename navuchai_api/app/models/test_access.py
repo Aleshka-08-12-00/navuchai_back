@@ -14,7 +14,7 @@ class TestAccess(Base):
     group_id = Column(Integer, ForeignKey("user_group.id", ondelete="CASCADE"))
     start_date = Column(DateTime)
     end_date = Column(DateTime)
-    status_id = Column(Integer, ForeignKey("test_access_status.id"))
+    status_id = Column(Integer, ForeignKey("test_access_status.id"), nullable=False, default=1, server_default="1")
     completed_number = Column(Integer, nullable=True)
     avg_percent = Column(Integer, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())

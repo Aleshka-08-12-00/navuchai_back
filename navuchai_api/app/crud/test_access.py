@@ -86,14 +86,12 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
             if not status:
                 raise NotFoundException(f"Статус с ID {status_id} не найден")
 
-        # Получаем список пользователей группы
         query = select(UserGroupMember).where(UserGroupMember.group_id == group_id)
         result = await db.execute(query)
         group_members = result.scalars().all()
         if not group_members:
             raise NotFoundException(f"В группе с ID {group_id} нет пользователей")
 
-        # Проверяем, у кого из пользователей уже есть доступ к тесту
         users_with_access = []
         for member in group_members:
             existing_access = await get_test_access(db, test_id, member.user_id)
@@ -114,7 +112,7 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
                 group_id=group_id,
                 start_date=start_date,
                 end_date=end_date,
-                status_id=status_id
+                status_id=status_id if status_id is not None else 1
             )
             created_access = await create_test_access(db, test_access_payload)
             created_accesses.append(created_access)
