@@ -275,8 +275,9 @@ async def get_test_users(db: AsyncSession, test_id: int):
             .where(TestAccess.test_id == test_id)
         )
         test_accesses = result.scalars().all()
+        # Если нет пользователей — возвращаем пустой массив
         if not test_accesses:
-            raise NotFoundException(f"Доступы к тесту {test_id} не найдены")
+            return []
         users_with_access = []
         for access in test_accesses:
             if access.user:
@@ -313,7 +314,7 @@ async def get_test_groups(db: AsyncSession, test_id: int):
         )
         group_ids = [row[0] for row in result.all()]
         if not group_ids:
-            raise NotFoundException(f"Группы с доступом к тесту {test_id} не найдены")
+            return []
         groups_with_access = []
         for group_id in group_ids:
             group_result = await db.execute(
