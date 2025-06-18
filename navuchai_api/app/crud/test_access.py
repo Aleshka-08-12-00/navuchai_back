@@ -265,8 +265,10 @@ async def get_test_users(db: AsyncSession, test_id: int):
                     "email": access.user.email,
                     "name": access.user.name,
                     "role_id": access.user.role_id,
-                    "role_code": access.user.role.code if access.user.role else None,
-                    "role_name": access.user.role.name if access.user.role else None,
+                    "role": {
+                        "name": access.user.role.name if access.user.role else None,
+                        "code": access.user.role.code if access.user.role else None
+                    },
                     "access_id": access.id,
                     "group_id": access.group_id,
                     "start_date": access.start_date,
