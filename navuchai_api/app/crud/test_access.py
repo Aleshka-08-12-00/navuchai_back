@@ -77,7 +77,7 @@ async def create_test_access(db: AsyncSession, test_access_data: TestAccessCreat
         raise DatabaseException(f"Неожиданная ошибка при создании доступа к тесту: {str(e)}")
 
 
-async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int, start_date: datetime = None, end_date: datetime = None, status_id: int = None) -> list[TestAccess]:
+async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int, status_id: int = None) -> list[TestAccess]:
     """Создание доступа к тесту для группы пользователей"""
     try:
         if status_id:
@@ -109,13 +109,20 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
             test_access_payload = TestAccessCreate(
                 test_id=test_id,
                 user_id=member.user_id,
-                group_id=group_id,
-                start_date=start_date,
-                end_date=end_date,
                 status_id=status_id if status_id is not None else 1
             )
-            created_access = await create_test_access(db, test_access_payload)
-            created_accesses.append(created_access)
+            access_code = _generate_access_code() if member.user_id else None
+            db_test_access = TestAccess(
+                **test_access_payload.model_dump(exclude_none=True),
+                group_id=group_id,
+                completed_number=0,
+                avg_percent=0,
+                access_code=access_code
+            )
+            db.add(db_test_access)
+            await db.commit()
+            await db.refresh(db_test_access)
+            created_accesses.append(db_test_access)
         return created_accesses
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании группового доступа к тесту: {str(e)}")
@@ -275,12 +282,11 @@ async def get_test_users(db: AsyncSession, test_id: int):
             .where(TestAccess.test_id == test_id)
         )
         test_accesses = result.scalars().all()
-        # Если нет пользователей — возвращаем пустой массив
         if not test_accesses:
             return []
         users_with_access = []
         for access in test_accesses:
-            if access.user:
+            if access.user and access.group_id is None:
                 user_data = {
                     "user_id": access.user.id,
                     "email": access.user.email,
