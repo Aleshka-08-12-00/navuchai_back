@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
@@ -92,5 +92,72 @@ async def get_test_access_code(
     """
     try:
         return await crud.get_test_access_code(db, test_id, current_user.id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/", response_model=List[TestAccessResponse])
+async def get_all_test_accesses(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+) -> List[TestAccessResponse]:
+    """Получить все доступы пользователей к тестам"""
+    try:
+        accesses = await crud.get_all_test_accesses(db)
+        return [TestAccessResponse.from_orm(a) for a in accesses]
+    except DatabaseException as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/user/{test_id}/{user_id}")
+async def delete_user_test_access(
+    test_id: int,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
+    """Удалить доступ пользователя к тесту"""
+    try:
+        return await crud.delete_test_access(db, test_id, user_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/group/{test_id}/{group_id}", response_model=dict)
+async def delete_group_test_access_route(
+    test_id: int,
+    group_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+) -> dict:
+    """Удаление доступа к тесту для всей группы"""
+    try:
+        return await crud.delete_group_test_access(db, test_id, group_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{test_id}/users", response_model=List[Dict])
+async def get_test_users_route(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
+    """Получить список пользователей, назначенных на тест"""
+    try:
+        return await crud.get_test_users(db, test_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{test_id}/groups", response_model=List[Dict])
+async def get_test_groups_route(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
+    """Получить список групп, назначенных на тест"""
+    try:
+        return await crud.get_test_groups(db, test_id)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e)) 

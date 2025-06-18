@@ -9,7 +9,7 @@ class TestAccessBase(BaseModel):
     group_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    status_id: Optional[int] = None
+    status_id: int
     access_code: Optional[str] = None
 
 
@@ -19,8 +19,13 @@ class TestAccessCreate(BaseModel):
     group_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    status_id: Optional[int] = None
+    status_id: int
     access_code: Optional[str] = None
+    completed_number: Optional[int] = 0
+    avg_percent: Optional[int] = 0
+    status_name: Optional[str] = None
+    status_code: Optional[str] = None
+    status_color: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -33,10 +38,7 @@ class TestAccessResponse(BaseModel):
     group_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    status_id: Optional[int] = None
-    status_name: Optional[str] = None
-    status_code: Optional[str] = None
-    status_color: Optional[str] = None
+    status_id: int
     access_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime

@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.models import UserGroup, UserGroupMember, User
 from app.schemas.user_group import UserGroupCreate, UserGroupUpdate
 from app.exceptions import NotFoundException, DatabaseException
+from app.models.test_access import TestAccess
 
 
 async def create_group(db: AsyncSession, group_data: UserGroupCreate, creator_id: int) -> UserGroup:
@@ -58,6 +59,10 @@ async def update_group(db: AsyncSession, group_id: int, group_data: UserGroupUpd
 async def delete_group(db: AsyncSession, group_id: int) -> UserGroup:
     try:
         group = await get_group(db, group_id)
+        # Удаляем все доступы по group_id
+        await db.execute(
+            TestAccess.__table__.delete().where(TestAccess.group_id == group_id)
+        )
         await db.delete(group)
         await db.commit()
         return group
@@ -91,10 +96,7 @@ async def add_group_member(db: AsyncSession, group_id: int, user_id: int) -> Use
 
 async def remove_group_member(db: AsyncSession, group_id: int, user_id: int) -> UserGroupMember:
     try:
-        # Проверяем существование группы
         await get_group(db, group_id)
-
-        # Ищем участника группы
         result = await db.execute(
             select(UserGroupMember)
             .where(
@@ -105,7 +107,12 @@ async def remove_group_member(db: AsyncSession, group_id: int, user_id: int) -> 
         member = result.scalar_one_or_none()
         if not member:
             raise NotFoundException("Пользователь не найден в группе")
-
+        # Удаляем все доступы по group_id и user_id
+        await db.execute(
+            TestAccess.__table__.delete().where(
+                (TestAccess.group_id == group_id) & (TestAccess.user_id == user_id)
+            )
+        )
         await db.delete(member)
         await db.commit()
         return member
