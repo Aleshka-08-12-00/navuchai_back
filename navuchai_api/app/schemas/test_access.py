@@ -42,6 +42,8 @@ class TestAccessResponse(BaseModel):
     access_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    role_id: Optional[int] = None
+    role: Optional[dict] = None
 
     class Config:
         from_attributes = True 

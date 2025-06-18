@@ -196,11 +196,33 @@ async def get_all_test_accesses(db: AsyncSession):
     try:
         result = await db.execute(
             select(TestAccess)
-            .options(selectinload(TestAccess.user))
+            .options(selectinload(TestAccess.user).selectinload(User.role))
             .options(selectinload(TestAccess.test))
             .options(selectinload(TestAccess.status))
         )
-        return result.scalars().all()
+        accesses = result.scalars().all()
+        accesses_with_roles = []
+        for access in accesses:
+            user = access.user
+            access_dict = {
+                "id": access.id,
+                "test_id": access.test_id,
+                "user_id": access.user_id,
+                "group_id": access.group_id,
+                "start_date": access.start_date,
+                "end_date": access.end_date,
+                "status_id": access.status_id,
+                "access_code": access.access_code,
+                "created_at": access.created_at,
+                "updated_at": access.updated_at,
+                "role_id": user.role_id if user else None,
+                "role": {
+                    "name": user.role.name if user and user.role else None,
+                    "code": user.role.code if user and user.role else None
+                } if user else None
+            }
+            accesses_with_roles.append(access_dict)
+        return accesses_with_roles
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка доступов: {str(e)}")
 
