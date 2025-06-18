@@ -248,26 +248,25 @@ async def delete_group_test_access(db: AsyncSession, test_id: int, group_id: int
 async def get_test_users(db: AsyncSession, test_id: int):
     """Получить список пользователей, назначенных на тест"""
     try:
-        # Получаем записи доступа с информацией о пользователях
         result = await db.execute(
             select(TestAccess)
-            .options(selectinload(TestAccess.user))
+            .options(selectinload(TestAccess.user).selectinload(User.role))
             .options(selectinload(TestAccess.status))
             .where(TestAccess.test_id == test_id)
         )
         test_accesses = result.scalars().all()
-        
         if not test_accesses:
             raise NotFoundException(f"Доступы к тесту {test_id} не найдены")
-        
-        # Формируем список пользователей с информацией о доступе
         users_with_access = []
         for access in test_accesses:
-            if access.user:  # проверяем, что пользователь существует
+            if access.user:
                 user_data = {
                     "user_id": access.user.id,
                     "email": access.user.email,
                     "name": access.user.name,
+                    "role_id": access.user.role_id,
+                    "role_code": access.user.role.code if access.user.role else None,
+                    "role_name": access.user.role.name if access.user.role else None,
                     "access_id": access.id,
                     "group_id": access.group_id,
                     "start_date": access.start_date,
@@ -276,7 +275,6 @@ async def get_test_users(db: AsyncSession, test_id: int):
                     "status_name": access.status.name if access.status else None
                 }
                 users_with_access.append(user_data)
-        
         return users_with_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка пользователей: {str(e)}")
