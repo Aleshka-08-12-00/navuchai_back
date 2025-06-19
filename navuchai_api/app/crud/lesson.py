@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
-from app.models import Lesson
+from app.models import Lesson, LessonProgress, Module, File
 from app.schemas.lesson import LessonCreate
 from app.exceptions import NotFoundException
 
@@ -15,6 +15,10 @@ async def create_lesson(db: AsyncSession, data: LessonCreate):
     # Если хотите, чтобы метод create_lesson тоже вычислял order, добавьте логику по примеру ниже.
     lesson = Lesson(**data.model_dump())
     db.add(lesson)
+    if data.file_ids:
+        stmt_files = select(File).where(File.id.in_(data.file_ids))
+        files_result = await db.execute(stmt_files)
+        lesson.files = files_result.scalars().all()
     await db.commit()
     await db.refresh(lesson)
     return lesson
@@ -36,8 +40,13 @@ async def update_lesson(db: AsyncSession, lesson_id: int, data: LessonCreate):
 
     # Обновляем только те поля, которые действительно нужно менять.
     lesson.title = data.title
+    lesson.description = data.description
     lesson.content = data.content
     lesson.video = data.video
+    if data.file_ids:
+        stmt_files = select(File).where(File.id.in_(data.file_ids))
+        files_result = await db.execute(stmt_files)
+        lesson.files = files_result.scalars().all()
     # НЕ переписываем lesson.order = data.order, иначе попадёт None и в БД будет ошибка.
 
     await db.commit()
@@ -78,12 +87,67 @@ async def create_lesson_for_module(
     # 2) Создаём новый урок, передавая title, content и вычисленный order
     new = Lesson(
         title=lesson_in.title,
+        description=lesson_in.description,
         content=lesson_in.content,
         video=lesson_in.video,
         order=new_order,
         module_id=module_id
     )
     db.add(new)
+    if lesson_in.file_ids:
+        stmt_files = select(File).where(File.id.in_(lesson_in.file_ids))
+        files_res = await db.execute(stmt_files)
+        new.files = files_res.scalars().all()
     await db.commit()
     await db.refresh(new)
     return new
+
+
+async def complete_lesson(db: AsyncSession, lesson_id: int, user_id: int):
+    existing = await db.execute(
+        select(LessonProgress).where(
+            LessonProgress.lesson_id == lesson_id,
+            LessonProgress.user_id == user_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        return
+    progress = LessonProgress(lesson_id=lesson_id, user_id=user_id)
+    db.add(progress)
+    await db.commit()
+
+
+async def get_module_progress(db: AsyncSession, module_id: int, user_id: int) -> float:
+    total_res = await db.execute(select(func.count()).select_from(Lesson).where(Lesson.module_id == module_id))
+    total = total_res.scalar() or 0
+    if total == 0:
+        return 0.0
+    completed_res = await db.execute(
+        select(func.count())
+        .select_from(LessonProgress)
+        .join(Lesson, LessonProgress.lesson_id == Lesson.id)
+        .where(Lesson.module_id == module_id, LessonProgress.user_id == user_id)
+    )
+    completed = completed_res.scalar() or 0
+    return round(completed / total * 100, 2)
+
+
+async def get_course_progress(db: AsyncSession, course_id: int, user_id: int) -> float:
+    total_res = await db.execute(
+        select(func.count())
+        .select_from(Lesson)
+        .join(Module, Lesson.module_id == Module.id)
+        .where(Module.course_id == course_id)
+    )
+    total = total_res.scalar() or 0
+    if total == 0:
+        return 0.0
+    completed_res = await db.execute(
+        select(func.count())
+        .select_from(LessonProgress)
+        .join(Lesson, LessonProgress.lesson_id == Lesson.id)
+        .join(Module, Lesson.module_id == Module.id)
+        .where(Module.course_id == course_id, LessonProgress.user_id == user_id)
+    )
+    completed = completed_res.scalar() or 0
+    return round(completed / total * 100, 2)

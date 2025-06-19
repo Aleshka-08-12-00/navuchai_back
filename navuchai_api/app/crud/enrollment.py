@@ -25,3 +25,12 @@ async def unenroll_user(db: AsyncSession, course_id: int, user_id: int):
 async def get_user_courses(db: AsyncSession, user_id: int):
     result = await db.execute(select(CourseEnrollment).where(CourseEnrollment.user_id == user_id))
     return result.scalars().all()
+
+
+async def user_enrolled(db: AsyncSession, course_id: int, user_id: int) -> bool:
+    result = await db.execute(
+        select(CourseEnrollment).where(
+            and_(CourseEnrollment.course_id == course_id, CourseEnrollment.user_id == user_id)
+        )
+    )
+    return result.scalar_one_or_none() is not None
