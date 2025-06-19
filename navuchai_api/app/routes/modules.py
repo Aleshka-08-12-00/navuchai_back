@@ -12,11 +12,13 @@ from app.crud import (
     get_module_progress,
     user_enrolled,
     complete_lesson,
+    get_current_user
 )
 from app.schemas.module import ModuleCreate, ModuleWithLessons
 from app.schemas.lesson import LessonResponse, LessonCreate
 from app.exceptions import NotFoundException
 from app.crud import authorized_required
+from app.models import User
 
 
 
