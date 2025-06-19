@@ -140,6 +140,19 @@ async def get_test_users_route(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/{test_id}/all-users", response_model=List[Dict])
+async def get_all_test_users_route(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(admin_moderator_required)
+):
+    """Получить список всех пользователей, назначенных на тест (включая пользователей в группах)"""
+    try:
+        return await crud.get_all_test_users(db, test_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/{test_id}/groups", response_model=List[Dict])
 async def get_test_groups_route(
     test_id: int,
