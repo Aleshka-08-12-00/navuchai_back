@@ -7,12 +7,14 @@ class ModuleBase(BaseModel):
     id: int
     course_id: int
     title: str
+    description: Optional[str] = None
     order: Optional[int] = None
     class Config:
         from_attributes = True
 
 class ModuleCreate(BaseModel):
     title: str
+    description: Optional[str] = None
 
 class ModuleWithLessons(ModuleBase):
     lessons: List['LessonBase'] = []
@@ -22,6 +24,7 @@ class ModuleWithLessons(ModuleBase):
 class ModuleRead(BaseModel):
     id: int
     title: str
+    description: Optional[str] = None
     order: int
     lessons: List[LessonRead]
 
@@ -31,6 +34,7 @@ class ModuleRead(BaseModel):
 
 class ModuleResponse(BaseModel):
     title: str
+    description: Optional[str] = None
     order: Optional[int] = None
 
     class Config:

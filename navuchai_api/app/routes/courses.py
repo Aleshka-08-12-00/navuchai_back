@@ -2,11 +2,25 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from app.dependencies import get_db
-from app.crud import get_courses, get_course, create_course, update_course, delete_course, get_current_user, admin_moderator_required, get_course_with_content, get_modules_by_course, create_module_for_course
+from app.crud import (
+    get_courses,
+    get_course,
+    create_course,
+    update_course,
+    delete_course,
+    get_current_user,
+    admin_moderator_required,
+    get_course_with_content,
+    get_modules_by_course,
+    create_module_for_course,
+    get_course_progress,
+    user_enrolled,
+)
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
+from app.crud import authorized_required
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
@@ -14,11 +28,13 @@ router = APIRouter(prefix="/api/courses", tags=["Courses"])
 async def list_courses(db: AsyncSession = Depends(get_db)):
     return await get_courses(db)
 
-@router.get("/{id}", response_model=CourseRead)
-async def read_course(id: int, db=Depends(get_db)):
+@router.get("/{id}", response_model=CourseRead, dependencies=[Depends(authorized_required)])
+async def read_course(id: int, db=Depends(get_db), user: User = Depends(get_current_user)):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, id, user.id):
+        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     return course
 
 @router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_moderator_required)])
@@ -33,8 +49,10 @@ async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(
 async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
     await delete_course(db, course_id)
 
-@router.get("/{course_id}/modules", response_model=list[ModuleWithLessons])
-async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)):
+@router.get("/{course_id}/modules", response_model=list[ModuleWithLessons], dependencies=[Depends(authorized_required)])
+async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
     if not modules:
         raise HTTPException(status_code=404, detail="Modules not found or course does not exist")
@@ -43,3 +61,11 @@ async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)
 @router.post("/{course_id}/modules", response_model=ModuleResponse, status_code=status.HTTP_201_CREATED)
 async def create_module_route(course_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db)):
     return await create_module_for_course(db, course_id, data)
+
+
+@router.get("/{course_id}/progress", dependencies=[Depends(authorized_required)])
+async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
+    percent = await get_course_progress(db, course_id, user.id)
+    return {"percent": percent}

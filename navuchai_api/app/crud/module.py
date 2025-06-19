@@ -34,6 +34,7 @@ async def update_module(db: AsyncSession, module_id: int, data):
 
     module = await get_module(db, module_id)
     module.title = data.title
+    module.description = data.description
     # Не заменяем module.order, чтобы он не стал None
 
     await db.commit()
@@ -83,6 +84,7 @@ async def create_module_for_course(db: AsyncSession, course_id: int, module_in):
 
     new = Module(
         title=module_in.title,
+        description=module_in.description,
         order=new_order,
         course_id=course_id
     )
