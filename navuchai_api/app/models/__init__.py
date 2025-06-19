@@ -6,6 +6,7 @@ from .module import Module
 from .lesson import Lesson
 from .lesson_test import LessonTest
 from .course_enrollment import CourseEnrollment
+from .lesson_progress import LessonProgress
 from .test import Test
 from .question import Question
 from .test_question import TestQuestion
@@ -28,6 +29,9 @@ __all__ = [
     "Test",
     "Question",
     "TestQuestion",
+    "Course",
+    "Module",
+    "Lesson",
     "Category",
     "Locale",
     "File",
@@ -38,6 +42,8 @@ __all__ = [
     "UserGroupMember",
     "TestAccess",
     "QuestionType",
-    "TestAccessStatus"
+    "TestAccessStatus",
+    "CourseEnrollment",
+    "LessonProgress"
 ]
 
