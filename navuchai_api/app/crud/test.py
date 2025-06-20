@@ -162,7 +162,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             raise NotFoundException(f"Пользователь с ID {user_id} не найден")
         
         # Админы видят все тесты
-        if user.role.code == 'admin':
+        if user.role and user.role.code == 'admin':
             return await get_tests(db)
         
         # Обычные пользователи видят только тесты, доступные им, исключая тесты со статусом ID 2 (Setup in progress)

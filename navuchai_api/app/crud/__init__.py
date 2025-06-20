@@ -10,3 +10,5 @@ from .course import get_courses, get_course, create_course, update_course, delet
 from .module import create_module, get_module, update_module, delete_module, get_modules_by_course, get_modules_with_lessons_by_course, create_module_for_course
 from .lesson import create_lesson, get_lesson, update_lesson, delete_lesson, get_lessons_by_module, create_lesson_for_module
 from .enrollment import enroll_user, unenroll_user, get_user_courses
+from .result import get_analytics_user_performance
+from .analytics import get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename

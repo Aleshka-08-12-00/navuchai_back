@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from sqlalchemy import text
 from typing import List
 from datetime import datetime
 
@@ -135,3 +136,56 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при получении списка результатов: {str(e)}")
+
+
+async def get_analytics_user_performance(db: AsyncSession) -> List[dict]:
+    """Получение данных из представления analytics_user_performance"""
+    try:
+        # Выполняем запрос к представлению
+        stmt = text("""
+        SELECT 
+            user_id,
+            user_name,
+            user_email,
+            role_name,
+            total_tests_accessed,
+            total_tests_completed,
+            avg_score,
+            best_score,
+            worst_score,
+            total_attempts,
+            avg_percent_completion,
+            total_questions_answered,
+            first_test_date,
+            last_test_date,
+            days_active
+        FROM analytics_user_performance
+        ORDER BY user_name
+        """)
+        result = await db.execute(stmt)
+        rows = result.fetchall()
+        
+        # Преобразуем результаты в список словарей
+        analytics_data = []
+        for row in rows:
+            analytics_data.append({
+                "user_id": row[0],
+                "user_name": row[1],
+                "user_email": row[2],
+                "role_name": row[3],
+                "total_tests_accessed": row[4] or 0,
+                "total_tests_completed": row[5] or 0,
+                "avg_score": float(row[6]) if row[6] is not None else 0.0,
+                "best_score": row[7] or 0,
+                "worst_score": row[8] or 0,
+                "total_attempts": row[9] or 0,
+                "avg_percent_completion": float(row[10]) if row[10] is not None else 0.0,
+                "total_questions_answered": row[11] or 0,
+                "first_test_date": row[12],
+                "last_test_date": row[13],
+                "days_active": row[14] or 0
+            })
+        
+        return analytics_data
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении аналитических данных: {str(e)}")
