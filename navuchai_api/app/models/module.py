@@ -11,3 +11,4 @@ class Module(Base):
     order = Column(Integer, default=0)
     course = relationship('Course', back_populates='modules')
     lessons = relationship('Lesson', back_populates='module', cascade='all, delete-orphan')
+    tests = relationship('ModuleTest', back_populates='module', cascade='all, delete-orphan')
