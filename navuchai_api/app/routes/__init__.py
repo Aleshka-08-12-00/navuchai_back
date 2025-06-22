@@ -17,6 +17,7 @@ from app.routes.courses import router as courses_router
 from app.routes.modules import router as modules_router
 from app.routes.lessons import router as lessons_router
 from app.routes.enrollment import router as enrollment_router
+from app.routes.module_tests import router as module_tests_router
 
 auth = auth_router
 tests = tests_router
@@ -37,3 +38,4 @@ courses = courses_router
 modules = modules_router
 lessons = lessons_router
 enrollment = enrollment_router
+module_tests = module_tests_router
