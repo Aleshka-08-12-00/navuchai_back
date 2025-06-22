@@ -5,6 +5,8 @@ from .course import Course
 from .module import Module
 from .lesson import Lesson
 from .lesson_test import LessonTest
+from .course_test import CourseTest
+from .module_test import ModuleTest
 from .course_enrollment import CourseEnrollment
 from .lesson_progress import LessonProgress
 from .test import Test
@@ -43,6 +45,8 @@ __all__ = [
     "TestAccess",
     "QuestionType",
     "TestAccessStatus",
+    "CourseTest",
+    "ModuleTest",
     "CourseEnrollment",
     "LessonProgress"
 ]

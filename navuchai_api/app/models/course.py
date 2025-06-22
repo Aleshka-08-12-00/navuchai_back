@@ -13,3 +13,4 @@ class Course(Base):
     author = relationship('User')
     modules = relationship('Module', back_populates='course', cascade='all, delete-orphan')
     enrollments = relationship('CourseEnrollment', back_populates='course', cascade='all, delete-orphan')
+    tests = relationship('CourseTest', back_populates='course', cascade='all, delete-orphan')
