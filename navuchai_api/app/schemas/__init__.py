@@ -4,3 +4,5 @@ from .test_question import TestQuestionResponse
 from .user import UserCreate, UserUpdate, UserResponse, UserProfileUpdate
 from .user_auth import Token, UserLogin, UserOut
 from .role import RoleBase
+from .course_test import CourseTestBase, CourseTestCreate
+from .module_test import ModuleTestBase, ModuleTestCreate
