@@ -175,8 +175,8 @@ async def get_result_by_id(
 ):
     try:
         result = await result_crud.get_result(db, result_id)
-        # Если не admin — проверяем, что пользователь запрашивает свой результат
-        if current_user.role.code != "admin" and result.user_id != current_user.id:
+        # Если не админ или модератор — проверяем, что пользователь запрашивает свой результат
+        if current_user.role.code not in ["admin", "moderator"] and result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
         return convert_result(result)
     except SQLAlchemyError:
@@ -190,8 +190,8 @@ async def get_user_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        # Если не admin — проверяем, что пользователь запрашивает свои результаты
-        if current_user.role.code != "admin" and user_id != current_user.id:
+        # Если не админ или модератор — проверяем, что пользователь запрашивает свои результаты
+        if current_user.role.code not in ["admin", "moderator"] and user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
         results = await result_crud.get_user_results(db, user_id)
         return [convert_result(result) for result in results]
@@ -218,7 +218,7 @@ async def get_all_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        if current_user.role.code == "admin":
+        if current_user.role.code in ["admin", "moderator"]:
             results = await result_crud.get_all_results(db)
         else:
             results = await result_crud.get_user_results(db, current_user.id)
