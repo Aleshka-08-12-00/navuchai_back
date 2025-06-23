@@ -58,15 +58,15 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
                 answer=answer_data
             )
             db.add(new_answer)
-        try:
-            await update_test_access_status(
-                db=db,
-                test_id=result_data.test_id,
-                user_id=result_data.user_id,
-                is_passed=test_results['is_passed']
-            )
-        except Exception:
-            pass
+        # try:
+        #     await update_test_access_status(
+        #         db=db,
+        #         test_id=result_data.test_id,
+        #         user_id=result_data.user_id,
+        #         is_passed=test_results['is_passed']
+        #     )
+        # except Exception:
+        #     pass
         await db.commit()
         await db.refresh(new_result)
         return new_result
