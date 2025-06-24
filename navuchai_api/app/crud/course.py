@@ -84,3 +84,12 @@ async def delete_course(db: AsyncSession, course_id: int):
     course = await get_course(db, course_id)
     await db.delete(course)
     await db.commit()
+
+async def update_course_images(db: AsyncSession, course_id: int, img_id: int, thumbnail_id: int) -> Course:
+    """Обновить изображения курса."""
+    course = await get_course(db, course_id)
+    course.img_id = img_id
+    course.thumbnail_id = thumbnail_id
+    await db.commit()
+    await db.refresh(course)
+    return course
