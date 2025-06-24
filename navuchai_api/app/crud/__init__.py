@@ -6,7 +6,15 @@ from .test import get_tests, get_test, create_test, delete_test, update_test, ge
 from .test_question import create_test_question, delete_test_question
 from .user import get_users, get_user, update_user, delete_user, update_user_role
 from .user_auth import get_current_user
-from .course import get_courses, get_course, create_course, update_course, delete_course, get_course_with_content
+from .course import (
+    get_courses,
+    get_course,
+    create_course,
+    update_course,
+    delete_course,
+    get_course_with_content,
+    update_course_images,
+)
 from .module import create_module, get_module, update_module, delete_module, get_modules_by_course, get_modules_with_lessons_by_course, create_module_for_course
 from .lesson import create_lesson, get_lesson, update_lesson, delete_lesson, get_lessons_by_module, create_lesson_for_module, complete_lesson, get_module_progress, get_course_progress
 from .enrollment import enroll_user, unenroll_user, get_user_courses, user_enrolled
