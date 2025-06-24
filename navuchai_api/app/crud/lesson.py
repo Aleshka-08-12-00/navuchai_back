@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
+from sqlalchemy.orm import selectinload
 from app.models import Lesson, LessonProgress, Module, File
 from app.schemas.lesson import LessonCreate
 from app.exceptions import NotFoundException
@@ -25,7 +26,12 @@ async def create_lesson(db: AsyncSession, data: LessonCreate):
 
 
 async def get_lesson(db: AsyncSession, lesson_id: int):
-    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+    result = await db.execute(
+        select(Lesson)
+        .options(selectinload(Lesson.image))
+        .options(selectinload(Lesson.thumbnail))
+        .where(Lesson.id == lesson_id)
+    )
     lesson = result.scalar_one_or_none()
     if not lesson:
         raise NotFoundException("Урок не найден")
@@ -43,6 +49,8 @@ async def update_lesson(db: AsyncSession, lesson_id: int, data: LessonCreate):
     lesson.description = data.description
     lesson.content = data.content
     lesson.video = data.video
+    lesson.img_id = data.img_id
+    lesson.thumbnail_id = data.thumbnail_id
     if data.file_ids:
         stmt_files = select(File).where(File.id.in_(data.file_ids))
         files_result = await db.execute(stmt_files)
@@ -63,6 +71,8 @@ async def delete_lesson(db: AsyncSession, lesson_id: int):
 async def get_lessons_by_module(db: AsyncSession, module_id: int) -> list[Lesson]:
     stmt = (
         select(Lesson)
+        .options(selectinload(Lesson.image))
+        .options(selectinload(Lesson.thumbnail))
         .where(Lesson.module_id == module_id)
         .order_by(Lesson.order)
     )
@@ -90,6 +100,8 @@ async def create_lesson_for_module(
         description=lesson_in.description,
         content=lesson_in.content,
         video=lesson_in.video,
+        img_id=lesson_in.img_id,
+        thumbnail_id=lesson_in.thumbnail_id,
         order=new_order,
         module_id=module_id
     )

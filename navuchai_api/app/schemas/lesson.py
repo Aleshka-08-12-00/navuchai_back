@@ -11,6 +11,10 @@ class LessonBase(BaseModel):
     content: Optional[str] = None
     video: Optional[str] = None
     order: Optional[int] = None
+    img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
+    image: Optional[FileInDB] = None
+    thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
     class Config:
         from_attributes = True
@@ -22,6 +26,8 @@ class LessonCreate(BaseModel):
     content: Optional[str] = None
     video: Optional[str] = None
     order: Optional[int] = None
+    img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
     file_ids: List[int] = []
 
 class LessonResponse(LessonBase):
@@ -41,6 +47,10 @@ class LessonRead(BaseModel):
     content: str
     video: Optional[str] = None
     order: int
+    img_id: Optional[int] = None
+    thumbnail_id: Optional[int] = None
+    image: Optional[FileInDB] = None
+    thumbnail: Optional[FileInDB] = None
 
     model_config = {
         "from_attributes": True
