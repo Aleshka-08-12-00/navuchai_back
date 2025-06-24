@@ -1,49 +1,62 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import List, Optional
+
 from app.schemas.module import ModuleBase
-from .module import ModuleRead
+from pydantic import BaseModel, Field
+
 from .file import FileInDB
+from .module import ModuleRead
+
 
 class CourseBase(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
     author_id: int
-    img_id: Optional[int] = None
-    thumbnail_id: Optional[int] = None
+    img_id: Optional[int] = Field(default=None, alias="imgId")
+    thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+        populate_by_name = True
+
 
 class CourseCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    img_id: Optional[int] = None
-    thumbnail_id: Optional[int] = None
+    img_id: Optional[int] = Field(default=None, alias="imgId")
+    thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
+
+    class Config:
+        populate_by_name = True
+
 
 class CourseResponse(CourseBase):
     pass
 
+
 class CourseWithDetails(CourseBase):
-    modules: List['ModuleBase'] = []
+    modules: List["ModuleBase"] = []
+
     class Config:
         from_attributes = True
+        populate_by_name = True
+
 
 class CourseRead(BaseModel):
     id: int
     title: str
     description: str
-    img_id: Optional[int] = None
-    thumbnail_id: Optional[int] = None
+    img_id: Optional[int] = Field(default=None, alias="imgId")
+    thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     modules: List[ModuleRead]
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
 
 CourseWithDetails.model_rebuild()
