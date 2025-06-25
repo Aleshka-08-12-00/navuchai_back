@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 import boto3
 from botocore.client import Config
@@ -91,7 +91,7 @@ async def upload_file(
 @router.post("/upload-image/", response_model=FileUploadWithMobileResponse)
 async def upload_image(
         file: UploadFile = File(...),
-        course_id: int | None = None,
+        course_id: int | None = Query(default=None, alias="courseId"),
         current_user: User = Depends(admin_moderator_required),
         db: AsyncSession = Depends(get_db)
 ):
