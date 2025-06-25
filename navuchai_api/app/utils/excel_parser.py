@@ -189,8 +189,8 @@ class ExcelTestParser:
                 question_type = type_map.get(raw_type, raw_type.upper())
                 
                 question_data = {
-                    'question_text': str(row.get(col_idx.get('question_text', ''), '')).strip(),
-                    'question_abstract': str(row.get(col_idx.get('question_abstract', ''), row.get(col_idx.get('question_text', ''), ''))).strip(),
+                    'question_text': f'<p>{str(qtext).strip()}</p>',
+                    'question_abstract': str(qtext).strip(),
                     'question_type': question_type,
                     'position': idx + 1,  # автоинкремент
                     'required': True,     # всегда True
@@ -362,38 +362,37 @@ def create_friendly_excel_template(file_path_or_buffer) -> None:
         # Лист 2: Вопросы
         ws2 = wb.create_sheet('Вопросы')
         columns = [
-            'Текст вопроса', 'Краткий текст', 'Тип вопроса', 'Варианты ответов (через |)',
+            'Текст вопроса', 'Тип вопроса', 'Варианты ответов (через |)',
             'Правильный ответ', 'Максимальный балл', 'Лимит времени (сек)'
         ]
         ws2.append(columns)
         
         # Примеры вопросов
         examples = [
-            ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Стиль одежды', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
-            ['Какие документы нужны для работы?', 'Документы', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0]
+            ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
+            ['Какие документы нужны для работы?', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0]
         ]
         
         for example in examples:
             ws2.append(example)
         
         # Выделяем заголовки
-        for col in range(1, 8):
+        for col in range(1, 7):
             ws2.cell(row=1, column=col).fill = fill
             ws2.cell(row=1, column=col).font = Font(bold=True)
         
         # Добавляем выпадающий список для типа вопроса
         dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=False)
         ws2.add_data_validation(dv)
-        dv.add('C2:C100')
+        dv.add('B2:B100')
         
         # Настраиваем ширину колонок
         ws1.column_dimensions['A'].width = 25
         ws1.column_dimensions['B'].width = 50
         ws2.column_dimensions['A'].width = 60
-        ws2.column_dimensions['B'].width = 30
-        ws2.column_dimensions['C'].width = 22
-        ws2.column_dimensions['D'].width = 60
-        ws2.column_dimensions['E'].width = 40
+        ws2.column_dimensions['B'].width = 22
+        ws2.column_dimensions['C'].width = 60
+        ws2.column_dimensions['D'].width = 40
         
         wb.save(file_path_or_buffer)
         logger.info("Дружелюбный Excel шаблон успешно создан")
@@ -439,16 +438,16 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
         # 2. Вопросы
         ws = wb.create_sheet('Вопросы')
         columns = [
-            'Текст вопроса', 'Краткий текст', 'Тип вопроса', 'Варианты ответов (через |)',
+            'Текст вопроса', 'Тип вопроса', 'Варианты ответов (через |)',
             'Правильный ответ', 'Максимальный балл', 'Лимит времени (сек)'
         ]
         ws.append(columns)
         
         # Примеры вопросов
         examples = [
-            ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Стиль одежды', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
-            ['Какие документы нужны для работы?', 'Документы', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0],
-            ['В какое время начинается рабочий день?', 'Рабочее время', 'Одиночный выбор', '8:00|9:00|10:00|По договоренности', '9:00', 1, 0]
+            ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
+            ['Какие документы нужны для работы?', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0],
+            ['В какое время начинается рабочий день?', 'Одиночный выбор', '8:00|9:00|10:00|По договоренности', '9:00', 1, 0]
         ]
         
         for example in examples:
@@ -456,14 +455,14 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
         
         # Выделяем заголовки
         fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
-        for col in range(1, 8):
+        for col in range(1, 7):
             ws.cell(row=1, column=col).fill = fill
             ws.cell(row=1, column=col).font = Font(bold=True)
         
         # Добавляем выпадающий список для типа вопроса
         dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=False)
         ws.add_data_validation(dv)
-        dv.add('C2:C100')
+        dv.add('B2:B100')
         
         # 3. Инструкция
         ws2 = wb.create_sheet('Инструкция')
@@ -486,7 +485,6 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
             '',
             'Пояснения по полям:',
             'Текст вопроса — формулировка для пользователя.',
-            'Краткий текст — короткая версия вопроса (можно дублировать основной).',
             'Тип вопроса — Одиночный выбор (один ответ) или Множественный выбор (несколько).',
             'Варианты ответов — через |.',
             'Правильный ответ — текст или несколько через |.',
@@ -501,10 +499,9 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
         ws_settings.column_dimensions['A'].width = 28
         ws_settings.column_dimensions['B'].width = 60
         ws.column_dimensions['A'].width = 60
-        ws.column_dimensions['B'].width = 30
-        ws.column_dimensions['C'].width = 22
-        ws.column_dimensions['D'].width = 60
-        ws.column_dimensions['E'].width = 40
+        ws.column_dimensions['B'].width = 22
+        ws.column_dimensions['C'].width = 60
+        ws.column_dimensions['D'].width = 40
         ws2.column_dimensions['A'].width = 90
         
         # Сохраняем в файл или буфер
