@@ -41,14 +41,17 @@ async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
     response_model=list[LessonResponse],
     dependencies=[Depends(authorized_required)]
 )
-async def read_lessons(module_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role.code not in ["admin", "moderator"]:
-        module = await get_module(db, module_id)
-        if not module or not await user_enrolled(db, module.course_id, user.id):
-            raise HTTPException(status_code=403, detail="Нет доступа к модулю")
+async def read_lessons(
+    module_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    module = await get_module(db, module_id)
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(
+        db, module.course_id, user.id
+    ):
+        raise HTTPException(status_code=403, detail="Нет доступа к модулю")
     lessons = await get_lessons_by_module(db, module_id)
-    if not lessons:
-        raise HTTPException(status_code=404, detail="Lessons not found")
     return lessons
 
 @router.post("/{module_id}/lessons", response_model=LessonResponse, status_code=status.HTTP_201_CREATED)
