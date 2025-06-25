@@ -37,6 +37,7 @@ async def get_course_with_content(db, course_id: int) -> Course:
             .selectinload(Module.lessons)
             .selectinload(Lesson.image)
             .selectinload(Lesson.thumbnail)
+            .selectinload(Lesson.files)
         )
         .options(selectinload(Course.image))
         .options(selectinload(Course.thumbnail))
