@@ -58,9 +58,13 @@ async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)
     if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
-    if not modules:
-        raise HTTPException(status_code=404, detail="Modules not found or course does not exist")
-    return modules
+    if modules:
+        return modules
+    try:
+        await get_course(db, course_id)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return []
 
 @router.post("/{course_id}/modules", response_model=ModuleResponse, status_code=status.HTTP_201_CREATED)
 async def create_module_route(course_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db)):
