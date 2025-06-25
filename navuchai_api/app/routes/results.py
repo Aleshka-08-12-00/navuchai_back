@@ -5,6 +5,7 @@ from typing import List
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from io import BytesIO
+from datetime import datetime
 
 from app.crud import result as result_crud
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
@@ -30,6 +31,20 @@ def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
     )
 
 
+def clean_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Очищает datetime колонки от часовых поясов для совместимости с Excel"""
+    for column in df.columns:
+        if df[column].dtype == 'object':
+            # Проверяем, содержит ли колонка datetime объекты
+            sample_values = df[column].dropna().head(10)
+            if len(sample_values) > 0 and any(isinstance(val, datetime) for val in sample_values):
+                # Убираем часовые пояса из datetime объектов
+                df[column] = df[column].apply(
+                    lambda x: x.replace(tzinfo=None) if isinstance(x, datetime) and x.tzinfo else x
+                )
+    return df
+
+
 @router.get("/excel")
 async def export_results_excel(
         db: AsyncSession = Depends(get_db),
@@ -41,6 +56,9 @@ async def export_results_excel(
         
         # Создаем DataFrame из аналитических данных
         df = pd.DataFrame(analytics_data)
+        
+        # Очищаем datetime колонки от часовых поясов
+        df = clean_datetime_columns(df)
         
         # Получаем маппинг колонок для переименования
         column_mapping = get_column_mapping('analytics_user_performance')
@@ -102,6 +120,9 @@ async def export_analytics_excel(
         
         # Создаем DataFrame из аналитических данных
         df = pd.DataFrame(analytics_data)
+        
+        # Очищаем datetime колонки от часовых поясов
+        df = clean_datetime_columns(df)
         
         # Получаем маппинг колонок для переименования
         column_mapping = get_column_mapping(view_name)
