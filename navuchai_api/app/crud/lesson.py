@@ -71,9 +71,28 @@ async def delete_lesson(db: AsyncSession, lesson_id: int):
     await db.commit()
 
 
-async def get_lessons_by_module(db: AsyncSession, module_id: int) -> list[Lesson]:
+async def get_lessons_by_module(
+    db: AsyncSession, module_id: int, user_id: int | None = None
+) -> list[Lesson]:
+    if user_id is None:
+        stmt = (
+            select(Lesson)
+            .options(selectinload(Lesson.image))
+            .options(selectinload(Lesson.thumbnail))
+            .options(selectinload(Lesson.files))
+            .where(Lesson.module_id == module_id)
+            .order_by(Lesson.order)
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
     stmt = (
-        select(Lesson)
+        select(Lesson, LessonProgress.id)
+        .outerjoin(
+            LessonProgress,
+            (Lesson.id == LessonProgress.lesson_id)
+            & (LessonProgress.user_id == user_id),
+        )
         .options(selectinload(Lesson.image))
         .options(selectinload(Lesson.thumbnail))
         .options(selectinload(Lesson.files))
@@ -81,7 +100,11 @@ async def get_lessons_by_module(db: AsyncSession, module_id: int) -> list[Lesson
         .order_by(Lesson.order)
     )
     result = await db.execute(stmt)
-    return result.scalars().all()
+    lessons = []
+    for lesson, progress_id in result.all():
+        setattr(lesson, "completed", progress_id is not None)
+        lessons.append(lesson)
+    return lessons
 
 
 async def create_lesson_for_module(
