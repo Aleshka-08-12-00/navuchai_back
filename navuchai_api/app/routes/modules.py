@@ -49,7 +49,7 @@ async def read_lessons(
         db, module.course_id, user.id
     ):
         raise HTTPException(status_code=403, detail="Нет доступа к модулю")
-    lessons = await get_lessons_by_module(db, module_id)
+    lessons = await get_lessons_by_module(db, module_id, user.id)
     return lessons
 
 @router.post("/{module_id}/lessons", response_model=LessonResponse, status_code=status.HTTP_201_CREATED)

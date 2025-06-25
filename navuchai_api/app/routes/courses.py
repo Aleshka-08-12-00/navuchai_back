@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.future import select
 from app.dependencies import get_db
 from app.crud import (
     get_courses,
@@ -12,6 +12,7 @@ from app.crud import (
     admin_moderator_required,
     get_course_with_content,
     get_modules_by_course,
+    get_lessons_by_module,
     create_module_for_course,
     get_course_progress,
     user_enrolled,
@@ -23,7 +24,7 @@ from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
-from app.models import User
+from app.models import User, LessonProgress
 from app.crud import authorized_required
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
@@ -39,6 +40,18 @@ async def read_course(id: int, db=Depends(get_db), user: User = Depends(get_curr
         raise HTTPException(status_code=404, detail="Курс не найден")
     if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, id, user.id):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
+    lesson_ids = [l.id for m in course.modules for l in m.lessons]
+    if lesson_ids:
+        res = await db.execute(
+            select(LessonProgress.lesson_id).where(
+                LessonProgress.user_id == user.id,
+                LessonProgress.lesson_id.in_(lesson_ids),
+            )
+        )
+        completed_ids = {row[0] for row in res.all()}
+        for m in course.modules:
+            for l in m.lessons:
+                l.completed = l.id in completed_ids
     return course
 
 @router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_moderator_required)])
@@ -58,6 +71,8 @@ async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)
     if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
+    for module in modules:
+        module.lessons = await get_lessons_by_module(db, module.id, user.id)
     if modules:
         return modules
     try:

@@ -19,6 +19,7 @@ class LessonBase(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
+    completed: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -66,6 +67,7 @@ class LessonRead(BaseModel):
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+    completed: Optional[bool] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
