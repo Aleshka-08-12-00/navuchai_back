@@ -26,7 +26,7 @@ class LessonBase(BaseModel):
 
 
 class LessonCreate(BaseModel):
-    # module_id: int
+    module_id: Optional[int] = Field(default=None, alias="moduleId")
     title: str
     description: Optional[str] = None
     content: Optional[str] = None

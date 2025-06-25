@@ -14,6 +14,8 @@ async def create_lesson(db: AsyncSession, data: LessonCreate):
     """
     # Здесь предполагается, что data.model_dump() включает в себя module_id и все нужные поля.
     # Если хотите, чтобы метод create_lesson тоже вычислял order, добавьте логику по примеру ниже.
+    if data.module_id is None:
+        raise ValueError("module_id is required")
     lesson = Lesson(**data.model_dump())
     db.add(lesson)
     if data.file_ids:
