@@ -33,25 +33,19 @@ router = APIRouter(prefix="/api/courses", tags=["Courses"])
 async def list_courses(db: AsyncSession = Depends(get_db)):
     return await get_courses(db)
 
-@router.get("/{id}", response_model=CourseRead, dependencies=[Depends(authorized_required)])
-async def read_course(id: int, db=Depends(get_db), user: User = Depends(get_current_user)):
+@router.get(
+    "/{id}",
+    response_model=CourseRead,
+    response_model_exclude={"modules"},
+    dependencies=[Depends(authorized_required)],
+)
+async def read_course(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
-    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, id, user.id):
-        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
-    lesson_ids = [l.id for m in course.modules for l in m.lessons]
-    if lesson_ids:
-        res = await db.execute(
-            select(LessonProgress.lesson_id).where(
-                LessonProgress.user_id == user.id,
-                LessonProgress.lesson_id.in_(lesson_ids),
-            )
-        )
-        completed_ids = {row[0] for row in res.all()}
-        for m in course.modules:
-            for l in m.lessons:
-                l.completed = l.id in completed_ids
     return course
 
 @router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_moderator_required)])
