@@ -189,16 +189,8 @@ def get_column_mapping(view_name: str) -> Dict[str, str]:
             "total_users_answered": "Всего пользователей ответило",
             "total_answers": "Всего ответов",
             "answer_rate": "Процент ответов",
-            "test_title": "Название теста",
-            "category_name": "Категория теста",
-            "correct_answers": "Правильных ответов",
-            "incorrect_answers": "Неправильных ответов",
-            "correct_percentage": "Процент правильных ответов",
-            "avg_time_spent": "Среднее время ответа",
-            "difficulty_level": "Уровень сложности",
+            "correct_answer_rate": "Процент правильных ответов",
             "question_created_at": "Дата создания вопроса",
-            "created_at": "Дата создания вопроса",
-            "updated_at": "Дата обновления вопроса",
             "users_last_30_days": "Пользователей за 30 дней",
             "users_last_7_days": "Пользователей за 7 дней"
         }
