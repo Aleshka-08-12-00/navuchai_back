@@ -122,19 +122,28 @@ def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool,
     """
     question_type = question.type.code if question.type else None
     
+    # Получаем настройки баллов из вопроса
+    answers = question.answers
+    correct_score = 1  # значение по умолчанию
+    incorrect_score = 0  # значение по умолчанию
+    if isinstance(answers, dict) and 'settings' in answers:
+        settings = answers.get('settings', {})
+        correct_score = settings.get('correctScore', 1)
+        incorrect_score = settings.get('incorrectScore', 0)
+    
     if question_type == "SINGLE_CHOICE":
-        return check_single_choice(question, answer)
+        return check_single_choice(question, answer, correct_score, incorrect_score)
     elif question_type == "MULTIPLE_CHOICE":
-        return check_multiple_choice(question, answer)
+        return check_multiple_choice(question, answer, correct_score, incorrect_score)
     elif question_type == "TEXT":
-        return check_text(question, answer)
+        return check_text(question, answer, correct_score, incorrect_score)
     elif question_type == "NUMBER":
-        return check_number(question, answer)
+        return check_number(question, answer, correct_score, incorrect_score)
     elif question_type == "TRUE_FALSE":
-        return check_true_false(question, answer)
+        return check_true_false(question, answer, correct_score, incorrect_score)
     elif question_type in ["SHORT_ANSWER", "SURVEY", "DESCRIPTIVE"]:
         # Для этих типов вопросов не проверяем правильность ответа
-        return 1, True, {
+        return correct_score, True, {
             "user_answer": answer.get("value", ""),
             "message": "Ответ принят без проверки"
         }
@@ -142,28 +151,28 @@ def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool,
         raise BadRequestException(f"Неизвестный тип вопроса: {question_type}")
 
 
-def check_single_choice(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
+def check_single_choice(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
     """Проверяет ответ на вопрос с одним вариантом ответа"""
     correct_answer = question.answers.get("correctAnswer", [None])[0]
     user_answer = answer.get("value")
     
     if correct_answer is None or user_answer is None:
-        return 0, False, {"error": "Отсутствует правильный ответ или ответ пользователя"}
+        return incorrect_score, False, {"error": "Отсутствует правильный ответ или ответ пользователя"}
     
     is_correct = str(user_answer).strip().lower() == str(correct_answer).strip().lower()
-    return 1 if is_correct else 0, is_correct, {
+    return correct_score if is_correct else incorrect_score, is_correct, {
         "correct_answer": correct_answer,
         "user_answer": user_answer
     }
 
 
-def check_multiple_choice(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
+def check_multiple_choice(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
     """Проверяет ответ на вопрос с несколькими вариантами ответа"""
     correct_answers = question.answers.get("correctAnswer", [])
     user_answers = answer.get("value", [])
     
     if not isinstance(correct_answers, list) or not isinstance(user_answers, list):
-        return 0, False, {"error": "Некорректный формат ответов"}
+        return incorrect_score, False, {"error": "Некорректный формат ответов"}
     
     # Очищаем HTML-теги и приводим к нижнему регистру для сравнения
     correct_answers = [clean_html(str(ans)).strip().lower() for ans in correct_answers]
@@ -171,49 +180,49 @@ def check_multiple_choice(question: Question, answer: Dict[str, Any]) -> Tuple[i
     
     # Проверяем, что все ответы пользователя правильные и нет лишних
     is_correct = set(user_answers) == set(correct_answers)
-    return 1 if is_correct else 0, is_correct, {
+    return correct_score if is_correct else incorrect_score, is_correct, {
         "correct_answers": correct_answers,
         "user_answers": user_answers
     }
 
 
-def check_text(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
+def check_text(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
     """Проверяет текстовый ответ"""
     correct_answer = question.answers.get("correctAnswer", [""])[0]
     user_answer = answer.get("value", "").strip().lower()
     
     if not correct_answer:
-        return 0, False, {"error": "Отсутствует правильный ответ"}
+        return incorrect_score, False, {"error": "Отсутствует правильный ответ"}
     
     is_correct = user_answer == correct_answer.strip().lower()
-    return 1 if is_correct else 0, is_correct, {
+    return correct_score if is_correct else incorrect_score, is_correct, {
         "correct_answer": correct_answer,
         "user_answer": user_answer
     }
 
 
-def check_number(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
+def check_number(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
     """Проверяет числовой ответ"""
     try:
         correct_answer = float(question.answers.get("correctAnswer", [0])[0])
         user_answer = float(answer.get("value", 0))
         
         is_correct = abs(user_answer - correct_answer) < 0.0001  # Учитываем погрешность для чисел с плавающей точкой
-        return 1 if is_correct else 0, is_correct, {
+        return correct_score if is_correct else incorrect_score, is_correct, {
             "correct_answer": correct_answer,
             "user_answer": user_answer
         }
     except (ValueError, TypeError):
-        return 0, False, {"error": "Некорректный формат числового ответа"}
+        return incorrect_score, False, {"error": "Некорректный формат числового ответа"}
 
 
-def check_true_false(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
+def check_true_false(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
     """Проверяет ответ на вопрос типа TRUE/FALSE"""
     correct_answer = question.answers.get("correctAnswer", [None])[0]
     user_answer = answer.get("value")
     
     if correct_answer is None or user_answer is None:
-        return 0, False, {"error": "Отсутствует правильный ответ или ответ пользователя"}
+        return incorrect_score, False, {"error": "Отсутствует правильный ответ или ответ пользователя"}
     
     # Преобразуем ответы в булевы значения
     try:
@@ -221,9 +230,9 @@ def check_true_false(question: Question, answer: Dict[str, Any]) -> Tuple[int, b
         correct_bool = str(correct_answer).strip().lower() in ['true', '1', 'yes', 'да', 'верно', 'да']
         
         is_correct = user_bool == correct_bool
-        return 1 if is_correct else 0, is_correct, {
+        return correct_score if is_correct else incorrect_score, is_correct, {
             "correct_answer": correct_answer,
             "user_answer": user_answer
         }
     except Exception as e:
-        return 0, False, {"error": f"Ошибка при проверке ответа TRUE/FALSE: {str(e)}"}
+        return incorrect_score, False, {"error": f"Ошибка при проверке ответа TRUE/FALSE: {str(e)}"}

@@ -15,8 +15,12 @@ from app.crud import (
     create_module_for_course,
     get_course_progress,
     user_enrolled,
+    create_course_test,
+    get_course_tests,
 )
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
+from app.schemas.course_test import CourseTestBase, CourseTestCreate
+from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
@@ -69,3 +73,20 @@ async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), us
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     percent = await get_course_progress(db, course_id, user.id)
     return {"percent": percent}
+
+
+@router.post("/{course_id}/tests", response_model=CourseTestBase, dependencies=[Depends(admin_moderator_required)])
+async def create_course_test_route(course_id: int, data: CourseTestCreate, db: AsyncSession = Depends(get_db)):
+    data.course_id = course_id
+    return await create_course_test(db, data)
+
+
+@router.get("/{course_id}/tests", response_model=list[TestResponse], dependencies=[Depends(authorized_required)])
+async def list_course_tests_route(course_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
+    progress = await get_course_progress(db, course_id, user.id)
+    if user.role.code not in ["admin", "moderator"] and progress < 100:
+        raise HTTPException(status_code=403, detail="Курс не завершен")
+    tests = await get_course_tests(db, course_id)
+    return [t.test for t in tests]

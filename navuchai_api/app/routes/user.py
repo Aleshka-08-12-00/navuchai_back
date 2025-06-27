@@ -24,7 +24,7 @@ async def get_user_by_id(
 ):
     try:
         # Проверяем права доступа
-        if current_user.role.code != "admin" and current_user.id != user_id:
+        if current_user.role.code not in ["admin", "moderator"] and current_user.id != user_id:
             raise ForbiddenException("Нет доступа к информации о другом пользователе")
             
         user = await get_user(db, user_id)

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -388,3 +388,64 @@ async def update_test_access_status_by_user(db: AsyncSession, test_id: int, user
         return test_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при обновлении статуса доступа: {str(e)}")
+
+
+async def get_all_test_users(db: AsyncSession, test_id: int):
+    """Получить список всех пользователей, назначенных на тест (включая пользователей в группах)"""
+    try:
+        result = await db.execute(
+            select(TestAccess)
+            .options(selectinload(TestAccess.user).selectinload(User.role))
+            .options(selectinload(TestAccess.status))
+            .options(selectinload(TestAccess.group))
+            .where(TestAccess.test_id == test_id)
+        )
+        test_accesses = result.scalars().all()
+        if not test_accesses:
+            return []
+        users_with_access = []
+        for access in test_accesses:
+            if access.user:
+                user_data = {
+                    "user_id": access.user.id,
+                    "email": access.user.email,
+                    "name": access.user.name,
+                    "role_id": access.user.role_id,
+                    "role": {
+                        "name": access.user.role.name if access.user.role else None,
+                        "code": access.user.role.code if access.user.role else None
+                    },
+                    "access_id": access.id,
+                    "group_id": access.group_id,
+                    "group_name": access.group.name if access.group else None,
+                    "start_date": access.start_date,
+                    "end_date": access.end_date,
+                    "status_id": access.status_id,
+                    "status_name": access.status.name if access.status else None,
+                    "access_type": "group" if access.group_id else "individual"
+                }
+                users_with_access.append(user_data)
+        return users_with_access
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении списка всех пользователей: {str(e)}")
+
+
+async def cleanup_orphaned_test_access(db: AsyncSession):
+    """Очистка записей test_access с несуществующими пользователями"""
+    try:
+        # Находим записи test_access с несуществующими пользователями
+        stmt = text("""
+        DELETE FROM test_access 
+        WHERE user_id NOT IN (SELECT id FROM "user")
+        """)
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        deleted_count = result.rowcount
+        return {
+            "message": f"Удалено {deleted_count} записей с несуществующими пользователями",
+            "deleted_count": deleted_count
+        }
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при очистке записей test_access: {str(e)}")

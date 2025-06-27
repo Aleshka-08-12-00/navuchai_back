@@ -160,8 +160,12 @@ async def get_user_tests(db: AsyncSession, user_id: int):
         user = user_result.scalar_one_or_none()
         if not user:
             raise NotFoundException(f"Пользователь с ID {user_id} не найден")
-        if user.role.code == 'admin':
+        
+        # Админы видят все тесты
+        if user.role and user.role.code == 'admin':
             return await get_tests(db)
+        
+        # Обычные пользователи видят только тесты, доступные им, исключая тесты со статусом ID 2 (Setup in progress)
         result = await db.execute(
             select(
                 Test, Category.name, User.name, Locale.code, 
@@ -178,6 +182,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             .options(selectinload(Test.image))
             .options(selectinload(Test.thumbnail))
             .where(TestAccess.user_id == user_id)
+            .where(Test.status_id != 2)  # Исключаем тесты со статусом ID 2 (Setup in progress)
         )
         rows = result.all()
         return [format_test_with_names(

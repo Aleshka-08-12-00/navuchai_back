@@ -5,9 +5,10 @@ from typing import List
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from io import BytesIO
+from datetime import datetime
 
 from app.crud import result as result_crud
-from app.crud import authorized_required
+from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
 from app.models import User, Result, UserAnswer
@@ -30,50 +31,144 @@ def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
     )
 
 
+def clean_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Очищает datetime колонки от часовых поясов для совместимости с Excel"""
+    for column in df.columns:
+        if df[column].dtype == 'object':
+            # Проверяем, содержит ли колонка datetime объекты
+            sample_values = df[column].dropna().head(10)
+            if len(sample_values) > 0 and any(isinstance(val, datetime) for val in sample_values):
+                # Убираем часовые пояса из datetime объектов
+                df[column] = df[column].apply(
+                    lambda x: x.replace(tzinfo=None) if isinstance(x, datetime) and x.tzinfo else x
+                )
+    return df
+
+
 @router.get("/excel")
 async def export_results_excel(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
 ):
     try:
-        results = await result_crud.get_all_results(db)
-        data = []
-        for r in results:
-            # result.result может быть None, если старые записи
-            result_json = r.result or {}
-            checked_answers = result_json.get("checked_answers", [])
-            percentage = result_json.get("percentage", None)
-            for ans in checked_answers:
-                data.append({
-                    "attempt_id": r.id,
-                    "test_id": r.test_id,
-                    "user_id": r.user_id,
-                    "score": r.score,
-                    "percentage": percentage,
-                    "completed_at": r.completed_at,
-                    "created_at": r.created_at,
-                    "updated_at": r.updated_at,
-                    "question_id": ans.get("question_id"),
-                    "question_text": ans.get("question_text"),
-                    "question_type": ans.get("question_type"),
-                    "user_answer": str(ans.get("check_details", {}).get("user_answer")),
-                    "correct_answer": str(ans.get("check_details", {}).get("correct_answer")),
-                    "is_correct": ans.get("is_correct"),
-                    "score_for_question": ans.get("score"),
-                    "max_score": ans.get("max_score"),
-                })
-        df = pd.DataFrame(data)
+        # Получаем аналитические данные из представления analytics_user_performance
+        analytics_data = await get_analytics_data_by_view(db, 'analytics_user_performance')
+        
+        # Создаем DataFrame из аналитических данных
+        df = pd.DataFrame(analytics_data)
+        
+        # Очищаем datetime колонки от часовых поясов
+        df = clean_datetime_columns(df)
+        
+        # Получаем маппинг колонок для переименования
+        column_mapping = get_column_mapping('analytics_user_performance')
+        
+        # Переименовываем колонки для лучшей читаемости в Excel
+        if column_mapping:
+            df = df.rename(columns=column_mapping)
+        
+        # Форматируем числовые колонки
+        numeric_columns = ["Средний балл", "Средний процент выполнения"]
+        for col in numeric_columns:
+            if col in df.columns:
+                df[col] = df[col].round(2)
+        
+        # Создаем Excel файл
         output = BytesIO()
+        sheet_name = get_sheet_name('analytics_user_performance')
+        filename = get_filename('analytics_user_performance')
+        
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+            # Получаем рабочий лист для форматирования
+            worksheet = writer.sheets[sheet_name]
+            
+            # Автоматически подгоняем ширину колонок
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)  # Ограничиваем максимальную ширину
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+        
         output.seek(0)
         return StreamingResponse(
             output,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=results.xlsx"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
     except SQLAlchemyError:
-        raise DatabaseException("Ошибка при экспорте результатов в Excel")
+        raise DatabaseException("Ошибка при экспорте аналитических данных в Excel")
+
+
+@router.get("/excel/{view_name}")
+async def export_analytics_excel(
+        view_name: str,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
+):
+    """Экспорт данных из любого аналитического представления в Excel"""
+    try:
+        # Получаем аналитические данные из указанного представления
+        analytics_data = await get_analytics_data_by_view(db, view_name)
+        
+        # Создаем DataFrame из аналитических данных
+        df = pd.DataFrame(analytics_data)
+        
+        # Очищаем datetime колонки от часовых поясов
+        df = clean_datetime_columns(df)
+        
+        # Получаем маппинг колонок для переименования
+        column_mapping = get_column_mapping(view_name)
+        
+        # Переименовываем колонки для лучшей читаемости в Excel
+        if column_mapping:
+            df = df.rename(columns=column_mapping)
+        
+        # Форматируем числовые колонки (автоматически определяем по названию)
+        numeric_columns = [col for col in df.columns if any(prefix in col.lower() for prefix in ['средний', 'avg', 'total', 'всего', 'дней'])]
+        for col in numeric_columns:
+            if col in df.columns and df[col].dtype in ['float64', 'int64']:
+                df[col] = df[col].round(2)
+        
+        # Создаем Excel файл
+        output = BytesIO()
+        sheet_name = get_sheet_name(view_name)
+        filename = get_filename(view_name)
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+            # Получаем рабочий лист для форматирования
+            worksheet = writer.sheets[sheet_name]
+            
+            # Автоматически подгоняем ширину колонок
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)  # Ограничиваем максимальную ширину
+                worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        output.seek(0)
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except SQLAlchemyError:
+        raise DatabaseException(f"Ошибка при экспорте данных из представления {view_name}")
 
 
 @router.post("/", response_model=ResultResponse)
@@ -101,8 +196,8 @@ async def get_result_by_id(
 ):
     try:
         result = await result_crud.get_result(db, result_id)
-        # Если не admin — проверяем, что пользователь запрашивает свой результат
-        if current_user.role.code != "admin" and result.user_id != current_user.id:
+        # Если не админ или модератор — проверяем, что пользователь запрашивает свой результат
+        if current_user.role.code not in ["admin", "moderator"] and result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
         return convert_result(result)
     except SQLAlchemyError:
@@ -116,8 +211,8 @@ async def get_user_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        # Если не admin — проверяем, что пользователь запрашивает свои результаты
-        if current_user.role.code != "admin" and user_id != current_user.id:
+        # Если не админ или модератор — проверяем, что пользователь запрашивает свои результаты
+        if current_user.role.code not in ["admin", "moderator"] and user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
         results = await result_crud.get_user_results(db, user_id)
         return [convert_result(result) for result in results]
@@ -144,7 +239,7 @@ async def get_all_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        if current_user.role.code == "admin":
+        if current_user.role.code in ["admin", "moderator"]:
             results = await result_crud.get_all_results(db)
         else:
             results = await result_crud.get_user_results(db, current_user.id)

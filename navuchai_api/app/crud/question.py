@@ -3,6 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy import update as sql_update
 
 from app.models import Question, TestQuestion
 from app.schemas.question import QuestionCreate, QuestionUpdate
@@ -101,6 +102,24 @@ async def update_question(db: AsyncSession, question_id: int, question: Question
     try:
         await db.commit()
         await db.refresh(existing_question)
+        
+        # Обновляем max_score во всех связанных TestQuestion записях
+        if 'answers' in update_data:
+            # Извлекаем correctScore из новых настроек вопроса
+            answers = existing_question.answers
+            correct_score = 1  # значение по умолчанию
+            if isinstance(answers, dict) and 'settings' in answers:
+                settings = answers.get('settings', {})
+                correct_score = settings.get('correctScore', 1)
+            
+            # Обновляем все TestQuestion записи для этого вопроса
+            await db.execute(
+                sql_update(TestQuestion)
+                .where(TestQuestion.question_id == question_id)
+                .values(max_score=correct_score)
+            )
+            await db.commit()
+        
         return existing_question
     except SQLAlchemyError:
         await db.rollback()
