@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from pydantic import BaseModel
+from typing import List, Dict, Any
 
 from app.crud import (
     create_test_question, delete_test_question, get_questions,
@@ -10,8 +12,21 @@ from app.dependencies import get_db
 from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
+from app.utils.test_generator import generate_test_questions
 
 router = APIRouter(prefix="/api/questions", tags=["Questions"])
+
+
+class TextGenerationRequest(BaseModel):
+    source_text: str
+
+
+class GeneratedQuestionResponse(BaseModel):
+    text: str
+    text_abstract: str
+    type_id: int
+    reviewable: bool
+    answers: Dict[str, Any]
 
 
 # Получение списка всех вопросов
@@ -147,3 +162,19 @@ async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession 
         return {"detail": "Test-Question relation deleted successfully", "data": result}
     except SQLAlchemyError:
         raise DatabaseException("Error unlinking test and question")
+
+
+# Генерация тестовых вопросов на основе текста
+@router.post("/generate-from-text", response_model=List[GeneratedQuestionResponse])
+async def generate_questions_from_text(
+    request: TextGenerationRequest,
+    user: User = Depends(admin_moderator_required)
+):
+    """
+    Генерирует тестовые вопросы на основе предоставленного текста с помощью Yandex Cloud ML
+    """
+    try:
+        questions = generate_test_questions(request.source_text)
+        return questions
+    except Exception as e:
+        raise DatabaseException(f"Ошибка при генерации вопросов: {str(e)}")

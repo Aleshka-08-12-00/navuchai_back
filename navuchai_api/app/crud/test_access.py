@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
@@ -428,3 +428,24 @@ async def get_all_test_users(db: AsyncSession, test_id: int):
         return users_with_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка всех пользователей: {str(e)}")
+
+
+async def cleanup_orphaned_test_access(db: AsyncSession):
+    """Очистка записей test_access с несуществующими пользователями"""
+    try:
+        # Находим записи test_access с несуществующими пользователями
+        stmt = text("""
+        DELETE FROM test_access 
+        WHERE user_id NOT IN (SELECT id FROM "user")
+        """)
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        deleted_count = result.rowcount
+        return {
+            "message": f"Удалено {deleted_count} записей с несуществующими пользователями",
+            "deleted_count": deleted_count
+        }
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при очистке записей test_access: {str(e)}")
