@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 import boto3
 from botocore.client import Config
@@ -11,7 +11,7 @@ from io import BytesIO
 
 from app.dependencies import get_db
 from app.models import User
-from app.crud import admin_moderator_required
+from app.crud import admin_moderator_required, update_course_images
 from app.exceptions import DatabaseException
 from app.schemas.file import FileUploadResponse, FileCreate, FileUploadWithMobileResponse
 from app.crud import file as file_crud
@@ -91,6 +91,7 @@ async def upload_file(
 @router.post("/upload-image/", response_model=FileUploadWithMobileResponse)
 async def upload_image(
         file: UploadFile = File(...),
+        course_id: int | None = Query(default=None, alias="courseId"),
         current_user: User = Depends(admin_moderator_required),
         db: AsyncSession = Depends(get_db)
 ):
@@ -159,6 +160,9 @@ async def upload_image(
             creator_id=current_user.id
         )
         db_mobile_file = await file_crud.create_file(db, mobile_file_data)
+
+        if course_id is not None:
+            await update_course_images(db, course_id, db_file.id, db_mobile_file.id)
 
         original_response = FileUploadResponse(
             id=db_file.id,
