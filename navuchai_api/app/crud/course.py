@@ -29,22 +29,21 @@ async def get_courses(db: AsyncSession):
         for c, name in result.all()
     ]
 
-async def get_course_with_content(db, course_id: int) -> Course:
-    stmt = (
+async def get_course_with_content(db: AsyncSession, course_id: int):
+    result = await db.execute(
         select(Course)
         .options(
-            selectinload(Course.modules)
-            .selectinload(Module.lessons)
-            .selectinload(Lesson.image)
-            .selectinload(Lesson.thumbnail)
-            .selectinload(Lesson.files)
+            selectinload(Course.image),
+            selectinload(Course.thumbnail),
+            selectinload(Course.modules).selectinload(Module.lessons)
         )
-        .options(selectinload(Course.image))
-        .options(selectinload(Course.thumbnail))
         .where(Course.id == course_id)
     )
-    result = await db.execute(stmt)
-    return result.scalars().first()
+    course = result.scalar_one_or_none()
+    if not course:
+        raise NotFoundException("Курс не найден")
+    return course
+
 
 async def get_course(db: AsyncSession, course_id: int):
     result = await db.execute(
