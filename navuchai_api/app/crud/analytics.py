@@ -5,6 +5,8 @@ from typing import List, Dict, Any
 from datetime import datetime
 from app.exceptions import DatabaseException
 from app.utils.formatters import format_numeric_value
+from app.models.analytics_views import AnalyticsView
+from sqlalchemy.future import select
 
 
 async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any]]:
@@ -224,4 +226,9 @@ def get_filename(view_name: str) -> str:
         # Здесь можно добавить имена файлов для других представлений
     }
     
-    return filenames.get(view_name, f'{view_name}.xlsx') 
+    return filenames.get(view_name, f'{view_name}.xlsx')
+
+
+async def get_all_analytics_views(db: AsyncSession):
+    result = await db.execute(select(AnalyticsView).order_by(AnalyticsView.sort_order, AnalyticsView.id))
+    return result.scalars().all() 
