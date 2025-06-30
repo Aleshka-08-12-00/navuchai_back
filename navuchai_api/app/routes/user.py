@@ -16,7 +16,7 @@ async def list_users(db: AsyncSession = Depends(get_db)):
     return await get_users(db)
 
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}/", response_model=UserResponse)
 async def get_user_by_id(
     user_id: int, 
     db: AsyncSession = Depends(get_db),
@@ -35,7 +35,7 @@ async def get_user_by_id(
         raise DatabaseException("Ошибка при получении данных пользователя")
 
 
-@router.put("/{user_id}", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
+@router.put("/{user_id}/", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
 async def update_user_by_id(user_id: int, update_data: UserUpdate, db: AsyncSession = Depends(get_db)):
     try:
         updated = await update_user(db, user_id, update_data)
@@ -46,7 +46,7 @@ async def update_user_by_id(user_id: int, update_data: UserUpdate, db: AsyncSess
         raise DatabaseException("Ошибка при обновлении данных пользователя")
 
 
-@router.delete("/{user_id}", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
+@router.delete("/{user_id}/", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
 async def delete_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
     try:
         deleted = await delete_user(db, user_id)
@@ -57,7 +57,7 @@ async def delete_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
         raise DatabaseException("Ошибка при удалении пользователя")
 
 
-@router.put("/{user_id}/role", dependencies=[Depends(admin_required)])
+@router.put("/{user_id}/role/", dependencies=[Depends(admin_required)])
 async def change_user_role(
     user_id: int,
     update_role: UserRoleUpdate,  # <-- вот здесь

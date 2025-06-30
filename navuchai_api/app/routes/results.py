@@ -45,7 +45,7 @@ def clean_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-@router.get("/excel")
+@router.get("/excel/")
 async def export_results_excel(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
@@ -107,7 +107,7 @@ async def export_results_excel(
         raise DatabaseException("Ошибка при экспорте аналитических данных в Excel")
 
 
-@router.get("/excel/{view_name}")
+@router.get("/excel/{view_name}/")
 async def export_analytics_excel(
         view_name: str,
         db: AsyncSession = Depends(get_db),
@@ -188,7 +188,7 @@ async def create_test_result(
         raise DatabaseException("Ошибка при сохранении результата")
 
 
-@router.get("/{result_id}", response_model=ResultResponse)
+@router.get("/{result_id}/", response_model=ResultResponse)
 async def get_result_by_id(
         result_id: int,
         db: AsyncSession = Depends(get_db),
@@ -204,7 +204,7 @@ async def get_result_by_id(
         raise DatabaseException("Ошибка при получении результата")
 
 
-@router.get("/user/{user_id}", response_model=List[ResultResponse])
+@router.get("/user/{user_id}/", response_model=List[ResultResponse])
 async def get_user_results(
         user_id: int,
         db: AsyncSession = Depends(get_db),
@@ -220,7 +220,7 @@ async def get_user_results(
         raise DatabaseException("Ошибка при получении результатов пользователя")
 
 
-@router.get("/test/{test_id}", response_model=List[ResultResponse])
+@router.get("/test/{test_id}/", response_model=List[ResultResponse])
 async def get_test_results(
         test_id: int,
         db: AsyncSession = Depends(get_db),

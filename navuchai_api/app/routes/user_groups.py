@@ -33,7 +33,7 @@ async def get_user_groups(
     return await crud.get_groups(db)
 
 
-@router.get("/{group_id}", response_model=UserGroupResponse)
+@router.get("/{group_id}/", response_model=UserGroupResponse)
 async def get_user_group(
     group_id: int,
     db: AsyncSession = Depends(get_db),
@@ -42,7 +42,7 @@ async def get_user_group(
     return await crud.get_group(db, group_id)
 
 
-@router.put("/{group_id}", response_model=UserGroupResponse)
+@router.put("/{group_id}/", response_model=UserGroupResponse)
 async def update_user_group(
     group_id: int,
     group_data: UserGroupUpdate,
@@ -55,7 +55,7 @@ async def update_user_group(
     return await crud.update_group(db, group_id, group_data)
 
 
-@router.delete("/{group_id}", response_model=UserGroupResponse)
+@router.delete("/{group_id}/", response_model=UserGroupResponse)
 async def delete_user_group(
     group_id: int,
     db: AsyncSession = Depends(get_db),
@@ -67,7 +67,7 @@ async def delete_user_group(
     return await crud.delete_group(db, group_id)
 
 
-@router.post("/{group_id}/members/{user_id}", response_model=UserGroupMemberInDB)
+@router.post("/{group_id}/members/{user_id}/", response_model=UserGroupMemberInDB)
 async def add_user_to_group(
     group_id: int,
     user_id: int,
@@ -80,7 +80,7 @@ async def add_user_to_group(
     return await crud.add_group_member(db, group_id, user_id)
 
 
-@router.delete("/{group_id}/members/{user_id}", response_model=UserGroupMemberInDB)
+@router.delete("/{group_id}/members/{user_id}/", response_model=UserGroupMemberInDB)
 async def remove_user_from_group(
     group_id: int,
     user_id: int,

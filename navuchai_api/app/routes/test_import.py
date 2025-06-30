@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/test-import", tags=["Test Import"])
 
 
-@router.post("/excel", response_model=TestImportResponse)
+@router.post("/excel/", response_model=TestImportResponse)
 async def import_test_from_excel(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -72,7 +72,7 @@ async def import_test_from_excel(
                 logger.warning(f"Не удалось удалить временный файл {temp_file_path}: {str(e)}")
 
 
-@router.get("/template")
+@router.get("/template/")
 async def download_excel_template(
     current_user: User = Depends(admin_moderator_required)
 ):

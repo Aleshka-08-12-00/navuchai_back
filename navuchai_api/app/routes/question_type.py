@@ -23,7 +23,7 @@ async def list_question_types(
         raise DatabaseException("Ошибка при получении списка типов вопросов")
 
 
-@router.get("/{type_id}", response_model=QuestionTypeResponse)
+@router.get("/{type_id}/", response_model=QuestionTypeResponse)
 async def get_question_type(
     type_id: int,
     db: AsyncSession = Depends(get_db),
@@ -43,7 +43,7 @@ async def create_question_type(question_type: QuestionTypeCreate, db: AsyncSessi
         raise DatabaseException("Ошибка при создании типа вопроса")
 
 
-@router.put("/{type_id}", response_model=QuestionTypeResponse, dependencies=[Depends(admin_moderator_required)])
+@router.put("/{type_id}/", response_model=QuestionTypeResponse, dependencies=[Depends(admin_moderator_required)])
 async def update_question_type(type_id: int, question_type: QuestionTypeUpdate, db: AsyncSession = Depends(get_db)):
     try:
         return await crud.update_question_type(db, type_id, question_type)
@@ -51,7 +51,7 @@ async def update_question_type(type_id: int, question_type: QuestionTypeUpdate, 
         raise DatabaseException("Ошибка при обновлении типа вопроса")
 
 
-@router.delete("/{type_id}", response_model=QuestionTypeResponse, dependencies=[Depends(admin_moderator_required)])
+@router.delete("/{type_id}/", response_model=QuestionTypeResponse, dependencies=[Depends(admin_moderator_required)])
 async def delete_question_type(type_id: int, db: AsyncSession = Depends(get_db)):
     try:
         return await crud.delete_question_type(db, type_id)

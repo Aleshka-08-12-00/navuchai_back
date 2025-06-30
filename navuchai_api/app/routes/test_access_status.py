@@ -24,7 +24,7 @@ async def get_test_access_statuses(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{status_id}", response_model=TestAccessStatusResponse)
+@router.get("/{status_id}/", response_model=TestAccessStatusResponse)
 async def get_test_access_status(
     status_id: int,
     db: AsyncSession = Depends(get_db),
@@ -50,7 +50,7 @@ async def create_test_access_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{status_id}", response_model=TestAccessStatusResponse)
+@router.put("/{status_id}/", response_model=TestAccessStatusResponse)
 async def update_test_access_status(
     status_id: int,
     status: TestAccessStatusCreate,
@@ -64,7 +64,7 @@ async def update_test_access_status(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{status_id}", response_model=TestAccessStatusResponse)
+@router.delete("/{status_id}/", response_model=TestAccessStatusResponse)
 async def delete_test_access_status(
     status_id: int,
     db: AsyncSession = Depends(get_db),

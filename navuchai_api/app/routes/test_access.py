@@ -15,11 +15,11 @@ from app.exceptions import DatabaseException, NotFoundException
 router = APIRouter(prefix="/api/test-access", tags=["Test Access"])
 
 
-@router.post("/user", response_model=TestAccessResponse)
+@router.post("/user/", response_model=TestAccessResponse)
 async def create_user_test_access(
-    test_access: TestAccessCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_access: TestAccessCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> TestAccessResponse:
     try:
         # Проверяем, нет ли уже доступа у пользователя к этому тесту
@@ -36,11 +36,11 @@ async def create_user_test_access(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/group", response_model=List[TestAccessResponse])
+@router.post("/group/", response_model=List[TestAccessResponse])
 async def create_group_test_access(
-    data: TestAccessGroupCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        data: TestAccessGroupCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> List[TestAccessResponse]:
     try:
         return await crud.create_group_test_access(
@@ -53,12 +53,12 @@ async def create_group_test_access(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{test_id}/access", response_model=TestResponse)
+@router.put("/{test_id}/access/", response_model=TestResponse)
 async def update_test_access_type(
-    test_id: int,
-    access: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        access: str,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> TestResponse:
     """
     Изменение типа доступа к тесту (public/private)
@@ -69,11 +69,11 @@ async def update_test_access_type(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{test_id}/code", response_model=dict)
+@router.get("/{test_id}/code/", response_model=dict)
 async def get_test_access_code(
-    test_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> dict:
     """
     Получение кода доступа к тесту:
@@ -88,8 +88,8 @@ async def get_test_access_code(
 
 @router.get("/", response_model=List[TestAccessResponse])
 async def get_all_test_accesses(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> List[TestAccessResponse]:
     """Получить все доступы пользователей к тестам"""
     try:
@@ -99,12 +99,12 @@ async def get_all_test_accesses(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/user/{test_id}/{user_id}")
+@router.delete("/user/{test_id}/{user_id}/")
 async def delete_user_test_access(
-    test_id: int,
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        user_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ):
     """Удалить доступ пользователя к тесту"""
     try:
@@ -113,12 +113,12 @@ async def delete_user_test_access(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/group/{test_id}/{group_id}", response_model=dict)
+@router.delete("/group/{test_id}/{group_id}/", response_model=dict)
 async def delete_group_test_access_route(
-    test_id: int,
-    group_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        group_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ) -> dict:
     """Удаление доступа к тесту для всей группы"""
     try:
@@ -127,11 +127,11 @@ async def delete_group_test_access_route(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{test_id}/users", response_model=List[Dict])
+@router.get("/{test_id}/users/", response_model=List[Dict])
 async def get_test_users_route(
-    test_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ):
     """Получить список пользователей, назначенных на тест"""
     try:
@@ -140,11 +140,11 @@ async def get_test_users_route(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{test_id}/all-users", response_model=List[Dict])
+@router.get("/{test_id}/all-users/", response_model=List[Dict])
 async def get_all_test_users_route(
-    test_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ):
     """Получить список всех пользователей, назначенных на тест (включая пользователей в группах)"""
     try:
@@ -153,11 +153,11 @@ async def get_all_test_users_route(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{test_id}/groups", response_model=List[Dict])
+@router.get("/{test_id}/groups/", response_model=List[Dict])
 async def get_test_groups_route(
-    test_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ):
     """Получить список групп, назначенных на тест"""
     try:
@@ -169,16 +169,17 @@ async def get_test_groups_route(
 class UpdateTestAccessStatusRequest(BaseModel):
     status_id: int
 
-@router.put("/user/{test_id}/{user_id}/status", response_model=TestAccessResponse)
+
+@router.put("/user/{test_id}/{user_id}/status/", response_model=TestAccessResponse)
 async def update_test_access_status_by_user_route(
-    test_id: int,
-    user_id: int,
-    body: UpdateTestAccessStatusRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+        test_id: int,
+        user_id: int,
+        body: UpdateTestAccessStatusRequest,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
 ):
     """Обновить статус доступа к тесту по test_id и user_id"""
     try:
         return await crud.update_test_access_status_by_user(db, test_id, user_id, body.status_id)
     except (DatabaseException, NotFoundException) as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))

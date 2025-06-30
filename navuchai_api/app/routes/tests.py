@@ -31,7 +31,7 @@ async def get_all_tests(
         raise DatabaseException("Ошибка при получении списка тестов")
 
 
-@router.get("/my", response_model=list[TestWithAccessDetails])
+@router.get("/my/", response_model=list[TestWithAccessDetails])
 async def get_my_tests(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
@@ -42,7 +42,7 @@ async def get_my_tests(
         raise DatabaseException("Ошибка при получении списка тестов пользователя")
 
 
-@router.get("/{test_id}", response_model=TestWithDetails)
+@router.get("/{test_id}/", response_model=TestWithDetails)
 async def get_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
@@ -68,7 +68,7 @@ async def create_new_test(
         raise DatabaseException("Ошибка при создании теста")
 
 
-@router.put("/{test_id}", response_model=TestResponse)
+@router.put("/{test_id}/", response_model=TestResponse)
 async def update_test_by_id(
     test_id: int,
     test: TestUpdate,
@@ -83,7 +83,7 @@ async def update_test_by_id(
         raise DatabaseException("Ошибка при обновлении теста")
 
 
-@router.delete("/{test_id}", response_model=TestResponse)
+@router.delete("/{test_id}/", response_model=TestResponse)
 async def delete_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
