@@ -4,6 +4,7 @@ from sqlalchemy import text
 from typing import List, Dict, Any
 from datetime import datetime
 from app.exceptions import DatabaseException
+from app.utils.formatters import format_numeric_value
 
 
 async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any]]:
@@ -52,11 +53,11 @@ async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any
                 "role_name": row[3],
                 "total_tests_accessed": row[4] or 0,
                 "total_tests_completed": row[5] or 0,
-                "avg_score": float(row[6]) if row[6] is not None else 0.0,
+                "avg_score": format_numeric_value(row[6]) if row[6] is not None else 0.0,
                 "best_score": row[7] or 0,
                 "worst_score": row[8] or 0,
                 "total_attempts": row[9] or 0,
-                "avg_percent_completion": float(row[10]) if row[10] is not None else 0.0,
+                "avg_percent_completion": format_numeric_value(row[10]) if row[10] is not None else 0.0,
                 "total_questions_answered": row[11] or 0,
                 "first_test_date": first_test_date,
                 "last_test_date": last_test_date,
@@ -103,9 +104,9 @@ async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[D
                     if value.tzinfo is not None:
                         value = value.replace(tzinfo=None)
                     row_dict[column] = value
-                # Обрабатываем числовые значения
+                # Применяем форматирование к числовым значениям
                 elif isinstance(value, (int, float)) and value is not None:
-                    row_dict[column] = value
+                    row_dict[column] = format_numeric_value(value)
                 elif value is None:
                     row_dict[column] = 0 if column.startswith(('total_', 'avg_', 'best_', 'worst_', 'days_')) else None
                 else:
