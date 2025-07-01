@@ -15,7 +15,14 @@ async def create_module(db: AsyncSession, data):
     db.add(module)
     await db.commit()
     await db.refresh(module)
-    return module
+    # Load lessons to avoid async loading issues in response models
+    stmt = (
+        select(Module)
+        .options(selectinload(Module.lessons))
+        .where(Module.id == module.id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 
 async def get_module(db: AsyncSession, module_id: int):
@@ -39,7 +46,14 @@ async def update_module(db: AsyncSession, module_id: int, data):
 
     await db.commit()
     await db.refresh(module)
-    return module
+    # Reload module with lessons to avoid lazy loading issues
+    stmt = (
+        select(Module)
+        .options(selectinload(Module.lessons))
+        .where(Module.id == module_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one()
 
 
 async def delete_module(db: AsyncSession, module_id: int):
