@@ -12,7 +12,7 @@ from app.routes import (
 from fastapi.middleware.cors import CORSMiddleware
 
 
-app = FastAPI(title="Test API", redirect_slashes=False)
+app = FastAPI(title="Test API")
 
 app.add_middleware(
     CORSMiddleware,
