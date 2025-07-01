@@ -11,6 +11,7 @@ from app.exceptions import UnauthorizedException, NotFoundException, DatabaseExc
 from app.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 async def get_current_user(
@@ -37,3 +38,25 @@ async def get_current_user(
         return user
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении данных пользователя")
+
+
+async def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db)
+) -> User | None:
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        if not payload or "sub" not in payload:
+            return None
+
+        user_id = int(payload["sub"])
+        result = await db.execute(
+            select(User)
+            .options(selectinload(User.role))
+            .where(User.id == user_id)
+        )
+        return result.scalar_one_or_none()
+    except SQLAlchemyError:
+        return None
