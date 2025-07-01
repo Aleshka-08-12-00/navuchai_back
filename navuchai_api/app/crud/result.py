@@ -69,6 +69,8 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         #     pass
         await db.commit()
         await db.refresh(new_result)
+        # Явно подгружаем связанные объекты test и user для корректной сериализации
+        await db.refresh(new_result, attribute_names=["test", "user"])
         return new_result
     except SQLAlchemyError as e:
         await db.rollback()
