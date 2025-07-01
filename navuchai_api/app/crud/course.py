@@ -29,13 +29,13 @@ async def get_courses(db: AsyncSession):
         for c, name in result.all()
     ]
 
-async def get_course_with_content(db: AsyncSession, course_id: int):
+async def get_course_with_content(db: AsyncSession, course_id: int) -> Course:
     result = await db.execute(
         select(Course)
         .options(
             selectinload(Course.image),
             selectinload(Course.thumbnail),
-            selectinload(Course.modules).selectinload(Module.lessons)
+            selectinload(Course.modules).selectinload(Module.lessons),
         )
         .where(Course.id == course_id)
     )
