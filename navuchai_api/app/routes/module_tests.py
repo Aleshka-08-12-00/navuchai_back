@@ -19,13 +19,13 @@ from app.models import User
 router = APIRouter(prefix="/api/modules", tags=["Module Tests"])
 
 
-@router.post("/{module_id}/tests", response_model=ModuleTestBase, dependencies=[Depends(admin_moderator_required)])
+@router.post("/{module_id}/tests/", response_model=ModuleTestBase, dependencies=[Depends(admin_moderator_required)])
 async def create_module_test_route(module_id: int, data: ModuleTestCreate, db: AsyncSession = Depends(get_db)):
     data.module_id = module_id
     return await create_module_test(db, data)
 
 
-@router.get("/{module_id}/tests", response_model=list[TestResponse], dependencies=[Depends(authorized_required)])
+@router.get("/{module_id}/tests/", response_model=list[TestResponse], dependencies=[Depends(authorized_required)])
 async def list_module_tests_route(module_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     module = await get_module(db, module_id)
     if not module:

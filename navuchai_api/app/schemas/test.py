@@ -24,6 +24,7 @@ class TestBase(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     access: TestAccessEnum
+    code: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -38,6 +39,7 @@ class TestWithDetails(TestBase):
     status_color: Optional[str] = None
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+    code: Optional[str] = None
 
 
 class TestWithAccessDetails(TestWithDetails):
@@ -46,6 +48,7 @@ class TestWithAccessDetails(TestWithDetails):
     access_status_color: Optional[str] = None
     user_percent: Optional[float] = None
     user_completed: Optional[int] = None
+    access_code: Optional[str] = None
 
 
 class TestCreate(BaseModel):
@@ -106,6 +109,7 @@ class TestResponse(BaseModel):
     access: TestAccessEnum
     created_at: datetime
     updated_at: datetime
+    code: Optional[str] = None
 
     class Config:
         from_attributes = True

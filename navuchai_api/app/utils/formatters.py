@@ -1,9 +1,14 @@
 from app.models import Result, UserAnswer
 from app.schemas.result import ResultResponse, UserAnswerResponse
+from app.schemas.test import TestResponse
+from app.schemas.user import UserResponse
 from datetime import datetime
+import pandas as pd
+import numpy as np
+from typing import Union, Any
 
 
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None) -> dict:
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None, access_code: str = None) -> dict:
     result = {
         "id": test.id,
         "title": test.title,
@@ -31,7 +36,9 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "goodbye_message": test.goodbye_message,
         "created_at": test.created_at,
         "updated_at": test.updated_at,
-        "access": test.access
+        "access": test.access,
+        "code": test.code,
+        "access_code": access_code,
     }
     
     if access_status_name is not None:
@@ -108,5 +115,150 @@ def convert_result(result: Result) -> ResultResponse:
         time_end=time_end,
         completed_at=result.completed_at,
         created_at=result.created_at,
-        updated_at=result.updated_at
-    ) 
+        updated_at=result.updated_at,
+        test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
+        user=UserResponse.model_validate(result.user, from_attributes=True) if result.user else None,
+    )
+
+
+def format_numeric_value(value: Any) -> Union[float, int, Any]:
+    """
+    Форматирует числовое значение для Excel отчета:
+    - Округляет до сотых (2 знака после запятой)
+    - Заменяет 0E-20 и подобные значения на 0
+    - Возвращает исходное значение для нечисловых данных
+    
+    Args:
+        value: Значение для форматирования
+        
+    Returns:
+        Отформатированное значение
+    """
+    # Проверяем, является ли значение числовым
+    if pd.isna(value) or value is None:
+        return 0.0
+    
+    # Проверяем на научную нотацию (например, 0E-20)
+    if isinstance(value, (int, float)):
+        # Заменяем очень маленькие числа на 0
+        if abs(value) < 1e-10:
+            return 0.0
+        # Округляем до сотых
+        return round(value, 2)
+    
+    # Для строк - проверяем, можно ли преобразовать в число
+    if isinstance(value, str):
+        try:
+            num_value = float(value)
+            # Заменяем очень маленькие числа на 0
+            if abs(num_value) < 1e-10:
+                return 0.0
+            # Округляем до сотых
+            return round(num_value, 2)
+        except (ValueError, TypeError):
+            return value
+    
+    return value
+
+
+def format_dataframe_for_excel(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Форматирует DataFrame для экспорта в Excel:
+    - Округляет числовые колонки до сотых
+    - Заменяет 0E-20 и подобные значения на 0
+    - Сохраняет исходные типы данных для нечисловых колонок
+    
+    Args:
+        df: DataFrame для форматирования
+        
+    Returns:
+        Отформатированный DataFrame
+    """
+    df_formatted = df.copy()
+    
+    for column in df_formatted.columns:
+        # Проверяем, является ли колонка числовой
+        if df_formatted[column].dtype in ['float64', 'int64', 'float32', 'int32']:
+            # Применяем форматирование к числовым колонкам
+            df_formatted[column] = df_formatted[column].apply(format_numeric_value)
+        elif df_formatted[column].dtype == 'object':
+            # Для объектных колонок проверяем, можно ли преобразовать в числа
+            try:
+                # Пробуем преобразовать в числовой тип
+                numeric_series = pd.to_numeric(df_formatted[column], errors='coerce')
+                # Если большинство значений числовые, применяем форматирование
+                if numeric_series.notna().sum() > len(df_formatted) * 0.5:
+                    df_formatted[column] = df_formatted[column].apply(format_numeric_value)
+            except (ValueError, TypeError):
+                # Если не удалось преобразовать, оставляем как есть
+                pass
+    
+    return df_formatted
+
+
+def get_numeric_columns_for_formatting(df: pd.DataFrame) -> list:
+    """
+    Определяет числовые колонки, которые нужно форматировать,
+    основываясь на названиях колонок и типах данных
+    
+    Args:
+        df: DataFrame для анализа
+        
+    Returns:
+        Список названий числовых колонок
+    """
+    numeric_keywords = [
+        'средний', 'avg', 'total', 'всего', 'дней', 'балл', 'score', 
+        'процент', 'percent', 'попыт', 'attempt', 'вопрос', 'question',
+        'лимит', 'limit', 'время', 'time', 'актив', 'active', 'заверш',
+        'complete', 'доступ', 'access', 'правиль', 'correct', 'неправиль',
+        'incorrect', 'отклонение', 'stddev', 'минималь', 'min', 'максималь', 'max'
+    ]
+    
+    numeric_columns = []
+    
+    for column in df.columns:
+        column_lower = str(column).lower()
+        
+        # Проверяем по типу данных
+        is_numeric_type = df[column].dtype in ['float64', 'int64', 'float32', 'int32']
+        
+        # Проверяем по ключевым словам в названии
+        has_numeric_keyword = any(keyword in column_lower for keyword in numeric_keywords)
+        
+        # Проверяем, можно ли преобразовать в число
+        try:
+            numeric_series = pd.to_numeric(df[column], errors='coerce')
+            can_be_numeric = numeric_series.notna().sum() > len(df) * 0.5
+        except:
+            can_be_numeric = False
+        
+        if is_numeric_type or has_numeric_keyword or can_be_numeric:
+            numeric_columns.append(column)
+    
+    return numeric_columns
+
+
+def apply_excel_formatting(df: pd.DataFrame, numeric_columns: list = None) -> pd.DataFrame:
+    """
+    Применяет форматирование для Excel отчета:
+    - Если numeric_columns не указан, автоматически определяет числовые колонки
+    - Округляет до сотых и заменяет 0E-20 на 0
+    
+    Args:
+        df: DataFrame для форматирования
+        numeric_columns: Список числовых колонок (опционально)
+        
+    Returns:
+        Отформатированный DataFrame
+    """
+    if numeric_columns is None:
+        numeric_columns = get_numeric_columns_for_formatting(df)
+    
+    df_formatted = df.copy()
+    
+    for column in numeric_columns:
+        if column in df_formatted.columns:
+            df_formatted[column] = df_formatted[column].apply(format_numeric_value)
+    
+    return df_formatted 

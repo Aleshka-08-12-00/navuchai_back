@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, ConfigDict
+from app.schemas.test import TestResponse
+from app.schemas.user import UserResponse
 
 
 class UserAnswerCreate(BaseModel):
@@ -62,5 +64,7 @@ class ResultResponse(BaseModel):
     completed_at: datetime
     created_at: datetime
     updated_at: datetime
+    test: Optional[TestResponse] = None
+    user: Optional[UserResponse] = None
 
     model_config = ConfigDict(from_attributes=True) 

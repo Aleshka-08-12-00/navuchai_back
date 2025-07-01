@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime
 from app.schemas.role import RoleBase
 from app.models.role_enum import RoleCode
+from pydantic import ConfigDict
 
 
 class UserBase(BaseModel):
@@ -41,8 +42,7 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserRoleUpdate(BaseModel):

@@ -37,7 +37,7 @@ async def update_profile(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/password", response_model=UserResponse)
+@router.put("/password/", response_model=UserResponse)
 async def update_password(
         password_data: PasswordChange,
         current_user: User = Depends(authorized_required),

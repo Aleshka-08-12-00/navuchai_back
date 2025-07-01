@@ -4,6 +4,9 @@ from sqlalchemy import text
 from typing import List, Dict, Any
 from datetime import datetime
 from app.exceptions import DatabaseException
+from app.utils.formatters import format_numeric_value
+from app.models.analytics_views import AnalyticsView
+from sqlalchemy.future import select
 
 
 async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any]]:
@@ -52,11 +55,11 @@ async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any
                 "role_name": row[3],
                 "total_tests_accessed": row[4] or 0,
                 "total_tests_completed": row[5] or 0,
-                "avg_score": float(row[6]) if row[6] is not None else 0.0,
+                "avg_score": format_numeric_value(row[6]) if row[6] is not None else 0.0,
                 "best_score": row[7] or 0,
                 "worst_score": row[8] or 0,
                 "total_attempts": row[9] or 0,
-                "avg_percent_completion": float(row[10]) if row[10] is not None else 0.0,
+                "avg_percent_completion": format_numeric_value(row[10]) if row[10] is not None else 0.0,
                 "total_questions_answered": row[11] or 0,
                 "first_test_date": first_test_date,
                 "last_test_date": last_test_date,
@@ -77,6 +80,7 @@ async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[D
             'analytics_test_statistics',
             'analytics_group_performance',
             'analytics_question_analysis',
+            'analytics_category_performance',
             # Здесь можно добавить другие представления в будущем
             # 'analytics_test_performance',
         ]
@@ -103,9 +107,9 @@ async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[D
                     if value.tzinfo is not None:
                         value = value.replace(tzinfo=None)
                     row_dict[column] = value
-                # Обрабатываем числовые значения
+                # Применяем форматирование к числовым значениям
                 elif isinstance(value, (int, float)) and value is not None:
-                    row_dict[column] = value
+                    row_dict[column] = format_numeric_value(value)
                 elif value is None:
                     row_dict[column] = 0 if column.startswith(('total_', 'avg_', 'best_', 'worst_', 'days_')) else None
                 else:
@@ -189,18 +193,26 @@ def get_column_mapping(view_name: str) -> Dict[str, str]:
             "total_users_answered": "Всего пользователей ответило",
             "total_answers": "Всего ответов",
             "answer_rate": "Процент ответов",
-            "test_title": "Название теста",
-            "category_name": "Категория теста",
-            "correct_answers": "Правильных ответов",
-            "incorrect_answers": "Неправильных ответов",
-            "correct_percentage": "Процент правильных ответов",
-            "avg_time_spent": "Среднее время ответа",
-            "difficulty_level": "Уровень сложности",
+            "correct_answer_rate": "Процент правильных ответов",
             "question_created_at": "Дата создания вопроса",
-            "created_at": "Дата создания вопроса",
-            "updated_at": "Дата обновления вопроса",
             "users_last_30_days": "Пользователей за 30 дней",
             "users_last_7_days": "Пользователей за 7 дней"
+        },
+        'analytics_category_performance': {
+            "category_id": "ID категории",
+            "category_name": "Название категории",
+            "total_tests": "Всего тестов",
+            "total_users_accessed": "Пользователей с доступом",
+            "total_users_completed": "Пользователей завершивших",
+            "total_attempts": "Всего попыток",
+            "category_avg_score": "Средний балл по категории",
+            "category_min_score": "Минимальный балл по категории",
+            "category_max_score": "Максимальный балл по категории",
+            "category_avg_completion": "Средний процент завершения по категории",
+            "total_questions_in_category": "Всего вопросов в категории",
+            "active_users_last_30_days": "Активных пользователей за 30 дней",
+            "active_users_last_7_days": "Активных пользователей за 7 дней",
+            "completion_rate_percent": "Процент завершения (%)"
         }
         # Здесь можно добавить маппинги для других представлений
     }
@@ -231,4 +243,9 @@ def get_filename(view_name: str) -> str:
         # Здесь можно добавить имена файлов для других представлений
     }
     
-    return filenames.get(view_name, f'{view_name}.xlsx') 
+    return filenames.get(view_name, f'{view_name}.xlsx')
+
+
+async def get_all_analytics_views(db: AsyncSession):
+    result = await db.execute(select(AnalyticsView).order_by(AnalyticsView.sort_order, AnalyticsView.id))
+    return result.scalars().all() 

@@ -171,7 +171,8 @@ async def get_user_tests(db: AsyncSession, user_id: int):
                 Test, Category.name, User.name, Locale.code, 
                 TestStatus.name, TestStatus.name_ru, TestStatus.color,
                 TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
-                TestAccess.completed_number, TestAccess.avg_percent
+                TestAccess.completed_number, TestAccess.avg_percent,
+                TestAccess.access_code
             )
             .join(TestAccess, Test.id == TestAccess.test_id)
             .join(Category, Test.category_id == Category.id)
@@ -189,7 +190,76 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             test, category_name, creator_name, locale_code, 
             status_name, status_name_ru, status_color,
             access_status_name, access_status_code, access_status_color,
-            user_completed, user_percent
-        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent in rows]
+            user_completed, user_percent,
+            access_code
+        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов пользователя")
+
+
+async def get_test_by_code(db: AsyncSession, code: str):
+    """Получение публичного теста по коду"""
+    try:
+        result = await db.execute(
+            select(Test)
+            .options(
+                selectinload(Test.image),
+                selectinload(Test.thumbnail),
+                selectinload(Test.category),
+                selectinload(Test.creator),
+                selectinload(Test.locale),
+                selectinload(Test.status)
+            )
+            .where(Test.code == code)
+            .where(Test.access == TestAccessEnum.PUBLIC)
+        )
+        test = result.scalar_one_or_none()
+        if not test:
+            raise NotFoundException("Публичный тест с указанным кодом не найден")
+            
+        return format_test_with_names(
+            test,
+            test.category.name,
+            test.creator.name if test.creator else None,
+            test.locale.code,
+            test.status.name,
+            test.status.name_ru,
+            test.status.color
+        )
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении данных теста")
+
+
+async def get_test_by_access_code(db: AsyncSession, access_code: str, user_id: int):
+    """Получение приватного теста по access_code из таблицы test_access с проверкой доступа пользователя"""
+    try:
+        result = await db.execute(
+            select(Test)
+            .join(TestAccess, Test.id == TestAccess.test_id)
+            .options(
+                selectinload(Test.image),
+                selectinload(Test.thumbnail),
+                selectinload(Test.category),
+                selectinload(Test.creator),
+                selectinload(Test.locale),
+                selectinload(Test.status)
+            )
+            .where(TestAccess.access_code == access_code)
+            .where(Test.access == TestAccessEnum.PRIVATE)
+            .where(TestAccess.user_id == user_id)
+        )
+        test = result.scalar_one_or_none()
+        if not test:
+            raise NotFoundException("Приватный тест с указанным кодом доступа не найден или у вас нет доступа к нему")
+            
+        return format_test_with_names(
+            test,
+            test.category.name,
+            test.creator.name if test.creator else None,
+            test.locale.code,
+            test.status.name,
+            test.status.name_ru,
+            test.status.color
+        )
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении данных теста")

@@ -2,7 +2,7 @@ from .permissions import role_required, admin_required, moderator_required, user
     authorized_required
 from .question import get_questions, get_question, create_question, update_question, delete_question, \
     get_questions_by_test_id
-from .test import get_tests, get_test, create_test, delete_test, update_test, get_user_tests
+from .test import get_tests, get_test, create_test, delete_test, update_test, get_user_tests, get_test_by_code, get_test_by_access_code
 from .test_question import create_test_question, delete_test_question
 from .user import get_users, get_user, update_user, delete_user, update_user_role
 from .user_auth import get_current_user, get_current_user_optional

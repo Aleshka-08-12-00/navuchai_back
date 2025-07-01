@@ -54,8 +54,9 @@ async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
     await delete_module(db, module_id)
 
 
+
 @router.get(
-    "/{module_id}/lessons",
+    "/{module_id}/lessons/",
     response_model=list[LessonResponse],
     dependencies=[Depends(authorized_required)],
 )
@@ -66,7 +67,7 @@ async def read_lessons(
 ):
     module = await get_module(db, module_id)
     if user.role.code not in ["admin", "moderator"] and not await user_enrolled(
-        db, module.course_id, user.id
+            db, module.course_id, user.id
     ):
         raise HTTPException(status_code=403, detail="Нет доступа к модулю")
     lessons = await get_lessons_by_module(db, module_id, user.id)

@@ -69,6 +69,8 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         #     pass
         await db.commit()
         await db.refresh(new_result)
+        # Явно подгружаем связанные объекты test и user для корректной сериализации
+        await db.refresh(new_result, attribute_names=["test", "user"])
         return new_result
     except SQLAlchemyError as e:
         await db.rollback()
@@ -80,7 +82,11 @@ async def get_result(db: AsyncSession, result_id: int):
     try:
         stmt = (
             select(Result)
-            .options(selectinload(Result.user_answers))
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.user)
+            )
             .where(Result.id == result_id)
         )
         result = await db.execute(stmt)
@@ -98,6 +104,11 @@ async def get_user_results(db: AsyncSession, user_id: int) -> List[Result]:
     try:
         result = await db.execute(
             select(Result)
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.user)
+            )
             .where(Result.user_id == user_id)
             .order_by(Result.created_at.desc())
         )
@@ -111,7 +122,11 @@ async def get_test_results(db: AsyncSession, test_id: int):
     try:
         stmt = (
             select(Result)
-            .options(selectinload(Result.user_answers))
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.user)
+            )
             .where(Result.test_id == test_id)
         )
         result = await db.execute(stmt)
@@ -127,7 +142,11 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
     try:
         stmt = (
             select(Result)
-            .options(selectinload(Result.user_answers))
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.user)
+            )
             .order_by(Result.created_at.desc())
         )
         result = await db.execute(stmt)

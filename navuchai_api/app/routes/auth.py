@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login/", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     try:
         logger.info(f"Попытка входа пользователя: {form_data.username}")
@@ -43,13 +43,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             logger.warning(f"Ошибка входа: пользователь не найден или неверный пароль: {form_data.username}")
             raise BadRequestException("Неверное имя пользователя/email или пароль")
         token = create_access_token({
-            "sub": str(user.id), 
+            "sub": str(user.id),
             "role": user.role.code,
             "username": user.username,
             "email": user.email
         })
         refresh_token = create_refresh_token({
-            "sub": str(user.id), 
+            "sub": str(user.id),
             "role": user.role.code,
             "username": user.username,
             "email": user.email
@@ -61,11 +61,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         raise DatabaseException("Ошибка при аутентификации пользователя")
 
 
-@router.post("/register", response_model=Token)
+@router.post("/register/", response_model=Token)
 async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     try:
         logger.info(f"Попытка регистрации пользователя: {user_data.username}")
-        
+
         result = await db.execute(
             select(User).where(User.username == user_data.username)
         )
@@ -100,13 +100,13 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
                 role_code = user_with_role.role.code
 
         token = create_access_token({
-            "sub": str(new_user.id), 
+            "sub": str(new_user.id),
             "role": role_code,
             "username": new_user.username,
             "email": new_user.email
         })
         refresh_token = create_refresh_token({
-            "sub": str(new_user.id), 
+            "sub": str(new_user.id),
             "role": role_code,
             "username": new_user.username,
             "email": new_user.email
@@ -121,7 +121,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка сервера: {str(e)}")
 
 
-@router.get("/me")
+@router.get("/me/")
 async def get_me(user=Depends(authorized_required)):
     try:
         logger.info(f"Получение информации о пользователе: {user.username}")
@@ -141,10 +141,12 @@ async def get_me(user=Depends(authorized_required)):
 
 from pydantic import BaseModel
 
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
-@router.post("/refresh", response_model=Token)
+
+@router.post("/refresh/", response_model=Token)
 async def refresh_token_endpoint(data: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(data.refresh_token)
     if not payload or payload.get("type") != "refresh" or "sub" not in payload:
@@ -155,13 +157,13 @@ async def refresh_token_endpoint(data: RefreshTokenRequest, db: AsyncSession = D
     email = payload.get("email")
     # На всякий случай можно получить роль из БД, если нужно
     access_token = create_access_token({
-        "sub": str(user_id), 
+        "sub": str(user_id),
         "role": role,
         "username": username,
         "email": email
     })
     new_refresh_token = create_refresh_token({
-        "sub": str(user_id), 
+        "sub": str(user_id),
         "role": role,
         "username": username,
         "email": email

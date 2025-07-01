@@ -14,6 +14,7 @@ from app.exceptions import NotFoundException, DatabaseException, ForbiddenExcept
 from app.models import User, Result, UserAnswer
 from app.schemas.result import ResultCreate, ResultResponse, UserAnswerResponse
 from app.utils import convert_result
+from app.utils.formatters import apply_excel_formatting
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -45,7 +46,7 @@ def clean_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-@router.get("/excel")
+@router.get("/excel/")
 async def export_results_excel(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
@@ -67,11 +68,20 @@ async def export_results_excel(
         if column_mapping:
             df = df.rename(columns=column_mapping)
         
-        # Форматируем числовые колонки
-        numeric_columns = ["Средний балл", "Средний процент выполнения"]
-        for col in numeric_columns:
-            if col in df.columns:
-                df[col] = df[col].round(2)
+        # Принудительно приводим все потенциально числовые колонки к float, кроме дат и времени
+        numeric_keywords = [
+            'процент', 'percent', 'балл', 'score', 'total', 'всего', 'дней', 'попыт', 'attempt',
+            'актив', 'active', 'заверш', 'complete', 'доступ', 'access', 'правиль', 'correct',
+            'неправиль', 'incorrect', 'отклонение', 'stddev', 'минималь', 'min', 'максималь', 'max'
+        ]
+        exclude_keywords = ['дата', 'date', 'время', 'time']
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if any(keyword in col_lower for keyword in numeric_keywords) and not any(ex in col_lower for ex in exclude_keywords):
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Применяем форматирование для Excel (округляем до сотых, заменяем 0E-20 на 0)
+        df = apply_excel_formatting(df)
         
         # Создаем Excel файл
         output = BytesIO()
@@ -107,7 +117,7 @@ async def export_results_excel(
         raise DatabaseException("Ошибка при экспорте аналитических данных в Excel")
 
 
-@router.get("/excel/{view_name}")
+@router.get("/excel/{view_name}/")
 async def export_analytics_excel(
         view_name: str,
         db: AsyncSession = Depends(get_db),
@@ -131,11 +141,20 @@ async def export_analytics_excel(
         if column_mapping:
             df = df.rename(columns=column_mapping)
         
-        # Форматируем числовые колонки (автоматически определяем по названию)
-        numeric_columns = [col for col in df.columns if any(prefix in col.lower() for prefix in ['средний', 'avg', 'total', 'всего', 'дней'])]
-        for col in numeric_columns:
-            if col in df.columns and df[col].dtype in ['float64', 'int64']:
-                df[col] = df[col].round(2)
+        # Принудительно приводим все потенциально числовые колонки к float, кроме дат и времени
+        numeric_keywords = [
+            'процент', 'percent', 'балл', 'score', 'total', 'всего', 'дней', 'попыт', 'attempt',
+            'актив', 'active', 'заверш', 'complete', 'доступ', 'access', 'правиль', 'correct',
+            'неправиль', 'incorrect', 'отклонение', 'stddev', 'минималь', 'min', 'максималь', 'max'
+        ]
+        exclude_keywords = ['дата', 'date', 'время', 'time']
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if any(keyword in col_lower for keyword in numeric_keywords) and not any(ex in col_lower for ex in exclude_keywords):
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Применяем форматирование для Excel (округляем до сотых, заменяем 0E-20 на 0)
+        df = apply_excel_formatting(df)
         
         # Создаем Excel файл
         output = BytesIO()
@@ -188,7 +207,7 @@ async def create_test_result(
         raise DatabaseException("Ошибка при сохранении результата")
 
 
-@router.get("/{result_id}", response_model=ResultResponse)
+@router.get("/{result_id}/", response_model=ResultResponse)
 async def get_result_by_id(
         result_id: int,
         db: AsyncSession = Depends(get_db),
@@ -204,7 +223,7 @@ async def get_result_by_id(
         raise DatabaseException("Ошибка при получении результата")
 
 
-@router.get("/user/{user_id}", response_model=List[ResultResponse])
+@router.get("/user/{user_id}/", response_model=List[ResultResponse])
 async def get_user_results(
         user_id: int,
         db: AsyncSession = Depends(get_db),
@@ -220,7 +239,7 @@ async def get_user_results(
         raise DatabaseException("Ошибка при получении результатов пользователя")
 
 
-@router.get("/test/{test_id}", response_model=List[ResultResponse])
+@router.get("/test/{test_id}/", response_model=List[ResultResponse])
 async def get_test_results(
         test_id: int,
         db: AsyncSession = Depends(get_db),

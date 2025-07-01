@@ -20,7 +20,8 @@ from app.config import (
     MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY,
     MINIO_BUCKET_NAME,
-    MINIO_REGION
+    MINIO_REGION,
+    MINIO_URL_SERT
 )
 
 # Создание клиента
@@ -60,7 +61,7 @@ async def upload_file(
         )
 
         # Формирование URL для доступа к файлу
-        file_url = f"{MINIO_URL}/{MINIO_BUCKET_NAME}/{unique_filename}"
+        file_url = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/{unique_filename}"
 
         # Создание записи о файле в БД
         file_data = FileCreate(
@@ -113,7 +114,7 @@ async def upload_image(
             ContentLength=file_size,
             ContentType=file.content_type
         )
-        file_url = f"{MINIO_URL}/{MINIO_BUCKET_NAME}/{original_key}"
+        file_url = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/{original_key}"
 
         # Создание уменьшенной копии
         image = Image.open(BytesIO(content))
@@ -137,7 +138,7 @@ async def upload_image(
             ContentLength=len(thumb_content),
             ContentType=file.content_type
         )
-        thumb_url = f"{MINIO_URL}/{MINIO_BUCKET_NAME}/{mobile_key}"
+        thumb_url = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/{mobile_key}"
 
         # Сохраняем оригинал в БД
         file_data = FileCreate(

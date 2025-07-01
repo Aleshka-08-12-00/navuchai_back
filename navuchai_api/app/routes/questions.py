@@ -39,7 +39,7 @@ async def get_all_questions(db: AsyncSession = Depends(get_db), user: User = Dep
 
 
 # Получение конкретного вопроса по ID
-@router.get("/{question_id}", response_model=QuestionResponse)
+@router.get("/{question_id}/", response_model=QuestionResponse)
 async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(authorized_required)):
     try:
         question = await get_question(db, question_id)
@@ -50,7 +50,7 @@ async def get_question_by_id(question_id: int, db: AsyncSession = Depends(get_db
         raise DatabaseException("Ошибка при получении вопроса")
 
 
-@router.get("/by-test/{test_id}", response_model=list[QuestionWithDetails])
+@router.get("/by-test/{test_id}/", response_model=list[QuestionWithDetails])
 async def list_questions_by_test(
     test_id: int,
     db: AsyncSession = Depends(get_db),
@@ -62,7 +62,7 @@ async def list_questions_by_test(
     return questions
 
 
-@router.get("/by-test/{test_id}/public", response_model=list[QuestionWithDetails])
+@router.get("/by-test/{test_id}/public/", response_model=list[QuestionWithDetails])
 async def list_questions_by_test_public(
     test_id: int,
     db: AsyncSession = Depends(get_db),
@@ -120,7 +120,7 @@ async def create_new_question(question: QuestionCreate, db: AsyncSession = Depen
 
 
 # Обновление вопроса по ID
-@router.put("/{question_id}", response_model=QuestionResponse)
+@router.put("/{question_id}/", response_model=QuestionResponse)
 async def update_question_by_id(question_id: int, question: QuestionUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         updated_question = await update_question(db, question_id, question)
@@ -132,7 +132,7 @@ async def update_question_by_id(question_id: int, question: QuestionUpdate, db: 
 
 
 # Удаление вопроса по ID
-@router.delete("/{question_id}", response_model=QuestionResponse)
+@router.delete("/{question_id}/", response_model=QuestionResponse)
 async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         question = await delete_question(db, question_id)
@@ -144,7 +144,7 @@ async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get
 
 
 # Создание связи между тестом и вопросом
-@router.post("/{question_id}/add-to-test/{test_id}", status_code=status.HTTP_201_CREATED)
+@router.post("/{question_id}/add-to-test/{test_id}/", status_code=status.HTTP_201_CREATED)
 async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         return await create_test_question(db, test_id, question_id)
@@ -153,7 +153,7 @@ async def link_test_question(test_id: int, question_id: int, db: AsyncSession = 
 
 
 # Удаление связи между тестом и вопросом
-@router.delete("/{question_id}/remove-from-test/{test_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{question_id}/remove-from-test/{test_id}/", status_code=status.HTTP_200_OK)
 async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
     try:
         result = await delete_test_question(db, test_id, question_id)
@@ -165,7 +165,7 @@ async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession 
 
 
 # Генерация тестовых вопросов на основе текста
-@router.post("/generate-from-text", response_model=List[GeneratedQuestionResponse])
+@router.post("/generate-from-text/", response_model=List[GeneratedQuestionResponse])
 async def generate_questions_from_text(
     request: TextGenerationRequest,
     user: User = Depends(admin_moderator_required)

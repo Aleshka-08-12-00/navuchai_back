@@ -9,6 +9,8 @@ from app.crud import (
     delete_test,
     update_test,
     get_user_tests,
+    get_test_by_code,
+    get_test_by_access_code,
     admin_moderator_required,
     authorized_required
 )
@@ -31,7 +33,7 @@ async def get_all_tests(
         raise DatabaseException("Ошибка при получении списка тестов")
 
 
-@router.get("/my", response_model=list[TestWithAccessDetails])
+@router.get("/my/", response_model=list[TestWithAccessDetails])
 async def get_my_tests(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
@@ -42,7 +44,7 @@ async def get_my_tests(
         raise DatabaseException("Ошибка при получении списка тестов пользователя")
 
 
-@router.get("/{test_id}", response_model=TestWithDetails)
+@router.get("/{test_id}/", response_model=TestWithDetails)
 async def get_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
@@ -68,7 +70,7 @@ async def create_new_test(
         raise DatabaseException("Ошибка при создании теста")
 
 
-@router.put("/{test_id}", response_model=TestResponse)
+@router.put("/{test_id}/", response_model=TestResponse)
 async def update_test_by_id(
     test_id: int,
     test: TestUpdate,
@@ -83,7 +85,7 @@ async def update_test_by_id(
         raise DatabaseException("Ошибка при обновлении теста")
 
 
-@router.delete("/{test_id}", response_model=TestResponse)
+@router.delete("/{test_id}/", response_model=TestResponse)
 async def delete_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
@@ -95,3 +97,32 @@ async def delete_test_by_id(
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при удалении теста")
+
+
+@router.get("/public/{code}/", response_model=TestWithDetails)
+async def get_public_test_by_code(
+    code: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Получение публичного теста по коду (без авторизации)"""
+    try:
+        return await get_test_by_code(db, code)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении теста")
+
+
+@router.get("/private/{access_code}/", response_model=TestWithDetails)
+async def get_private_test_by_access_code(
+    access_code: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    """Получение приватного теста по access_code (требует авторизации и проверки доступа)"""
+    try:
+        return await get_test_by_access_code(db, access_code, current_user.id)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении теста")
