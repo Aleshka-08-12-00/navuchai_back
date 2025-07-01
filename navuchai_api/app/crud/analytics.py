@@ -80,6 +80,7 @@ async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[D
             'analytics_test_statistics',
             'analytics_group_performance',
             'analytics_question_analysis',
+            'analytics_category_performance',
             # Здесь можно добавить другие представления в будущем
             # 'analytics_test_performance',
         ]
@@ -196,6 +197,22 @@ def get_column_mapping(view_name: str) -> Dict[str, str]:
             "question_created_at": "Дата создания вопроса",
             "users_last_30_days": "Пользователей за 30 дней",
             "users_last_7_days": "Пользователей за 7 дней"
+        },
+        'analytics_category_performance': {
+            "category_id": "ID категории",
+            "category_name": "Название категории",
+            "total_tests": "Всего тестов",
+            "total_users_accessed": "Пользователей с доступом",
+            "total_users_completed": "Пользователей завершивших",
+            "total_attempts": "Всего попыток",
+            "category_avg_score": "Средний балл по категории",
+            "category_min_score": "Минимальный балл по категории",
+            "category_max_score": "Максимальный балл по категории",
+            "category_avg_completion": "Средний процент завершения по категории",
+            "total_questions_in_category": "Всего вопросов в категории",
+            "active_users_last_30_days": "Активных пользователей за 30 дней",
+            "active_users_last_7_days": "Активных пользователей за 7 дней",
+            "completion_rate_percent": "Процент завершения (%)"
         }
         # Здесь можно добавить маппинги для других представлений
     }
