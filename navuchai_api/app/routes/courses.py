@@ -25,7 +25,7 @@ from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User, LessonProgress
-from app.crud import authorized_required
+from app.crud import authorized_required, get_course_with_content
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 

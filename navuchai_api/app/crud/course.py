@@ -29,7 +29,7 @@ async def get_courses(db: AsyncSession):
         for c, name in result.all()
     ]
 
-async def get_course_with_content(db, course_id: int) -> Course:
+async def get_course_with_content(db: AsyncSession, course_id: int):
     result = await db.execute(
         select(Course)
         .options(
@@ -43,6 +43,7 @@ async def get_course_with_content(db, course_id: int) -> Course:
     if not course:
         raise NotFoundException("Курс не найден")
     return course
+
 
 async def get_course(db: AsyncSession, course_id: int):
     result = await db.execute(
