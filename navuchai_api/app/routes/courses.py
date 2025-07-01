@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from app.dependencies import get_db
 from app.crud import (
     get_courses,
@@ -18,21 +17,37 @@ from app.crud import (
     user_enrolled,
     create_course_test,
     get_course_tests,
+    get_current_user_optional,
+    get_last_course_and_lesson,
 )
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
+from app.schemas.lesson import LessonResponse
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
-from app.models import User, LessonProgress
-from app.crud import authorized_required
+from app.models import User
+from app.crud import authorized_required, get_course_with_content
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
 
-@router.get("/", response_model=list[CourseResponse])
-async def list_courses(db: AsyncSession = Depends(get_db)):
-    return await get_courses(db)
+@router.get("/", response_model=dict)
+async def list_courses(
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+):
+    courses_raw = await get_courses(db)
+    courses = [CourseResponse.model_validate(c) for c in courses_raw]
+    current = None
+    if user:
+        course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
+        if course_obj:
+            current = {
+                "course": CourseResponse.model_validate(course_obj),
+                "lesson": LessonResponse.model_validate(lesson_obj),
+            }
+    return {"current": current, "courses": courses}
 
 @router.get(
     "/{id}",
@@ -40,10 +55,7 @@ async def list_courses(db: AsyncSession = Depends(get_db)):
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
-async def read_course(
-    id: int,
-    db: AsyncSession = Depends(get_db),
-):
+async def read_course(id: int, db=Depends(get_db)):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
