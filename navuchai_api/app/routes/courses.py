@@ -77,7 +77,7 @@ async def read_course(
     return resp
 
 @router.post(
-    "/",
+    "",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
