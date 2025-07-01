@@ -31,7 +31,7 @@ from app.crud import authorized_required, get_course_with_content
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 async def list_courses(
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
@@ -76,7 +76,7 @@ async def read_course(
     return resp
 
 @router.post(
-    "/",
+    "",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
