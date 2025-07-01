@@ -33,6 +33,7 @@ async def get_lesson(db: AsyncSession, lesson_id: int):
         .options(selectinload(Lesson.image))
         .options(selectinload(Lesson.thumbnail))
         .options(selectinload(Lesson.files))
+        .options(selectinload(Lesson.module))
         .where(Lesson.id == lesson_id)
     )
     lesson = result.scalar_one_or_none()
