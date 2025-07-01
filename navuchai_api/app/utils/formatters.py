@@ -6,7 +6,7 @@ import numpy as np
 from typing import Union, Any
 
 
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None) -> dict:
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None, access_code: str = None) -> dict:
     result = {
         "id": test.id,
         "title": test.title,
@@ -34,7 +34,9 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "goodbye_message": test.goodbye_message,
         "created_at": test.created_at,
         "updated_at": test.updated_at,
-        "access": test.access
+        "access": test.access,
+        "code": test.code,
+        "access_code": access_code,
     }
     
     if access_status_name is not None:
