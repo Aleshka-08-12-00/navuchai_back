@@ -47,6 +47,26 @@ async def remove(lesson_id: int, db: AsyncSession = Depends(get_db)):
     await delete_lesson(db, lesson_id)
 
 
+@router.get(
+    "/{lesson_id}",
+    response_model=LessonResponse,
+    dependencies=[Depends(authorized_required)],
+)
+async def read(
+    lesson_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    lesson = await get_lesson(db, lesson_id)
+    if user.role.code not in ["admin", "moderator"]:
+        module = lesson.module
+        if module and not await user_enrolled(db, module.course_id, user.id):
+            raise HTTPException(status_code=403, detail="Нет доступа к уроку")
+    await complete_lesson(db, lesson_id, user.id)
+    setattr(lesson, "completed", True)
+    return lesson
+
+
 @router.post("/{lesson_id}/complete", dependencies=[Depends(authorized_required)])
 async def mark_completed(
     lesson_id: int,
