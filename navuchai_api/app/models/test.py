@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 import enum
+from sqlalchemy.dialects.postgresql import TIMESTAMP as PG_TIMESTAMP
 
 
 class TestAccessEnum(str, enum.Enum):
@@ -18,7 +19,7 @@ class Test(Base):
     category_id = Column(Integer, ForeignKey('category.id'), nullable=False)
     creator_id = Column(Integer, ForeignKey('user.id'))
     time_limit = Column(Integer)
-    access_timestamp = Column(TIMESTAMP, nullable=False)
+    access_timestamp = Column(PG_TIMESTAMP(timezone=True), nullable=False)
     status_id = Column(Integer, ForeignKey("test_status.id"), nullable=False)
     frozen = Column(Boolean, nullable=False)
     locale_id = Column(Integer, ForeignKey('locale.id'), nullable=False)
