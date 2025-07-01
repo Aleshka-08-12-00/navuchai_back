@@ -37,13 +37,22 @@ async def list_courses(
     user: User | None = Depends(get_current_user_optional),
 ):
     courses_raw = await get_courses(db)
-    courses = [CourseResponse.model_validate(c) for c in courses_raw]
+    courses: list[CourseResponse] = []
+    for c in courses_raw:
+        course = CourseResponse.model_validate(c)
+        if user:
+            course.progress = await get_course_progress(db, course.id, user.id)
+        courses.append(course)
     current = None
     if user:
         course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
         if course_obj:
+            course_current = CourseResponse.model_validate(course_obj)
+            course_current.progress = await get_course_progress(
+                db, course_current.id, user.id
+            )
             current = {
-                "course": CourseResponse.model_validate(course_obj),
+                "course": course_current,
                 "lesson": LessonResponse.model_validate(lesson_obj),
             }
     return {"current": current, "courses": courses}
@@ -54,19 +63,49 @@ async def list_courses(
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
-async def read_course(id: int, db=Depends(get_db)):
+async def read_course(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
-    return course
+    resp = CourseRead.model_validate(course)
+    resp.progress = await get_course_progress(db, resp.id, user.id)
+    return resp
 
-@router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(admin_moderator_required)])
-async def create(course: CourseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    return await create_course(db, course, user.id)
+@router.post(
+    "/",
+    response_model=CourseResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def create(
+    course: CourseCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    course_obj = await create_course(db, course, user.id)
+    resp = CourseResponse.model_validate(course_obj)
+    resp.progress = 0.0
+    return resp
 
-@router.put("/{course_id}", response_model=CourseResponse, dependencies=[Depends(admin_moderator_required)])
-async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db)):
-    return await update_course(db, course_id, data)
+@router.put(
+    "/{course_id}",
+    response_model=CourseResponse,
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def update(
+    course_id: int,
+    data: CourseCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    course_obj = await update_course(db, course_id, data)
+    resp = CourseResponse.model_validate(course_obj)
+    resp.progress = await get_course_progress(db, resp.id, user.id)
+    return resp
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
 async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
