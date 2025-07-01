@@ -1,5 +1,7 @@
 from app.models import Result, UserAnswer
 from app.schemas.result import ResultResponse, UserAnswerResponse
+from app.schemas.test import TestResponse
+from app.schemas.user import UserResponse
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -113,7 +115,9 @@ def convert_result(result: Result) -> ResultResponse:
         time_end=time_end,
         completed_at=result.completed_at,
         created_at=result.created_at,
-        updated_at=result.updated_at
+        updated_at=result.updated_at,
+        test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
+        user=UserResponse.model_validate(result.user, from_attributes=True) if result.user else None,
     )
 
 
