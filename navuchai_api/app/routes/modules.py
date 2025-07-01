@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/modules", tags=["Modules"])
 
 
 @router.post(
-    "/",
+    "",
     response_model=ModuleWithLessons,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
@@ -56,7 +56,7 @@ async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get(
-    "/{module_id}/lessons/",
+    "/{module_id}/lessons",
     response_model=list[LessonResponse],
     dependencies=[Depends(authorized_required)],
 )
