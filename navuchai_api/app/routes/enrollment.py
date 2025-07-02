@@ -19,7 +19,7 @@ async def enroll_user_admin(course_id: int, user_id: int, db: AsyncSession = Dep
     await enroll_user(db, course_id, user_id)
 
 
-@router.delete("/{course_id}/unenroll/{user_id}/", status_code=status.HTTP_204_NO_CONTENT,
+@router.delete("/{course_id}/enroll/{user_id}/", status_code=status.HTTP_204_NO_CONTENT,
                dependencies=[Depends(admin_moderator_required)])
 async def unenroll(course_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
     await unenroll_user(db, course_id, user_id)
