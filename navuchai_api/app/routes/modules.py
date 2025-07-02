@@ -56,7 +56,7 @@ async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get(
-    "/{module_id}/lessons/",
+    "/{module_id}/lessons",
     response_model=list[LessonResponse],
     dependencies=[Depends(authorized_required)],
 )
