@@ -3,8 +3,10 @@ from typing import List, Dict, Any, Optional
 from app.schemas.test_import import TestImportData, QuestionImportData
 import re
 import openpyxl
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.utils import get_column_letter
+from io import BytesIO
 import logging
 
 logger = logging.getLogger(__name__)
@@ -510,4 +512,87 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
         
     except Exception as e:
         logger.error(f"Ошибка при создании полного дружелюбного Excel шаблона: {str(e)}")
-        raise ValueError(f"Ошибка при создании полного дружелюбного Excel шаблона: {str(e)}") 
+        raise ValueError(f"Ошибка при создании полного дружелюбного Excel шаблона: {str(e)}")
+
+
+def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
+    """
+    Формирует и стилизует Excel-отчёт по аналитическим данным (pivot, порядок, цвета, сумма баллов и т.д.).
+    Возвращает BytesIO с готовым Excel-файлом.
+    """
+    df = pd.DataFrame(analytics_data)
+    if 'user_full_name' in df.columns:
+        df[['Имя', 'Фамилия']] = df['user_full_name'].str.split(' ', n=1, expand=True)
+    else:
+        df['Имя'] = ''
+        df['Фамилия'] = ''
+
+    # Pivot
+    pivot = df.pivot_table(
+        index=['Имя', 'Фамилия'],
+        columns='test_title',
+        values=['user_test_score', 'test_max_score', 'test_percent'],
+        aggfunc='first'
+    )
+    pivot = pivot.reorder_levels([1, 0], axis=1).sort_index(axis=1, level=0)
+    pivot = pivot.reset_index()
+
+    # Преобразуем MultiIndex колонок в строки
+    pivot.columns = [
+        f"{col[0]} ({col[1]})" if isinstance(col, tuple) and col[1] else str(col[0])
+        for col in pivot.columns
+    ]
+
+    # Суммируем только по колонкам с '(user_test_score)'
+    score_cols = [col for col in pivot.columns if col.endswith('(user_test_score)')]
+    pivot['Сумма баллов (личная)'] = pivot[score_cols].fillna(0).sum(axis=1)
+    # Вставляем после 'Фамилия'
+    fam_idx = list(pivot.columns).index('Фамилия')
+    cols = list(pivot.columns)
+    cols.insert(fam_idx + 1, cols.pop(cols.index('Сумма баллов (личная)')))
+    pivot = pivot[cols]
+
+    # Формируем нужный порядок колонок
+    test_names = [col.split(' (')[0] for col in pivot.columns if col.endswith('(user_test_score)')]
+    ordered_columns = ['Имя', 'Фамилия', 'Сумма баллов (личная)']
+    for test in test_names:
+        for metric in ['user_test_score', 'test_max_score', 'test_percent']:
+            col = f"{test} ({metric})"
+            if col in pivot.columns:
+                ordered_columns.append(col)
+    pivot = pivot[ordered_columns]
+
+    # Сохраняем в Excel с форматированием
+    output = BytesIO()
+    sheet_name = 'Pivot User-Tests'
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pivot.to_excel(writer, sheet_name=sheet_name, index=False)
+        ws = writer.sheets[sheet_name]
+        block_colors = ['D9EAD3', 'FCE5CD', 'FFF2CC']
+        for idx, cell in enumerate(ws[1]):
+            if idx >= 2:
+                col_name = pivot.columns[idx]
+                test = col_name.split(' (')[0]
+                test_idx = test_names.index(test) if test in test_names else 0
+                color = block_colors[test_idx % len(block_colors)]
+                cell.fill = PatternFill(start_color=color, end_color=color, fill_type='solid')
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        # Формат процентов
+        for col in ws.iter_cols(min_row=2, max_row=ws.max_row):
+            if col[0].value and ('%' in str(col[0].value) or 'percent' in str(col[0].value).lower()):
+                for cell in col[1:]:
+                    cell.number_format = '0.00%'
+        # Фильтр
+        ws.auto_filter.ref = ws.dimensions
+        # Границы
+        thin = Side(border_style="thin", color="000000")
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        # Автоширина
+        for col in ws.columns:
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_length + 2, 50)
+    output.seek(0)
+    return output 

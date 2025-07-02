@@ -248,4 +248,20 @@ def get_filename(view_name: str) -> str:
 
 async def get_all_analytics_views(db: AsyncSession):
     result = await db.execute(select(AnalyticsView).order_by(AnalyticsView.sort_order, AnalyticsView.id))
-    return result.scalars().all() 
+    return result.scalars().all()
+
+
+async def get_analytics_user_test_question_performance(db: AsyncSession) -> List[Dict[str, Any]]:
+    """Получение данных из вью analytics_user_test_question_performance для pivot-отчёта по пользователям и тестам"""
+    try:
+        stmt = text("SELECT * FROM analytics_user_test_question_performance ORDER BY user_full_name, test_title")
+        result = await db.execute(stmt)
+        rows = result.fetchall()
+        columns = result.keys()
+        analytics_data = []
+        for row in rows:
+            row_dict = {col: row[i] for i, col in enumerate(columns)}
+            analytics_data.append(row_dict)
+        return analytics_data
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении данных из вью analytics_user_test_question_performance: {str(e)}") 

@@ -6,6 +6,9 @@ from fastapi.responses import StreamingResponse
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+import re
 
 from app.crud import result as result_crud
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
@@ -15,6 +18,8 @@ from app.models import User, Result, UserAnswer
 from app.schemas.result import ResultCreate, ResultResponse, UserAnswerResponse
 from app.utils import convert_result
 from app.utils.formatters import apply_excel_formatting
+from app.crud.analytics import get_analytics_user_test_question_performance
+from app.utils.excel_parser import generate_analytics_excel
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -265,3 +270,22 @@ async def get_all_results(
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка результатов")
+
+
+@router.get("/excel/pivot/user-tests/", summary="Экспорт pivot-отчёта по пользователям и тестам в Excel")
+async def export_pivot_user_tests_excel(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    """
+    Экспортирует Excel-отчёт, где пользователи в строках, а тесты в колонках (pivot-таблица).
+    """
+    # Получаем данные из вьюхи
+    analytics_data = await get_analytics_user_test_question_performance(db)
+    output = generate_analytics_excel(analytics_data)
+    filename = 'pivot_user_tests.xlsx'
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
