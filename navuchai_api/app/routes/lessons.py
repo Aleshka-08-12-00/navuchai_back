@@ -62,8 +62,10 @@ async def read(
         module = lesson.module
         if module and not await user_enrolled(db, module.course_id, user.id):
             raise HTTPException(status_code=403, detail="Нет доступа к уроку")
-    await complete_lesson(db, lesson_id, user.id)
-    setattr(lesson, "completed", True)
+        await complete_lesson(db, lesson_id, user.id)
+        setattr(lesson, "completed", True)
+    else:
+        setattr(lesson, "completed", False)
     return lesson
 
 
@@ -80,5 +82,5 @@ async def mark_completed(
         module = lesson.module
         if module and not await user_enrolled(db, module.course_id, user.id):
             raise HTTPException(status_code=403, detail="Нет доступа к уроку")
-    await complete_lesson(db, lesson_id, user.id)
+        await complete_lesson(db, lesson_id, user.id)
     return {"detail": "completed"}
