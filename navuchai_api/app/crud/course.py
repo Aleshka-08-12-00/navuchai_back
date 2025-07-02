@@ -101,8 +101,10 @@ async def update_course(db: AsyncSession, course_id: int, data: CourseCreate):
     course = await get_course(db, course_id)
     course.title = data.title
     course.description = data.description
-    course.img_id = data.img_id
-    course.thumbnail_id = data.thumbnail_id
+    if data.img_id is not None:
+        course.img_id = data.img_id
+    if data.thumbnail_id is not None:
+        course.thumbnail_id = data.thumbnail_id
     await db.commit()
     await db.refresh(course)
     return course
