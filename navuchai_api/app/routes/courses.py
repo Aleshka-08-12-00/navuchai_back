@@ -46,7 +46,6 @@ async def list_courses(
         courses.append(course)
     courses_raw = await get_courses(db, user.id if user else None)
     courses = [CourseResponse.model_validate(c) for c in courses_raw]
-    current = None
     if user:
         course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
         if course_obj:
@@ -55,11 +54,7 @@ async def list_courses(
             course_current.progress = await get_course_progress(
                 db, course_current.id, user.id
             )
-            current = {
-                "course": course_current,
-                "lesson": LessonResponse.model_validate(lesson_obj),
-            }
-    return {"current": current, "courses": courses}
+    return {"current": course_current, "courses": courses}
 
 @router.get(
     "/{id}",
