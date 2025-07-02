@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/lessons", tags=["Lessons"])
 
 
 @router.post(
-    "",
+    "/",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
@@ -28,7 +28,7 @@ async def create(data: LessonCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put(
-    "/{lesson_id}",
+    "/{lesson_id}/",
     response_model=LessonResponse,
     dependencies=[Depends(admin_moderator_required)],
 )
@@ -39,7 +39,7 @@ async def update(
 
 
 @router.delete(
-    "/{lesson_id}",
+    "/{lesson_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(admin_moderator_required)],
 )
@@ -48,7 +48,7 @@ async def remove(lesson_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get(
-    "/{lesson_id}",
+    "/{lesson_id}/",
     response_model=LessonResponse,
     dependencies=[Depends(authorized_required)],
 )
@@ -67,7 +67,7 @@ async def read(
     return lesson
 
 
-@router.post("/{lesson_id}/complete", dependencies=[Depends(authorized_required)])
+@router.post("/{lesson_id}/complete/", dependencies=[Depends(authorized_required)])
 async def mark_completed(
     lesson_id: int,
     db: AsyncSession = Depends(get_db),
