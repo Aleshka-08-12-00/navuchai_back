@@ -44,10 +44,13 @@ async def list_courses(
         if user:
             course.progress = await get_course_progress(db, course.id, user.id)
         courses.append(course)
+    courses_raw = await get_courses(db, user.id if user else None)
+    courses = [CourseResponse.model_validate(c) for c in courses_raw]
     current = None
     if user:
         course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
         if course_obj:
+            setattr(course_obj, "enrolled", await user_enrolled(db, course_obj.id, user.id))
             course_current = CourseResponse.model_validate(course_obj)
             course_current.progress = await get_course_progress(
                 db, course_current.id, user.id
@@ -62,16 +65,24 @@ async def list_courses(
     "/{id}",
     response_model=CourseRead,
     response_model_exclude={"modules"},
-    dependencies=[Depends(authorized_required)],
 )
 async def read_course(
     id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(authorized_required),
 ):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
+    setattr(course, "enrolled", await user_enrolled(db, id, user.id))
+    return course
+
+
+@router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(admin_moderator_required)])
+async def create(course: CourseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    return await create_course(db, course, user.id)
+
     resp = CourseRead.model_validate(course)
     resp.progress = await get_course_progress(db, resp.id, user.id)
     return resp

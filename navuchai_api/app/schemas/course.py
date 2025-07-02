@@ -18,6 +18,7 @@ class CourseBase(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     created_at: datetime
+    enrolled: Optional[bool] = None
     progress: Optional[float] = None
 
     class Config:
@@ -56,6 +57,7 @@ class CourseRead(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     modules: List[ModuleRead]
+    enrolled: Optional[bool] = None
     progress: Optional[float] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
