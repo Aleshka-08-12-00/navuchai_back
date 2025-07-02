@@ -272,18 +272,18 @@ async def get_all_results(
         raise DatabaseException("Ошибка при получении списка результатов")
 
 
-@router.get("/excel/pivot/user-tests/", summary="Экспорт pivot-отчёта по пользователям и тестам в Excel")
+@router.get("/user-tests/excel/", summary="Экспорт основного Excel-отчёта по пользователям и тестам")
 async def export_pivot_user_tests_excel(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
 ):
     """
-    Экспортирует Excel-отчёт, где пользователи в строках, а тесты в колонках (pivot-таблица).
+    Экспортирует основной Excel-отчёт, где пользователи в строках, а тесты в колонках (pivot-таблица).
     """
     # Получаем данные из вьюхи
     analytics_data = await get_analytics_user_test_question_performance(db)
     output = generate_analytics_excel(analytics_data)
-    filename = 'pivot_user_tests.xlsx'
+    filename = 'user_tests_report.xlsx'
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

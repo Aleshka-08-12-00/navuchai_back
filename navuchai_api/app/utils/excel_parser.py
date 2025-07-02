@@ -562,27 +562,62 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
                 ordered_columns.append(col)
     pivot = pivot[ordered_columns]
 
+    # Переименование колонок по шаблону
+    rename_map = {}
+    for col in pivot.columns:
+        if col.endswith('(user_test_score)'):
+            test = col.split(' (')[0]
+            rename_map[col] = f"{test} (баллы)"
+        elif col.endswith('(test_max_score)'):
+            test = col.split(' (')[0]
+            rename_map[col] = f"Вопросы {test}"
+        elif col.endswith('(test_percent)'):
+            test = col.split(' (')[0]
+            rename_map[col] = f"{test} (уровень %)"
+    pivot = pivot.rename(columns=rename_map)
+
+    # Округляем все числовые значения до сотых
+    for col in pivot.select_dtypes(include=['float']).columns:
+        pivot[col] = pivot[col].round(2)
+
+    # Преобразуем значения в колонках с '(уровень %)' из процентов в доли для корректного отображения в Excel
+    percent_cols = [col for col in pivot.columns if col.endswith('(уровень %)')]
+    for col in percent_cols:
+        pivot[col] = pivot[col].apply(lambda x: round(float(x)/100, 4) if pd.notnull(x) else x)
+
     # Сохраняем в Excel с форматированием
     output = BytesIO()
     sheet_name = 'Pivot User-Tests'
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         pivot.to_excel(writer, sheet_name=sheet_name, index=False)
         ws = writer.sheets[sheet_name]
-        block_colors = ['D9EAD3', 'FCE5CD', 'FFF2CC']
+        # Стилизация шапки и столбцов по новым названиям
+        green_cols = []
         for idx, cell in enumerate(ws[1]):
-            if idx >= 2:
-                col_name = pivot.columns[idx]
-                test = col_name.split(' (')[0]
-                test_idx = test_names.index(test) if test in test_names else 0
-                color = block_colors[test_idx % len(block_colors)]
-                cell.fill = PatternFill(start_color=color, end_color=color, fill_type='solid')
+            col_name = pivot.columns[idx]
+            if col_name in ['Имя', 'Фамилия', 'Сумма баллов (личная)'] or col_name.endswith('(баллы)'):
+                cell.fill = PatternFill(start_color='D9EAD3', end_color='D9EAD3', fill_type='solid')
+                if col_name == 'Сумма баллов (личная)' or col_name.endswith('(баллы)'):
+                    green_cols.append(idx)
+            elif col_name.startswith('Вопросы ') or col_name.endswith('(уровень %)'):
+                cell.fill = PatternFill(start_color='FCE5CD', end_color='FCE5CD', fill_type='solid')
             cell.font = Font(bold=True)
             cell.alignment = Alignment(horizontal='center', vertical='center')
-        # Формат процентов
-        for col in ws.iter_cols(min_row=2, max_row=ws.max_row):
-            if col[0].value and ('%' in str(col[0].value) or 'percent' in str(col[0].value).lower()):
-                for cell in col[1:]:
-                    cell.number_format = '0.00%'
+        # Заливаем зелёным все ячейки в нужных столбцах (кроме шапки)
+        for idx in green_cols:
+            for row in ws.iter_rows(min_row=2, min_col=idx+1, max_col=idx+1, max_row=ws.max_row):
+                for cell in row:
+                    cell.fill = PatternFill(start_color='D9EAD3', end_color='D9EAD3', fill_type='solid')
+        # Формат процентов (корректно для всех строк и только нужных колонок)
+        for idx, cell in enumerate(ws[1]):
+            if '(уровень %)' in str(cell.value):
+                col_letter = get_column_letter(idx + 1)
+                for row in range(2, ws.max_row + 1):
+                    ws[f"{col_letter}{row}"].number_format = '0.00%'
+        # Перенос текста на новую строку для всех ячеек
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.alignment = Alignment(wrap_text=True, horizontal=cell.alignment.horizontal, vertical=cell.alignment.vertical)
         # Фильтр
         ws.auto_filter.ref = ws.dimensions
         # Границы
@@ -590,9 +625,8 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
         for row in ws.iter_rows():
             for cell in row:
                 cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        # Автоширина
+        # Автоширина -> фиксированная ширина для всех столбцов
         for col in ws.columns:
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-            ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_length + 2, 50)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = 18
     output.seek(0)
     return output 
