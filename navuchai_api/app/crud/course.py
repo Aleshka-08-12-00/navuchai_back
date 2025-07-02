@@ -7,6 +7,7 @@ from app.schemas.course import CourseCreate
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import CourseEnrollment
 from sqlalchemy import and_
+from .lesson import get_course_progress
 
 async def get_courses(db: AsyncSession, user_id: int | None = None):
     stmt = (
@@ -32,9 +33,11 @@ async def get_courses(db: AsyncSession, user_id: int | None = None):
         if user_id is not None:
             c, name, enroll_id = row
             enrolled = enroll_id is not None
+            progress = await get_course_progress(db, c.id, user_id)
         else:
             c, name = row
             enrolled = None
+            progress = None
         courses.append(
             {
                 "id": c.id,
@@ -48,6 +51,7 @@ async def get_courses(db: AsyncSession, user_id: int | None = None):
                 "image": c.image,
                 "thumbnail": c.thumbnail,
                 "enrolled": enrolled,
+                "progress": progress,
             }
         )
     return courses

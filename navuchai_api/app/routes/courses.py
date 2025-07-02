@@ -21,7 +21,6 @@ from app.crud import (
     get_last_course_and_lesson,
 )
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
-from app.schemas.lesson import LessonResponse
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
@@ -41,13 +40,11 @@ async def list_courses(
     courses = [CourseResponse.model_validate(c) for c in courses_raw]
     current = None
     if user:
-        course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
+        course_obj, _ = await get_last_course_and_lesson(db, user.id)
         if course_obj:
             setattr(course_obj, "enrolled", await user_enrolled(db, course_obj.id, user.id))
-            current = {
-                "course": CourseResponse.model_validate(course_obj),
-                "lesson": LessonResponse.model_validate(lesson_obj),
-            }
+            setattr(course_obj, "progress", await get_course_progress(db, course_obj.id, user.id))
+            current = CourseResponse.model_validate(course_obj)
     return {"current": current, "courses": courses}
 
 @router.get(
@@ -64,6 +61,7 @@ async def read_course(
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
     setattr(course, "enrolled", await user_enrolled(db, id, user.id))
+    setattr(course, "progress", await get_course_progress(db, id, user.id))
     return course
 
 
