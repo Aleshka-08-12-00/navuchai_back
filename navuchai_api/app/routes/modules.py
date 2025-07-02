@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/modules", tags=["Modules"])
 
 
 @router.post(
-    "",
+    "/",
     response_model=ModuleWithLessons,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
@@ -35,7 +35,7 @@ async def create(data: ModuleCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put(
-    "/{module_id}",
+    "/{module_id}/",
     response_model=ModuleWithLessons,
     dependencies=[Depends(admin_moderator_required)],
 )
@@ -46,7 +46,7 @@ async def update(
 
 
 @router.delete(
-    "/{module_id}",
+    "/{module_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(admin_moderator_required)],
 )
@@ -56,7 +56,7 @@ async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get(
-    "/{module_id}/lessons",
+    "/{module_id}/lessons/",
     response_model=list[LessonResponse],
     dependencies=[Depends(authorized_required)],
 )
@@ -75,7 +75,7 @@ async def read_lessons(
 
 
 @router.post(
-    "/{module_id}/lessons",
+    "/{module_id}/lessons/",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
@@ -86,7 +86,7 @@ async def create_lesson_route(
     return await create_lesson_for_module(db, module_id, data)
 
 
-@router.get("/{module_id}/progress", dependencies=[Depends(authorized_required)])
+@router.get("/{module_id}/progress/", dependencies=[Depends(authorized_required)])
 async def module_progress(
     module_id: int,
     db: AsyncSession = Depends(get_db),
