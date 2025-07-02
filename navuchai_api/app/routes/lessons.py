@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/lessons", tags=["Lessons"])
 
 
 @router.post(
-    "/",
+    "",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(admin_moderator_required)],
