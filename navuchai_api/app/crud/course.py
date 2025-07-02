@@ -5,29 +5,52 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.models import Course, User, Module, Lesson, LessonProgress
 from app.schemas.course import CourseCreate
 from app.exceptions import NotFoundException, DatabaseException
+from app.models import CourseEnrollment
+from sqlalchemy import and_
 
-async def get_courses(db: AsyncSession):
-    result = await db.execute(
+async def get_courses(db: AsyncSession, user_id: int | None = None):
+    stmt = (
         select(Course, User.name)
         .join(User, Course.author_id == User.id)
         .options(selectinload(Course.image))
         .options(selectinload(Course.thumbnail))
     )
-    return [
-        {
-            "id": c.id,
-            "title": c.title,
-            "description": c.description,
-            "author_id": c.author_id,
-            "author_name": name,
-            "created_at": c.created_at,
-            "img_id": c.img_id,
-            "thumbnail_id": c.thumbnail_id,
-            "image": c.image,
-            "thumbnail": c.thumbnail,
-        }
-        for c, name in result.all()
-    ]
+    if user_id is not None:
+        stmt = (
+            stmt.outerjoin(
+                CourseEnrollment,
+                and_(
+                    CourseEnrollment.course_id == Course.id,
+                    CourseEnrollment.user_id == user_id,
+                ),
+            )
+            .add_columns(CourseEnrollment.id)
+        )
+    result = await db.execute(stmt)
+    courses = []
+    for row in result.all():
+        if user_id is not None:
+            c, name, enroll_id = row
+            enrolled = enroll_id is not None
+        else:
+            c, name = row
+            enrolled = None
+        courses.append(
+            {
+                "id": c.id,
+                "title": c.title,
+                "description": c.description,
+                "author_id": c.author_id,
+                "author_name": name,
+                "created_at": c.created_at,
+                "img_id": c.img_id,
+                "thumbnail_id": c.thumbnail_id,
+                "image": c.image,
+                "thumbnail": c.thumbnail,
+                "enrolled": enrolled,
+            }
+        )
+    return courses
 
 async def get_course_with_content(db: AsyncSession, course_id: int) -> Course:
     result = await db.execute(
