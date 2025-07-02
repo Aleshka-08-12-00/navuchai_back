@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
+from sqlalchemy import exists
 
 from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess, TestAccessStatus, Question, TestQuestion
 from app.models.test import TestAccessEnum
