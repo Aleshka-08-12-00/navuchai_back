@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
-from app.models import Course, User, Module, Lesson
+from app.models import Course, User, Module, Lesson, LessonProgress
 from app.schemas.course import CourseCreate
 from app.exceptions import NotFoundException, DatabaseException
 
@@ -29,13 +29,13 @@ async def get_courses(db: AsyncSession):
         for c, name in result.all()
     ]
 
-async def get_course_with_content(db, course_id: int) -> Course:
+async def get_course_with_content(db: AsyncSession, course_id: int) -> Course:
     result = await db.execute(
         select(Course)
         .options(
             selectinload(Course.image),
             selectinload(Course.thumbnail),
-            selectinload(Course.modules).selectinload(Module.lessons)
+            selectinload(Course.modules).selectinload(Module.lessons),
         )
         .where(Course.id == course_id)
     )
@@ -43,6 +43,7 @@ async def get_course_with_content(db, course_id: int) -> Course:
     if not course:
         raise NotFoundException("Курс не найден")
     return course
+
 
 async def get_course(db: AsyncSession, course_id: int):
     result = await db.execute(
@@ -92,3 +93,24 @@ async def update_course_images(db: AsyncSession, course_id: int, img_id: int, th
     await db.commit()
     await db.refresh(course)
     return course
+
+
+async def get_last_course_and_lesson(db: AsyncSession, user_id: int):
+    stmt = (
+        select(Course, Lesson)
+        .join(Module, Module.course_id == Course.id)
+        .join(Lesson, Lesson.module_id == Module.id)
+        .join(LessonProgress, LessonProgress.lesson_id == Lesson.id)
+        .where(LessonProgress.user_id == user_id)
+        .order_by(LessonProgress.completed_at.desc())
+        .options(selectinload(Course.image))
+        .options(selectinload(Course.thumbnail))
+        .options(selectinload(Lesson.image))
+        .options(selectinload(Lesson.thumbnail))
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    row = result.first()
+    if not row:
+        return None, None
+    return row
