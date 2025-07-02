@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess, TestAccessStatus
+from app.models import Test, Category, User, Locale, File, TestStatus, TestAccess, TestAccessStatus, Question, TestQuestion
 from app.models.test import TestAccessEnum
 from app.schemas.test import TestCreate, TestUpdate
 from app.utils import format_test_with_names
@@ -143,6 +143,20 @@ async def delete_test(db: AsyncSession, test_id: int):
 
         await db.delete(test)
         await db.commit()
+
+        # Удаляем вопросы, которые больше не связаны ни с одним тестом
+        # Получаем все вопросы
+        questions_result = await db.execute(select(Question))
+        all_questions = questions_result.scalars().all()
+        for question in all_questions:
+            # Проверяем, есть ли связи с тестами
+            test_question_exists = await db.execute(
+                select(exists().where(TestQuestion.question_id == question.id))
+            )
+            if not test_question_exists.scalar():
+                await db.delete(question)
+        await db.commit()
+
         return test
     except SQLAlchemyError:
         await db.rollback()
