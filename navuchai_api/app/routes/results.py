@@ -128,25 +128,25 @@ async def export_analytics_excel(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
 ):
-    """Экспорт данных из любого аналитического представления в Excel"""
+    """Экспорт данных из любого аналитического представления в Excel, включая pivot-отчёт по пользователям и тестам"""
     try:
-        # Получаем аналитические данные из указанного представления
+        if view_name == "analytics_user_test_question_performance":
+            # Специальная логика для pivot-отчёта
+            analytics_data = await get_analytics_user_test_question_performance(db)
+            output = generate_analytics_excel(analytics_data)
+            filename = 'user_tests_report.xlsx'
+            return StreamingResponse(
+                output,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        # --- Универсальная логика для остальных view ---
         analytics_data = await get_analytics_data_by_view(db, view_name)
-        
-        # Создаем DataFrame из аналитических данных
         df = pd.DataFrame(analytics_data)
-        
-        # Очищаем datetime колонки от часовых поясов
         df = clean_datetime_columns(df)
-        
-        # Получаем маппинг колонок для переименования
         column_mapping = get_column_mapping(view_name)
-        
-        # Переименовываем колонки для лучшей читаемости в Excel
         if column_mapping:
             df = df.rename(columns=column_mapping)
-        
-        # Принудительно приводим все потенциально числовые колонки к float, кроме дат и времени
         numeric_keywords = [
             'процент', 'percent', 'балл', 'score', 'total', 'всего', 'дней', 'попыт', 'attempt',
             'актив', 'active', 'заверш', 'complete', 'доступ', 'access', 'правиль', 'correct',
@@ -157,22 +157,13 @@ async def export_analytics_excel(
             col_lower = str(col).lower()
             if any(keyword in col_lower for keyword in numeric_keywords) and not any(ex in col_lower for ex in exclude_keywords):
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        # Применяем форматирование для Excel (округляем до сотых, заменяем 0E-20 на 0)
         df = apply_excel_formatting(df)
-        
-        # Создаем Excel файл
         output = BytesIO()
         sheet_name = get_sheet_name(view_name)
         filename = get_filename(view_name)
-        
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name=sheet_name, index=False)
-            
-            # Получаем рабочий лист для форматирования
             worksheet = writer.sheets[sheet_name]
-            
-            # Автоматически подгоняем ширину колонок
             for column in worksheet.columns:
                 max_length = 0
                 column_letter = column[0].column_letter
@@ -182,9 +173,8 @@ async def export_analytics_excel(
                             max_length = len(str(cell.value))
                     except:
                         pass
-                adjusted_width = min(max_length + 2, 50)  # Ограничиваем максимальную ширину
+                adjusted_width = min(max_length + 2, 50)
                 worksheet.column_dimensions[column_letter].width = adjusted_width
-        
         output.seek(0)
         return StreamingResponse(
             output,
@@ -270,22 +260,3 @@ async def get_all_results(
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка результатов")
-
-
-@router.get("/user-tests/excel/", summary="Экспорт основного Excel-отчёта по пользователям и тестам")
-async def export_pivot_user_tests_excel(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
-):
-    """
-    Экспортирует основной Excel-отчёт, где пользователи в строках, а тесты в колонках (pivot-таблица).
-    """
-    # Получаем данные из вьюхи
-    analytics_data = await get_analytics_user_test_question_performance(db)
-    output = generate_analytics_excel(analytics_data)
-    filename = 'user_tests_report.xlsx'
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
