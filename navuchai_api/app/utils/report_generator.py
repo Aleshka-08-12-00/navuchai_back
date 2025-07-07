@@ -1,13 +1,11 @@
-import pandas as pd
-from io import BytesIO
-from datetime import datetime
-from typing import List, Dict, Any
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
-import json
 import re
+from io import BytesIO
+from typing import List
 
-from app.models import Result, UserAnswer, User, Test, Question
+import pandas as pd
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+from app.models import Result, UserAnswer
 
 
 def transliterate_cyrillic(text: str) -> str:

@@ -1,27 +1,25 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
-from typing import List
-from fastapi.responses import StreamingResponse
-import pandas as pd
-from io import BytesIO
 from datetime import datetime
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
-import re
+from io import BytesIO
+from typing import List
 
-from app.crud import result as result_crud
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
+from app.crud import result as result_crud
+from app.crud.analytics import get_analytics_user_test_question_performance
 from app.crud.result import get_result, get_result_answers
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
-from app.models import User, Result, UserAnswer
+from app.models import User, UserAnswer
 from app.schemas.result import ResultCreate, ResultResponse, UserAnswerResponse
 from app.utils import convert_result
-from app.utils.formatters import apply_excel_formatting
-from app.crud.analytics import get_analytics_user_test_question_performance
 from app.utils.excel_parser import generate_analytics_excel
-from app.utils.report_generator import generate_result_excel, generate_result_pdf, transliterate_cyrillic
+from app.utils.formatters import apply_excel_formatting
+from app.utils.report_generator import generate_result_excel, transliterate_cyrillic
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
