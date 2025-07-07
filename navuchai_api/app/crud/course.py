@@ -52,6 +52,7 @@ async def get_courses(db: AsyncSession, user_id: int | None = None):
                 "thumbnail": c.thumbnail,
                 "enrolled": enrolled,
                 "progress": progress,
+                "done": progress == 100 if progress is not None else None,
             }
         )
     return courses
