@@ -262,7 +262,7 @@ async def get_all_results(
         raise DatabaseException("Ошибка при получении списка результатов")
 
 
-@router.get("/{result_id}/export")
+@router.get("/{result_id}/export/")
 async def export_result(
     result_id: int,
     current_user: User = Depends(authorized_required),
