@@ -20,6 +20,7 @@ class CourseBase(BaseModel):
     created_at: datetime
     enrolled: Optional[bool] = None
     progress: Optional[float] = None
+    done: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -59,6 +60,7 @@ class CourseRead(BaseModel):
     modules: List[ModuleRead]
     enrolled: Optional[bool] = None
     progress: Optional[float] = None
+    done: Optional[bool] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 

@@ -43,7 +43,9 @@ async def list_courses(
         course_obj, _ = await get_last_course_and_lesson(db, user.id)
         if course_obj:
             setattr(course_obj, "enrolled", await user_enrolled(db, course_obj.id, user.id))
-            setattr(course_obj, "progress", await get_course_progress(db, course_obj.id, user.id))
+            progress = await get_course_progress(db, course_obj.id, user.id)
+            setattr(course_obj, "progress", progress)
+            setattr(course_obj, "done", progress == 100)
             current = CourseResponse.model_validate(course_obj)
     return {"current": current, "courses": courses}
 
@@ -61,7 +63,9 @@ async def read_course(
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
     setattr(course, "enrolled", await user_enrolled(db, id, user.id))
-    setattr(course, "progress", await get_course_progress(db, id, user.id))
+    progress = await get_course_progress(db, id, user.id)
+    setattr(course, "progress", progress)
+    setattr(course, "done", progress == 100)
     return course
 
 
