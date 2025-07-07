@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List
@@ -12,6 +12,7 @@ import re
 
 from app.crud import result as result_crud
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
+from app.crud.result import get_result, get_result_answers
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
 from app.models import User, Result, UserAnswer
@@ -20,6 +21,7 @@ from app.utils import convert_result
 from app.utils.formatters import apply_excel_formatting
 from app.crud.analytics import get_analytics_user_test_question_performance
 from app.utils.excel_parser import generate_analytics_excel
+from app.utils.report_generator import generate_result_excel, generate_result_pdf, transliterate_cyrillic
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -260,3 +262,30 @@ async def get_all_results(
         return [convert_result(result) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка результатов")
+
+
+@router.get("/{result_id}/export")
+async def export_result(
+    result_id: int,
+    current_user: User = Depends(authorized_required),
+    db: AsyncSession = Depends(get_db)
+):
+    """Экспорт результата теста только в Excel формате (без параметра format)"""
+    try:
+        result = await get_result(db, result_id)
+        # Проверяем права доступа
+        if current_user.role.code != "admin" and result.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Нет доступа к этому результату")
+        answers = await get_result_answers(db, result_id)
+        safe_name = transliterate_cyrillic(result.user.name or 'unknown')
+        filename = f"result_{result_id}_{safe_name}_{result.created_at.strftime('%Y%m%d_%H%M%S')}.xlsx"
+        output = generate_result_excel(result, answers)
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=str(e))

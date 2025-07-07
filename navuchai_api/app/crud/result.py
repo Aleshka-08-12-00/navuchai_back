@@ -208,3 +208,20 @@ async def get_analytics_user_performance(db: AsyncSession) -> List[dict]:
         return analytics_data
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении аналитических данных: {str(e)}")
+
+
+async def get_result_answers(db: AsyncSession, result_id: int) -> List[UserAnswer]:
+    """Получение всех ответов пользователя по ID результата"""
+    try:
+        stmt = (
+            select(UserAnswer)
+            .options(
+                selectinload(UserAnswer.question).selectinload(Question.type)
+            )
+            .where(UserAnswer.result_id == result_id)
+            .order_by(UserAnswer.created_at)
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении ответов пользователя: {str(e)}")
