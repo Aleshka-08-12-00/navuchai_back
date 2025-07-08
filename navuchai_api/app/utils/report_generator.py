@@ -1,6 +1,7 @@
 import re
 from io import BytesIO
 from typing import List
+from datetime import datetime
 
 import pandas as pd
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -22,11 +23,11 @@ def transliterate_cyrillic(text: str) -> str:
         'Ф': 'F', 'Х': 'H', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Sch',
         'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya'
     }
-    
+
     result = ''
     for char in text:
         result += cyrillic_to_latin.get(char, char)
-    
+
     # Заменяем все не-ASCII символы на подчеркивание
     result = re.sub(r'[^a-zA-Z0-9_\-\s]', '_', result)
     # Заменяем множественные подчеркивания на одно
@@ -35,7 +36,7 @@ def transliterate_cyrillic(text: str) -> str:
     result = re.sub(r'\s+', '_', result)
     # Убираем начальные и конечные подчеркивания
     result = result.strip('_')
-    
+
     return result
 
 
@@ -43,10 +44,20 @@ def strip_html(text):
     return re.sub(r'<[^>]+>', '', text or '').strip()
 
 
+def format_datetime(dt_str):
+    if not dt_str:
+        return ''
+    try:
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+        return dt.strftime('%d.%m.%Y %H:%M:%S')
+    except Exception:
+        return dt_str
+
+
 def generate_result_excel(result: Result, answers: List[UserAnswer]) -> BytesIO:
     """Генерация Excel отчета по результату теста"""
     output = BytesIO()
-    
+
     # Создаем DataFrame с основной информацией о результате
     result_data = {
         'Поле': [
@@ -68,15 +79,15 @@ def generate_result_excel(result: Result, answers: List[UserAnswer]) -> BytesIO:
             result.test.title or 'Не указано',
             result.score or 0,
             result.created_at.strftime('%d.%m.%Y %H:%M:%S') if result.created_at else 'Не указано',
-            result.result.get('time_start', '') if result.result else '',
-            result.result.get('time_end', '') if result.result else '',
+            format_datetime(result.result.get('time_start', '')) if result.result else '',
+            format_datetime(result.result.get('time_end', '')) if result.result else '',
             result.result.get('total_time_seconds', '') if result.result else '',
             'Пройден' if result.result and result.result.get('is_passed', False) else 'Не пройден'
         ]
     }
-    
+
     result_df = pd.DataFrame(result_data)
-    
+
     # Формируем ответы из result.result['checked_answers']
     checked_answers = result.result.get('checked_answers', []) if result.result else []
     answers_data = []
@@ -91,25 +102,25 @@ def generate_result_excel(result: Result, answers: List[UserAnswer]) -> BytesIO:
             'Баллы': ans.get('score', 0),
             'Время ответа (сек)': ans.get('time_seconds', 0)
         })
-    
+
     answers_df = pd.DataFrame(answers_data)
-    
+
     # Создаем Excel файл
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         # Лист с основной информацией
         result_df.to_excel(writer, sheet_name='Информация о результате', index=False)
-        
+
         # Лист с ответами
         answers_df.to_excel(writer, sheet_name='Ответы на вопросы', index=False)
-        
+
         # Форматирование листа с информацией
         worksheet_info = writer.sheets['Информация о результате']
         _format_info_worksheet(worksheet_info)
-        
+
         # Форматирование листа с ответами
         worksheet_answers = writer.sheets['Ответы на вопросы']
         _format_answers_worksheet(worksheet_answers)
-    
+
     output.seek(0)
     return output
 
@@ -125,20 +136,20 @@ def _format_info_worksheet(worksheet):
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    
+
     # Форматирование заголовков
     for cell in worksheet[1]:
         cell.font = header_font
         cell.fill = header_fill
         cell.border = border
         cell.alignment = Alignment(horizontal='center', vertical='center')
-    
+
     # Форматирование данных
     for row in worksheet.iter_rows(min_row=2):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(vertical='center')
-    
+
     # Автоматическая ширина колонок
     for column in worksheet.columns:
         max_length = 0
@@ -164,20 +175,20 @@ def _format_answers_worksheet(worksheet):
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    
+
     # Форматирование заголовков
     for cell in worksheet[1]:
         cell.font = header_font
         cell.fill = header_fill
         cell.border = border
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    
+
     # Форматирование данных
     for row in worksheet.iter_rows(min_row=2):
         for cell in row:
             cell.border = border
             cell.alignment = Alignment(vertical='top', wrap_text=True)
-    
+
     # Автоматическая ширина колонок
     for column in worksheet.columns:
         max_length = 0
@@ -189,7 +200,7 @@ def _format_answers_worksheet(worksheet):
             except:
                 pass
         adjusted_width = min(max_length + 2, 60)
-        worksheet.column_dimensions[column_letter].width = adjusted_width 
+        worksheet.column_dimensions[column_letter].width = adjusted_width
 
 
 QUESTION_TYPE_RU = {
@@ -201,7 +212,8 @@ QUESTION_TYPE_RU = {
     # Добавьте другие типы, если есть
 }
 
+
 def get_question_type_ru(qtype: str) -> str:
     if not qtype:
         return 'Не указан'
-    return QUESTION_TYPE_RU.get(qtype.upper(), qtype) 
+    return QUESTION_TYPE_RU.get(qtype.upper(), qtype)
