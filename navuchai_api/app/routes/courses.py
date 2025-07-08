@@ -17,6 +17,8 @@ from app.crud import (
     user_enrolled,
     create_course_test,
     get_course_tests,
+    get_course_test,
+    delete_course_test,
     get_current_user_optional,
     get_last_course_and_lesson,
 )
@@ -26,7 +28,7 @@ from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
-from app.crud import authorized_required, get_course_with_content
+from app.crud import authorized_required
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
@@ -172,3 +174,28 @@ async def list_course_tests_route(course_id: int, db: AsyncSession = Depends(get
         raise HTTPException(status_code=403, detail="Курс не завершен")
     tests = await get_course_tests(db, course_id)
     return [t.test for t in tests]
+
+
+@router.get("/{course_id}/tests/{test_id}/", response_model=TestResponse, dependencies=[Depends(authorized_required)])
+async def get_course_test_route(
+    course_id: int,
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+        raise HTTPException(status_code=403, detail="Нет доступа к курсу")
+    progress = await get_course_progress(db, course_id, user.id)
+    if user.role.code not in ["admin", "moderator"] and progress < 100:
+        raise HTTPException(status_code=403, detail="Курс не завершен")
+    course_test = await get_course_test(db, course_id, test_id)
+    if not course_test:
+        raise HTTPException(status_code=404, detail="Тест не найден")
+    return course_test.test
+
+
+@router.delete("/{course_id}/tests/{test_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
+async def delete_course_test_route(course_id: int, test_id: int, db: AsyncSession = Depends(get_db)):
+    course_test = await delete_course_test(db, course_id, test_id)
+    if not course_test:
+        raise HTTPException(status_code=404, detail="Тест не найден")
