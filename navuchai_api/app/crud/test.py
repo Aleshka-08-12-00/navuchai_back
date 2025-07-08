@@ -213,7 +213,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
 
 
 async def get_test_by_code(db: AsyncSession, code: str):
-    """Получение публичного теста по коду"""
+    """Получение теста по публичному коду"""
     try:
         result = await db.execute(
             select(Test)
@@ -226,11 +226,10 @@ async def get_test_by_code(db: AsyncSession, code: str):
                 selectinload(Test.status)
             )
             .where(Test.code == code)
-            .where(Test.access == TestAccessEnum.PUBLIC)
         )
         test = result.scalar_one_or_none()
         if not test:
-            raise NotFoundException("Публичный тест с указанным кодом не найден")
+            raise NotFoundException("Тест с указанным кодом не найден")
             
         return format_test_with_names(
             test,
@@ -246,7 +245,7 @@ async def get_test_by_code(db: AsyncSession, code: str):
 
 
 async def get_test_by_access_code(db: AsyncSession, access_code: str, user_id: int):
-    """Получение приватного теста по access_code из таблицы test_access с проверкой доступа пользователя"""
+    """Получение теста по access_code из таблицы test_access с проверкой доступа пользователя"""
     try:
         result = await db.execute(
             select(Test)
@@ -260,12 +259,11 @@ async def get_test_by_access_code(db: AsyncSession, access_code: str, user_id: i
                 selectinload(Test.status)
             )
             .where(TestAccess.access_code == access_code)
-            .where(Test.access == TestAccessEnum.PRIVATE)
             .where(TestAccess.user_id == user_id)
         )
         test = result.scalar_one_or_none()
         if not test:
-            raise NotFoundException("Приватный тест с указанным кодом доступа не найден или у вас нет доступа к нему")
+            raise NotFoundException("Тест с указанным кодом доступа не найден или у вас нет доступа к нему")
             
         return format_test_with_names(
             test,
@@ -281,14 +279,14 @@ async def get_test_by_access_code(db: AsyncSession, access_code: str, user_id: i
 
 
 async def get_test_universal(db: AsyncSession, identifier: str, current_user: User = None):
-    """Универсальное получение теста по ID, публичному коду или приватному access_code"""
+    """Универсальное получение теста по ID, публичному коду или access_code"""
     try:
         # Проверяем, является ли identifier числом (ID теста)
         if identifier.isdigit():
             test_id = int(identifier)
             return await get_test(db, test_id)
         
-        # Проверяем публичный тест по коду
+        # Проверяем тест по публичному коду
         result = await db.execute(
             select(Test)
             .options(
@@ -300,7 +298,6 @@ async def get_test_universal(db: AsyncSession, identifier: str, current_user: Us
                 selectinload(Test.status)
             )
             .where(Test.code == identifier)
-            .where(Test.access == TestAccessEnum.PUBLIC)
         )
         test = result.scalar_one_or_none()
         if test:
@@ -314,7 +311,7 @@ async def get_test_universal(db: AsyncSession, identifier: str, current_user: Us
                 test.status.color
             )
         
-        # Проверяем приватный тест по access_code (требует авторизации)
+        # Поиск по access_code (требует авторизации)
         if not current_user:
             raise NotFoundException("Тест не найден или требует авторизации")
         
@@ -338,7 +335,6 @@ async def get_test_universal(db: AsyncSession, identifier: str, current_user: Us
                 selectinload(Test.status)
             )
             .where(TestAccess.access_code == identifier)
-            .where(Test.access == TestAccessEnum.PRIVATE)
         )
         
         # Если не админ/модератор, добавляем проверку на назначение пользователя
