@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.crud import admin_moderator_required
 from app.crud import test_access as crud
 from app.models.user import User
-from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate
+from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate, GuestTestAccessCreate, GuestTestAccessResponse, GuestUserResponse
 from app.schemas.test import TestResponse
 from app.exceptions import DatabaseException, NotFoundException
 
@@ -181,5 +181,39 @@ async def update_test_access_status_by_user_route(
     """Обновить статус доступа к тесту по test_id и user_id"""
     try:
         return await crud.update_test_access_status_by_user(db, test_id, user_id, body.status_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/guest/", response_model=GuestTestAccessResponse)
+async def create_guest_test_access_route(
+        guest_data: GuestTestAccessCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
+) -> GuestTestAccessResponse:
+    """Создание гостевого пользователя и доступа к тесту"""
+    try:
+        result = await crud.create_guest_test_access(
+            db=db,
+            first_name=guest_data.first_name,
+            last_name=guest_data.last_name,
+            email=guest_data.email,
+            test_id=guest_data.test_id
+        )
+        return GuestTestAccessResponse(**result)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/guest/{test_id}/", response_model=List[GuestUserResponse])
+async def get_guest_users_by_test_route(
+        test_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
+) -> List[GuestUserResponse]:
+    """Получение списка гостевых пользователей по test_id"""
+    try:
+        guest_users = await crud.get_guest_users_by_test(db, test_id)
+        return [GuestUserResponse(**user) for user in guest_users]
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))

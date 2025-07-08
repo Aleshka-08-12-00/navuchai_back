@@ -9,6 +9,8 @@ from app.models import TestAccess, Test, TestAccessStatus, User, UserGroup, User
 from app.schemas.test_access import TestAccessCreate
 from app.exceptions import DatabaseException, NotFoundException
 from app.models.test import TestAccessEnum
+from app.models.role import Role
+from app.auth import get_password_hash
 
 OPAQUE_TOKEN_NUM_BYTES = 16
 
@@ -462,3 +464,116 @@ async def update_test_access_completion(db: AsyncSession, test_id: int, user_id:
         return test_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при обновлении статуса завершения: {str(e)}") 
+
+
+async def create_guest_test_access(db: AsyncSession, first_name: str, last_name: str, email: str, test_id: int) -> dict:
+    """Создание гостевого пользователя и доступа к тесту"""
+    try:
+        test_result = await db.execute(select(Test).where(Test.id == test_id))
+        test = test_result.scalar_one_or_none()
+        if not test:
+            raise NotFoundException(f"Тест с ID {test_id} не найден")
+
+        user_result = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.email == email)
+        )
+        user = user_result.scalar_one_or_none()
+        
+        if user:
+            if user.role.code != "guest":
+                return {
+                    "access_code": None,
+                    "user_id": None,
+                    "message": "Пользователь с таким email уже зарегистрирован в системе"
+                }
+        else:
+            role_result = await db.execute(
+                select(Role).where(Role.code == "guest")
+            )
+            guest_role = role_result.scalar_one_or_none()
+            if not guest_role:
+                raise NotFoundException("Роль 'guest' не найдена в системе")
+            
+            hashed_password = get_password_hash("guest")
+            
+            user = User(
+                name=f"{first_name} {last_name}",
+                email=email,
+                username=email,
+                password=hashed_password,
+                role_id=guest_role.id
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        
+        existing_access = await get_test_access(db, test_id, user.id)
+        if existing_access:
+            return {
+                "access_code": existing_access.access_code,
+                "user_id": user.id,
+                "message": "Пользователь уже имеет доступ к тесту"
+            }
+        
+        test_access_data = TestAccessCreate(
+            test_id=test_id,
+            user_id=user.id,
+            status_id=1
+        )
+        
+        test_access = await create_test_access(db, test_access_data)
+        
+        return {
+            "access_code": test_access.access_code,
+            "user_id": user.id,
+            "message": "Доступ к тесту успешно создан"
+        }
+        
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при создании гостевого доступа к тесту: {str(e)}")
+    except Exception as e:
+        raise DatabaseException(f"Неожиданная ошибка при создании гостевого доступа к тесту: {str(e)}")
+
+
+async def get_guest_users_by_test(db: AsyncSession, test_id: int) -> list[dict]:
+    """Получение списка гостевых пользователей по test_id"""
+    try:
+        test_result = await db.execute(select(Test).where(Test.id == test_id))
+        test = test_result.scalar_one_or_none()
+        if not test:
+            raise NotFoundException(f"Тест с ID {test_id} не найден")
+
+        result = await db.execute(
+            select(TestAccess)
+            .options(selectinload(TestAccess.user).selectinload(User.role))
+            .options(selectinload(TestAccess.status))
+            .where(
+                TestAccess.test_id == test_id,
+                TestAccess.user_id.isnot(None)
+            )
+        )
+        test_accesses = result.scalars().all()
+        
+        guest_users = []
+        for access in test_accesses:
+            if access.user and access.user.role and access.user.role.code == "guest":
+                user_data = {
+                    "user_id": access.user.id,
+                    "name": access.user.name,
+                    "email": access.user.email,
+                    "access_id": access.id,
+                    "access_code": access.access_code,
+                    "status_id": access.status_id,
+                    "status_name": access.status.name if access.status else None,
+                    "is_completed": access.is_completed,
+                    "created_at": access.created_at,
+                    "updated_at": access.updated_at
+                }
+                guest_users.append(user_data)
+        
+        return guest_users
+        
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении списка гостевых пользователей: {str(e)}")
+    except Exception as e:
+        raise DatabaseException(f"Неожиданная ошибка при получении списка гостевых пользователей: {str(e)}") 

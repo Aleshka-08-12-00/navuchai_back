@@ -48,4 +48,39 @@ class TestAccessResponse(BaseModel):
     role: Optional[dict] = None
 
     class Config:
+        from_attributes = True
+
+
+class GuestTestAccessCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    test_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class GuestTestAccessResponse(BaseModel):
+    access_code: Optional[str] = None
+    user_id: Optional[int] = None
+    message: str
+
+    class Config:
+        from_attributes = True
+
+
+class GuestUserResponse(BaseModel):
+    user_id: int
+    name: str
+    email: str
+    access_id: int
+    access_code: Optional[str] = None
+    status_id: int
+    status_name: Optional[str] = None
+    is_completed: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
         from_attributes = True 
