@@ -11,8 +11,10 @@ from app.crud import (
     get_user_tests,
     get_test_by_code,
     get_test_by_access_code,
+    get_test_universal,
     admin_moderator_required,
-    authorized_required
+    authorized_required,
+    get_current_user_optional
 )
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
@@ -42,6 +44,21 @@ async def get_my_tests(
         return await get_user_tests(db, current_user.id)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов пользователя")
+
+
+@router.get("/test/{identifier}/", response_model=TestWithDetails)
+async def get_test_route(
+    identifier: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    """Получение теста по ID, публичному коду или приватному access_code"""
+    try:
+        return await get_test_universal(db, identifier, current_user)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении теста")
 
 
 @router.get("/{test_id}/", response_model=TestWithDetails)

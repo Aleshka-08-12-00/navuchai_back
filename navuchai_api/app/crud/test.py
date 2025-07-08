@@ -278,3 +278,87 @@ async def get_test_by_access_code(db: AsyncSession, access_code: str, user_id: i
         )
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении данных теста")
+
+
+async def get_test_universal(db: AsyncSession, identifier: str, current_user: User = None):
+    """Универсальное получение теста по ID, публичному коду или приватному access_code"""
+    try:
+        # Проверяем, является ли identifier числом (ID теста)
+        if identifier.isdigit():
+            test_id = int(identifier)
+            return await get_test(db, test_id)
+        
+        # Проверяем публичный тест по коду
+        result = await db.execute(
+            select(Test)
+            .options(
+                selectinload(Test.image),
+                selectinload(Test.thumbnail),
+                selectinload(Test.category),
+                selectinload(Test.creator),
+                selectinload(Test.locale),
+                selectinload(Test.status)
+            )
+            .where(Test.code == identifier)
+            .where(Test.access == TestAccessEnum.PUBLIC)
+        )
+        test = result.scalar_one_or_none()
+        if test:
+            return format_test_with_names(
+                test,
+                test.category.name,
+                test.creator.name if test.creator else None,
+                test.locale.code,
+                test.status.name,
+                test.status.name_ru,
+                test.status.color
+            )
+        
+        # Проверяем приватный тест по access_code (требует авторизации)
+        if not current_user:
+            raise NotFoundException("Тест не найден или требует авторизации")
+        
+        # Проверяем роль пользователя
+        user_result = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.id == current_user.id)
+        )
+        user = user_result.scalar_one_or_none()
+        is_admin_or_moderator = user and user.role and user.role.code in ['admin', 'moderator']
+        
+        # Базовый запрос для поиска теста по access_code
+        query = (
+            select(Test)
+            .join(TestAccess, Test.id == TestAccess.test_id)
+            .options(
+                selectinload(Test.image),
+                selectinload(Test.thumbnail),
+                selectinload(Test.category),
+                selectinload(Test.creator),
+                selectinload(Test.locale),
+                selectinload(Test.status)
+            )
+            .where(TestAccess.access_code == identifier)
+            .where(Test.access == TestAccessEnum.PRIVATE)
+        )
+        
+        # Если не админ/модератор, добавляем проверку на назначение пользователя
+        if not is_admin_or_moderator:
+            query = query.where(TestAccess.user_id == current_user.id)
+        
+        result = await db.execute(query)
+        test = result.scalar_one_or_none()
+        if test:
+            return format_test_with_names(
+                test,
+                test.category.name,
+                test.creator.name if test.creator else None,
+                test.locale.code,
+                test.status.name,
+                test.status.name_ru,
+                test.status.color
+            )
+        
+        raise NotFoundException("Тест не найден")
+        
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении данных теста")
