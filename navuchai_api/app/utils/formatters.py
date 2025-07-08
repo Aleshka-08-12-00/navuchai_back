@@ -8,7 +8,7 @@ import numpy as np
 from typing import Union, Any
 
 
-def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None, access_code: str = None) -> dict:
+def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None, access_code: str = None, is_completed: bool = None) -> dict:
     result = {
         "id": test.id,
         "title": test.title,
@@ -53,6 +53,9 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
     
     if user_completed is not None:
         result["user_completed"] = user_completed
+    
+    # Если is_completed не установлено (None), то done = false, иначе используем значение is_completed
+    result["done"] = is_completed if is_completed is not None else False
     
     return result
 

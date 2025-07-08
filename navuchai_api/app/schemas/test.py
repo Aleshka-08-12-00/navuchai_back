@@ -49,6 +49,7 @@ class TestWithAccessDetails(TestWithDetails):
     user_percent: Optional[float] = None
     user_completed: Optional[int] = None
     access_code: Optional[str] = None
+    done: Optional[bool] = None
 
 
 class TestCreate(BaseModel):

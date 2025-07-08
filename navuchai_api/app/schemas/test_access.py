@@ -11,6 +11,7 @@ class TestAccessBase(BaseModel):
     end_date: Optional[datetime] = None
     status_id: int
     access_code: Optional[str] = None
+    is_completed: Optional[bool] = False
 
 
 class TestAccessCreate(BaseModel):
@@ -40,6 +41,7 @@ class TestAccessResponse(BaseModel):
     end_date: Optional[datetime] = None
     status_id: int
     access_code: Optional[str] = None
+    is_completed: bool
     created_at: datetime
     updated_at: datetime
     role_id: Optional[int] = None

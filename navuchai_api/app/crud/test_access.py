@@ -1,24 +1,20 @@
-from datetime import datetime
-from sqlalchemy import select, update, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
+from sqlalchemy import update, func, text
 import secrets
 
-from app.models.test_access import TestAccess
-from app.models.user_group_member import UserGroupMember
-from app.models.test_access_status import TestAccessStatus
-from app.models.test_status import TestStatus
-from app.models.test import Test, TestAccessEnum
+from app.models import TestAccess, Test, TestAccessStatus, User, UserGroup, UserGroupMember, TestStatus
 from app.schemas.test_access import TestAccessCreate
 from app.exceptions import DatabaseException, NotFoundException
-from app.models.user import User
-from app.models.user_group import UserGroup
+from app.models.test import TestAccessEnum
 
 OPAQUE_TOKEN_NUM_BYTES = 16
 
 
 def _generate_access_code() -> str:
+    """Генерация уникального кода доступа"""
     return secrets.token_urlsafe(OPAQUE_TOKEN_NUM_BYTES)
 
 
@@ -220,6 +216,7 @@ async def get_all_test_accesses(db: AsyncSession):
                 "end_date": access.end_date,
                 "status_id": access.status_id,
                 "access_code": access.access_code,
+                "is_completed": access.is_completed,
                 "created_at": access.created_at,
                 "updated_at": access.updated_at,
                 "role_id": user.role_id if user else None,
@@ -248,9 +245,8 @@ async def delete_test_access(db: AsyncSession, test_id: int, user_id: int):
 
 
 async def delete_group_test_access(db: AsyncSession, test_id: int, group_id: int):
-    """Удалить доступ к тесту для всей группы"""
+    """Удаление доступа к тесту для всей группы"""
     try:
-        # Находим все записи доступа для данной группы и теста
         result = await db.execute(
             select(TestAccess).where(
                 TestAccess.test_id == test_id,
@@ -301,7 +297,8 @@ async def get_test_users(db: AsyncSession, test_id: int):
                     "start_date": access.start_date,
                     "end_date": access.end_date,
                     "status_id": access.status_id,
-                    "status_name": access.status.name if access.status else None
+                    "status_name": access.status.name if access.status else None,
+                    "is_completed": access.is_completed
                 }
                 users_with_access.append(user_data)
         return users_with_access
@@ -422,7 +419,8 @@ async def get_all_test_users(db: AsyncSession, test_id: int):
                     "end_date": access.end_date,
                     "status_id": access.status_id,
                     "status_name": access.status.name if access.status else None,
-                    "access_type": "group" if access.group_id else "individual"
+                    "access_type": "group" if access.group_id else "individual",
+                    "is_completed": access.is_completed
                 }
                 users_with_access.append(user_data)
         return users_with_access
@@ -449,3 +447,18 @@ async def cleanup_orphaned_test_access(db: AsyncSession):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при очистке записей test_access: {str(e)}")
+
+
+async def update_test_access_completion(db: AsyncSession, test_id: int, user_id: int, is_completed: bool):
+    """Обновление статуса завершения теста для пользователя"""
+    try:
+        test_access = await get_test_access(db, test_id, user_id)
+        if not test_access:
+            raise NotFoundException(f"Доступ к тесту {test_id} для пользователя {user_id} не найден")
+        
+        test_access.is_completed = is_completed
+        await db.commit()
+        await db.refresh(test_access)
+        return test_access
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при обновлении статуса завершения: {str(e)}") 

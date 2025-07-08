@@ -187,7 +187,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
                 TestStatus.name, TestStatus.name_ru, TestStatus.color,
                 TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
                 TestAccess.completed_number, TestAccess.avg_percent,
-                TestAccess.access_code
+                TestAccess.access_code, TestAccess.is_completed
             )
             .join(TestAccess, Test.id == TestAccess.test_id)
             .join(Category, Test.category_id == Category.id)
@@ -206,8 +206,8 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             status_name, status_name_ru, status_color,
             access_status_name, access_status_code, access_status_color,
             user_completed, user_percent,
-            access_code
-        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code in rows]
+            access_code, is_completed
+        ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code, is_completed in rows]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка тестов пользователя")
 

@@ -11,7 +11,7 @@ from app.schemas.result import ResultCreate
 from app.exceptions import NotFoundException, DatabaseException
 from app.utils.answer_checker import process_test_results
 from app.crud.question import get_questions_by_test_id
-from app.crud.test_access import update_test_access_status
+from app.crud.test_access import update_test_access_status, update_test_access_completion
 
 
 async def create_result(db: AsyncSession, result_data: ResultCreate):
@@ -58,15 +58,19 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
                 answer=answer_data
             )
             db.add(new_answer)
-        # try:
-        #     await update_test_access_status(
-        #         db=db,
-        #         test_id=result_data.test_id,
-        #         user_id=result_data.user_id,
-        #         is_passed=test_results['is_passed']
-        #     )
-        # except Exception:
-        #     pass
+        # Обновляем статус завершения теста (только для обычных пользователей)
+        try:
+            await update_test_access_completion(
+                db=db,
+                test_id=result_data.test_id,
+                user_id=result_data.user_id,
+                is_completed=True
+            )
+        except Exception as e:
+            # Логируем ошибку, но не прерываем создание результата
+            # Это может произойти, если у пользователя нет записи в test_access (админ/модератор)
+            print(f"Ошибка при обновлении статуса завершения: {str(e)}")
+        
         await db.commit()
         await db.refresh(new_result)
         # Явно подгружаем связанные объекты test и user для корректной сериализации

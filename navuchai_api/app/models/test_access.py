@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, TIMESTAMP, String
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, TIMESTAMP, String, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -17,6 +17,7 @@ class TestAccess(Base):
     status_id = Column(Integer, ForeignKey("test_access_status.id"), nullable=False, default=1, server_default="1")
     completed_number = Column(Integer, nullable=True)
     avg_percent = Column(Integer, nullable=True)
+    is_completed = Column(Boolean, nullable=False, default=False, server_default="false")
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     access_code = Column(String, nullable=True, unique=True, index=True)
