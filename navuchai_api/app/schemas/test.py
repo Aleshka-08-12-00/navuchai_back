@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
-from app.models.test import TestAccessEnum
+from app.models.test import TestAccessEnum, AnswerViewModeEnum
 
 
 class TestBase(BaseModel):
@@ -24,6 +24,7 @@ class TestBase(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     access: TestAccessEnum
+    answer_view_mode: AnswerViewModeEnum
     code: Optional[str] = None
 
     class Config:
@@ -67,6 +68,7 @@ class TestCreate(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     access: TestAccessEnum = TestAccessEnum.PRIVATE
+    answer_view_mode: AnswerViewModeEnum = AnswerViewModeEnum.USER_ONLY
 
     class Config:
         from_attributes = True
@@ -85,6 +87,7 @@ class TestUpdate(BaseModel):
     thumbnail_id: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
+    answer_view_mode: Optional[AnswerViewModeEnum] = None
 
     class Config:
         from_attributes = True
@@ -108,6 +111,7 @@ class TestResponse(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     access: TestAccessEnum
+    answer_view_mode: AnswerViewModeEnum
     created_at: datetime
     updated_at: datetime
     code: Optional[str] = None
@@ -138,6 +142,7 @@ class TestListResponse(BaseModel):
     percent: Optional[int] = None
     completed: Optional[int] = None
     access: TestAccessEnum
+    answer_view_mode: AnswerViewModeEnum
 
     class Config:
         from_attributes = True

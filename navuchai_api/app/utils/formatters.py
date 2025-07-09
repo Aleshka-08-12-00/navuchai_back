@@ -37,6 +37,7 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "created_at": test.created_at,
         "updated_at": test.updated_at,
         "access": test.access,
+        "answer_view_mode": test.answer_view_mode,
         "code": test.code,
         "access_code": access_code,
     }

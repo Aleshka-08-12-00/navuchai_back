@@ -25,6 +25,7 @@ class TestImportData(BaseModel):
     time_limit: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
+    answer_view_mode: str = "user_only"
     questions: List[QuestionImportData]
 
 

@@ -98,7 +98,21 @@ class ExcelTestParser:
             'locale_code': ['locale_code', 'язык', 'локаль'],
             'time_limit': ['time_limit', 'лимит времени (сек)', 'лимит времени', 'лимит времени (мин)'],
             'welcome_message': ['welcome_message', 'приветственное сообщение'],
-            'goodbye_message': ['goodbye_message', 'прощальное сообщение']
+            'goodbye_message': ['goodbye_message', 'прощальное сообщение'],
+            'answer_view_mode': ['answer_view_mode', 'режим показа ответов']
+        }
+        
+        # Маппинг значений для answer_view_mode
+        answer_view_mode_map = {
+            'только ответы пользователя': 'user_only',
+            'ответы пользователя': 'user_only',
+            'user_only': 'user_only',
+            'не показывать': 'none',
+            'не показывать ответы': 'none',
+            'none': 'none',
+            'ответы пользователя с правильными': 'user_and_correct',
+            'пользователя с правильными': 'user_and_correct',
+            'user_and_correct': 'user_and_correct'
         }
         
         for _, row in df.iterrows():
@@ -120,6 +134,14 @@ class ExcelTestParser:
                         except (ValueError, TypeError):
                             logger.warning(f"Некорректное значение time_limit: {value}")
                             metadata[meta_key] = None
+                    # Особая обработка для answer_view_mode
+                    elif meta_key == 'answer_view_mode':
+                        value_str = str(value).strip().lower()
+                        if value_str in answer_view_mode_map:
+                            metadata[meta_key] = answer_view_mode_map[value_str]
+                        else:
+                            logger.warning(f"Некорректное значение answer_view_mode: {value}. Используется значение по умолчанию 'user_only'")
+                            metadata[meta_key] = 'user_only'
                     else:
                         metadata[meta_key] = str(value)
         
@@ -128,6 +150,10 @@ class ExcelTestParser:
             raise ValueError("Отсутствует обязательное поле 'title'")
         if 'category_name' not in metadata:
             raise ValueError("Отсутствует обязательное поле 'category_name'")
+        
+        # Устанавливаем значение по умолчанию для answer_view_mode, если не указано
+        if 'answer_view_mode' not in metadata:
+            metadata['answer_view_mode'] = 'user_only'
             
         logger.info(f"Метаданные теста: {metadata}")
         return metadata
@@ -308,7 +334,8 @@ def create_excel_template(file_path_or_buffer) -> None:
                 ['locale_code', 'ru'],
                 ['time_limit', 1800],
                 ['welcome_message', 'Добро пожаловать в тест!'],
-                ['goodbye_message', 'Спасибо за прохождение теста!']
+                ['goodbye_message', 'Спасибо за прохождение теста!'],
+                ['answer_view_mode', 'только ответы пользователя']
             ], columns=['Field', 'Value'])
             metadata_df.to_excel(writer, sheet_name='Метаданные теста', index=False)
             
@@ -349,7 +376,8 @@ def create_friendly_excel_template(file_path_or_buffer) -> None:
             ['Язык', 'ru'],
             ['Лимит времени (сек)', '1800'],
             ['Приветственное сообщение', 'Добро пожаловать в тест!'],
-            ['Прощальное сообщение', 'Спасибо за прохождение теста!']
+            ['Прощальное сообщение', 'Спасибо за прохождение теста!'],
+            ['Режим показа ответов', 'только ответы пользователя']
         ]
         
         for row in metadata:
@@ -361,6 +389,11 @@ def create_friendly_excel_template(file_path_or_buffer) -> None:
             cell.font = Font(bold=True)
             cell.fill = fill
         
+        # Добавляем валидацию для режима показа ответов
+        dv_answer_mode = DataValidation(type="list", formula1='"только ответы пользователя,не показывать,ответы пользователя с правильными"', allow_blank=True)
+        dv_answer_mode.add('H2:H100')
+        ws1.add_data_validation(dv_answer_mode)
+        
         # Лист 2: Вопросы
         ws2 = wb.create_sheet('Вопросы')
         columns = [
@@ -369,33 +402,26 @@ def create_friendly_excel_template(file_path_or_buffer) -> None:
         ]
         ws2.append(columns)
         
-        # Примеры вопросов
+        # Выделяем заголовки
+        for cell in ws2[1]:
+            cell.font = Font(bold=True)
+            cell.fill = fill
+        
+        # Добавляем примеры вопросов
         examples = [
             ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
-            ['Какие документы нужны для работы?', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0]
+            ['Какие качества важны для сотрудника?', 'Множественный выбор', 'Ответственность|Креативность|Пунктуальность|Коммуникабельность', 'Ответственность|Пунктуальность', 2, 0]
         ]
         
         for example in examples:
             ws2.append(example)
         
-        # Выделяем заголовки
-        for col in range(1, 7):
-            ws2.cell(row=1, column=col).fill = fill
-            ws2.cell(row=1, column=col).font = Font(bold=True)
-        
-        # Добавляем выпадающий список для типа вопроса
-        dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=False)
+        # Добавляем валидацию для типа вопроса
+        dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=True)
+        dv.add(f'C2:C{len(examples) + 1}')
         ws2.add_data_validation(dv)
-        dv.add('B2:B100')
         
-        # Настраиваем ширину колонок
-        ws1.column_dimensions['A'].width = 25
-        ws1.column_dimensions['B'].width = 50
-        ws2.column_dimensions['A'].width = 60
-        ws2.column_dimensions['B'].width = 22
-        ws2.column_dimensions['C'].width = 60
-        ws2.column_dimensions['D'].width = 40
-        
+        # Сохраняем файл
         wb.save(file_path_or_buffer)
         logger.info("Дружелюбный Excel шаблон успешно создан")
         
@@ -426,7 +452,8 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
             ('Язык', 'ru'),
             ('Лимит времени (сек)', '1800'),
             ('Приветственное сообщение', 'Добро пожаловать в тест!'),
-            ('Прощальное сообщение', 'Спасибо за прохождение теста!')
+            ('Прощальное сообщение', 'Спасибо за прохождение теста!'),
+            ('Режим показа ответов', 'только ответы пользователя')
         ]
         ws_settings.append(['Поле', 'Значение'])
         for row in settings:
@@ -437,6 +464,11 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
             cell.font = Font(bold=True)
             cell.fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
         
+        # Добавляем валидацию для режима показа ответов
+        dv_answer_mode = DataValidation(type="list", formula1='"только ответы пользователя,не показывать,ответы пользователя с правильными"', allow_blank=True)
+        dv_answer_mode.add('H3:H100')
+        ws_settings.add_data_validation(dv_answer_mode)
+        
         # 2. Вопросы
         ws = wb.create_sheet('Вопросы')
         columns = [
@@ -445,29 +477,28 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
         ]
         ws.append(columns)
         
-        # Примеры вопросов
+        # Выделяем заголовки
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
+        
+        # Добавляем примеры
         examples = [
             ['Как компания «Сэльвин» расценивает стиль одежды для сотрудников?', 'Одиночный выбор', 'Строго официальный|Свободный и удобный|Спортивный|В зависимости от сезона', 'Свободный и удобный', 1, 0],
-            ['Какие документы нужны для работы?', 'Множественный выбор', 'Паспорт|Трудовая книжка|СНИЛС|ИНН', 'Паспорт|Трудовая книжка', 2, 0],
-            ['В какое время начинается рабочий день?', 'Одиночный выбор', '8:00|9:00|10:00|По договоренности', '9:00', 1, 0]
+            ['Какие качества важны для сотрудника?', 'Множественный выбор', 'Ответственность|Креативность|Пунктуальность|Коммуникабельность', 'Ответственность|Пунктуальность', 2, 0]
         ]
         
         for example in examples:
             ws.append(example)
         
-        # Выделяем заголовки
-        fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
-        for col in range(1, 7):
-            ws.cell(row=1, column=col).fill = fill
-            ws.cell(row=1, column=col).font = Font(bold=True)
-        
-        # Добавляем выпадающий список для типа вопроса
-        dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=False)
+        # Добавляем валидацию для типа вопроса
+        dv = DataValidation(type="list", formula1='"Одиночный выбор,Множественный выбор"', allow_blank=True)
+        dv.add(f'C2:C{len(examples) + 1}')
         ws.add_data_validation(dv)
-        dv.add('B2:B100')
         
-        # 3. Инструкция
-        ws2 = wb.create_sheet('Инструкция')
+        # 3. Инструкции
+        ws_instructions = wb.create_sheet('Инструкции')
+        
         instructions = [
             'Как заполнять шаблон для импорта тестов:',
             '1. Заполните лист "Основные настройки" — это информация о тесте.',
@@ -476,6 +507,10 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
             '4. Варианты ответов указывайте через | (вертикальная черта).',
             '5. Для одиночного выбора правильный ответ — один, для множественного — через |.',
             '6. Тип вопроса выбирайте из выпадающего списка.',
+            '7. Режим показа ответов выбирайте из выпадающего списка:',
+            '   • "только ответы пользователя" — показывать только ответы пользователя',
+            '   • "не показывать" — не показывать ответы вообще',
+            '   • "ответы пользователя с правильными" — показывать ответы пользователя с правильными ответами',
             '',
             'Пример вопроса:',
             'Текст вопроса: Как компания «Сэльвин» расценивает стиль одежды для сотрудников?',
@@ -487,26 +522,22 @@ def create_full_friendly_excel_template(file_path_or_buffer) -> None:
             '',
             'Пояснения по полям:',
             'Текст вопроса — формулировка для пользователя.',
-            'Тип вопроса — Одиночный выбор (один ответ) или Множественный выбор (несколько).',
-            'Варианты ответов — через |.',
-            'Правильный ответ — текст или несколько через |.',
-            'Максимальный балл — целое число.',
-            'Лимит времени (сек) — 0 или число.'
+            'Тип вопроса — одиночный или множественный выбор.',
+            'Варианты ответов — список вариантов через |.',
+            'Правильный ответ — правильный вариант или варианты через |.',
+            'Максимальный балл — количество баллов за правильный ответ.',
+            'Лимит времени (сек) — время на ответ в секундах (0 = без ограничений).',
+            'Режим показа ответов — что показывать пользователю после прохождения теста.'
         ]
         
-        for i, instruction in enumerate(instructions, 1):
-            ws2[f'A{i}'] = instruction
+        for instruction in instructions:
+            ws_instructions.append([instruction])
         
-        # Настраиваем ширину колонок
-        ws_settings.column_dimensions['A'].width = 28
-        ws_settings.column_dimensions['B'].width = 60
-        ws.column_dimensions['A'].width = 60
-        ws.column_dimensions['B'].width = 22
-        ws.column_dimensions['C'].width = 60
-        ws.column_dimensions['D'].width = 40
-        ws2.column_dimensions['A'].width = 90
+        # Выделяем заголовок инструкций
+        ws_instructions['A1'].font = Font(bold=True, size=14)
+        ws_instructions['A1'].fill = PatternFill(start_color='E6F3FF', end_color='E6F3FF', fill_type='solid')
         
-        # Сохраняем в файл или буфер
+        # Сохраняем файл
         wb.save(file_path_or_buffer)
         logger.info("Полный дружелюбный Excel шаблон успешно создан")
         

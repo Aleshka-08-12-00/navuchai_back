@@ -101,6 +101,7 @@ async def _import_test_data(
             time_limit=test_data.time_limit,
             welcome_message=test_data.welcome_message,
             goodbye_message=test_data.goodbye_message,
+            answer_view_mode=test_data.answer_view_mode,
             frozen=False,
             access_timestamp=datetime.utcnow()
         )

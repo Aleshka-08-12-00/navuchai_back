@@ -11,6 +11,12 @@ class TestAccessEnum(str, enum.Enum):
     PRIVATE = 'private'
 
 
+class AnswerViewModeEnum(str, enum.Enum):
+    USER_ONLY = 'user_only'
+    NONE = 'none'
+    USER_AND_CORRECT = 'user_and_correct'
+
+
 class Test(Base):
     __tablename__ = 'test'
     id = Column(Integer, primary_key=True, index=True)
@@ -30,6 +36,7 @@ class Test(Base):
     welcome_message = Column(String(255), nullable=True)
     goodbye_message = Column(String(255), nullable=True)
     access = Column(Enum(TestAccessEnum, name='test_access_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=TestAccessEnum.PRIVATE)
+    answer_view_mode = Column(Enum(AnswerViewModeEnum, name='answer_view_mode_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=AnswerViewModeEnum.USER_ONLY)
     code = Column(String, nullable=True, server_default=text("encode(gen_random_bytes(16), 'base64')"))
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
