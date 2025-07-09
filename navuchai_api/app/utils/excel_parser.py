@@ -522,16 +522,36 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
     """
     df = pd.DataFrame(analytics_data)
     if 'user_full_name' in df.columns:
+        # Обрабатываем случаи с None/NaN значениями
+        df['user_full_name'] = df['user_full_name'].fillna('')
         df[['Имя', 'Фамилия']] = df['user_full_name'].str.split(' ', n=1, expand=True)
+        # Заполняем NaN значения пустыми строками
+        df['Имя'] = df['Имя'].fillna('')
+        df['Фамилия'] = df['Фамилия'].fillna('')
     else:
         df['Имя'] = ''
         df['Фамилия'] = ''
+    # Проверяем, что у нас есть необходимые колонки
+    required_columns = ['test_title', 'user_test_score', 'test_max_score', 'test_percent']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Отсутствуют необходимые колонки: {missing_columns}")
+    
+    # Проверяем, что у нас есть данные
+    if df.empty:
+        raise ValueError("Нет данных для создания отчёта")
+    
     pivot = df.pivot_table(
         index=['Имя', 'Фамилия'],
         columns='test_title',
         values=['user_test_score', 'test_max_score', 'test_percent'],
         aggfunc='first'
     )
+    
+    # Проверяем, что pivot table не пустой
+    if pivot.empty:
+        raise ValueError("Не удалось создать сводную таблицу. Возможно, нет данных для отображения.")
+    
     pivot = pivot.reorder_levels([1, 0], axis=1).sort_index(axis=1, level=0)
     pivot = pivot.reset_index()
     pivot.columns = [
@@ -581,9 +601,17 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
     pivot = pivot[ordered_cols]
     for col in pivot.select_dtypes(include=['float']).columns:
         pivot[col] = pivot[col].round(2)
+    def convert_percent(x):
+        try:
+            if x is None or pd.isna(x):
+                return x
+            return round(float(x)/100, 4)
+        except (ValueError, TypeError):
+            return x
+    
     percent_cols = [col for col in pivot.columns if col.endswith('(уровень %)')]
     for col in percent_cols:
-        pivot[col] = pivot[col].apply(lambda x: round(float(x)/100, 4) if pd.notnull(x) else x)
+        pivot[col] = pivot[col].apply(convert_percent)
     output = BytesIO()
     sheet_name = 'Pivot User-Tests'
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
