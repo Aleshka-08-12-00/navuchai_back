@@ -21,6 +21,7 @@ class CourseBase(BaseModel):
     enrolled: Optional[bool] = None
     students_count: int = Field(default=0, alias="studentsCount")
     enrolled_days: Optional[int] = Field(default=None, alias="enrolledDays")
+    done: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -61,6 +62,8 @@ class CourseRead(BaseModel):
     enrolled: Optional[bool] = None
     students_count: int = Field(default=0, alias="studentsCount")
     enrolled_days: Optional[int] = Field(default=None, alias="enrolledDays")
+    done: Optional[bool] = None
+    lessons_count: Optional[int] = Field(default=None, alias="lessonsCount")
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 

@@ -49,24 +49,24 @@ async def list_courses(
         course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
         if course_obj:
             current = {
-                "course": CourseResponse.model_validate(course_obj),
-                "lesson": LessonResponse.model_validate(lesson_obj),
+                "course": CourseResponse.model_validate(course_obj).model_dump(),
+                "lesson": LessonResponse.model_validate(lesson_obj).model_dump(),
             }
     return {"current": current, "courses": courses}
 
 
 @router.get(
-    "/{id}",
+    "/{course_id}/",
     response_model=CourseRead,
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
 async def read_course(
-    id: int,
+    course_id: int,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    course = await get_course_with_content(db, id, user)
+    course = await get_course_with_content(db, course_id, user)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
     return course
