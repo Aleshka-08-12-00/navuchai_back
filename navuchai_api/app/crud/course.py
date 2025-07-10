@@ -2,34 +2,74 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
-from app.models import Course, User, Module, Lesson, LessonProgress
+from datetime import datetime
+
+from sqlalchemy import func
+from app.models import Course, User, Module, Lesson, LessonProgress, CourseEnrollment
 from app.schemas.course import CourseCreate
 from app.exceptions import NotFoundException, DatabaseException
 
-async def get_courses(db: AsyncSession):
+
+async def get_courses(db: AsyncSession, user: User | None = None):
     result = await db.execute(
         select(Course, User.name)
         .join(User, Course.author_id == User.id)
         .options(selectinload(Course.image))
         .options(selectinload(Course.thumbnail))
     )
-    return [
-        {
-            "id": c.id,
-            "title": c.title,
-            "description": c.description,
-            "author_id": c.author_id,
-            "author_name": name,
-            "created_at": c.created_at,
-            "img_id": c.img_id,
-            "thumbnail_id": c.thumbnail_id,
-            "image": c.image,
-            "thumbnail": c.thumbnail,
-        }
-        for c, name in result.all()
-    ]
 
-async def get_course_with_content(db: AsyncSession, course_id: int) -> Course:
+    courses = []
+
+    # preload counts for all courses
+    count_res = await db.execute(
+        select(CourseEnrollment.course_id, func.count()).group_by(
+            CourseEnrollment.course_id
+        )
+    )
+    counts = dict(count_res.all())
+
+    user_enrollments = {}
+    if user:
+        enroll_res = await db.execute(
+            select(CourseEnrollment.course_id, CourseEnrollment.enrolled_at).where(
+                CourseEnrollment.user_id == user.id
+            )
+        )
+        user_enrollments = {cid: ts for cid, ts in enroll_res.all()}
+
+    for c, name in result.all():
+        enrolled_at = user_enrollments.get(c.id)
+        enrolled = bool(enrolled_at)
+        if user and user.role.code == "admin":
+            enrolled = True
+        enrolled_days = None
+        if enrolled_at and user and user.role.code != "admin":
+            enrolled_days = (datetime.utcnow() - enrolled_at).days
+
+        courses.append(
+            {
+                "id": c.id,
+                "title": c.title,
+                "description": c.description,
+                "author_id": c.author_id,
+                "author_name": name,
+                "created_at": c.created_at,
+                "img_id": c.img_id,
+                "thumbnail_id": c.thumbnail_id,
+                "image": c.image,
+                "thumbnail": c.thumbnail,
+                "students_count": counts.get(c.id, 0),
+                "enrolled": enrolled,
+                "enrolled_days": enrolled_days,
+            }
+        )
+
+    return courses
+
+
+async def get_course_with_content(
+    db: AsyncSession, course_id: int, user: User | None = None
+) -> Course:
     result = await db.execute(
         select(Course)
         .options(
@@ -42,6 +82,33 @@ async def get_course_with_content(db: AsyncSession, course_id: int) -> Course:
     course = result.scalar_one_or_none()
     if not course:
         raise NotFoundException("Курс не найден")
+
+    # students count
+    count_res = await db.execute(
+        select(func.count())
+        .select_from(CourseEnrollment)
+        .where(CourseEnrollment.course_id == course_id)
+    )
+    course.students_count = count_res.scalar() or 0
+
+    # enrollment info
+    course.enrolled = False
+    course.enrolled_days = None
+    if user:
+        if user.role.code == "admin":
+            course.enrolled = True
+        else:
+            enr_res = await db.execute(
+                select(CourseEnrollment.enrolled_at).where(
+                    CourseEnrollment.course_id == course_id,
+                    CourseEnrollment.user_id == user.id,
+                )
+            )
+            enrolled_at = enr_res.scalar_one_or_none()
+            if enrolled_at:
+                course.enrolled = True
+                course.enrolled_days = (datetime.utcnow() - enrolled_at).days
+
     return course
 
 
@@ -57,6 +124,7 @@ async def get_course(db: AsyncSession, course_id: int):
         raise NotFoundException("Курс не найден")
     return course
 
+
 async def create_course(db: AsyncSession, data: CourseCreate, author_id: int):
     new_course = Course(
         title=data.title,
@@ -70,6 +138,7 @@ async def create_course(db: AsyncSession, data: CourseCreate, author_id: int):
     await db.refresh(new_course)
     return new_course
 
+
 async def update_course(db: AsyncSession, course_id: int, data: CourseCreate):
     course = await get_course(db, course_id)
     course.title = data.title
@@ -80,12 +149,16 @@ async def update_course(db: AsyncSession, course_id: int, data: CourseCreate):
     await db.refresh(course)
     return course
 
+
 async def delete_course(db: AsyncSession, course_id: int):
     course = await get_course(db, course_id)
     await db.delete(course)
     await db.commit()
 
-async def update_course_images(db: AsyncSession, course_id: int, img_id: int, thumbnail_id: int) -> Course:
+
+async def update_course_images(
+    db: AsyncSession, course_id: int, img_id: int, thumbnail_id: int
+) -> Course:
     """Обновить изображения курса."""
     course = await get_course(db, course_id)
     course.img_id = img_id
@@ -113,4 +186,25 @@ async def get_last_course_and_lesson(db: AsyncSession, user_id: int):
     row = result.first()
     if not row:
         return None, None
-    return row
+
+    course, lesson = row
+    count_res = await db.execute(
+        select(func.count())
+        .select_from(CourseEnrollment)
+        .where(CourseEnrollment.course_id == course.id)
+    )
+    course.students_count = count_res.scalar() or 0
+
+    enr_res = await db.execute(
+        select(CourseEnrollment.enrolled_at).where(
+            CourseEnrollment.course_id == course.id,
+            CourseEnrollment.user_id == user_id,
+        )
+    )
+    enrolled_at = enr_res.scalar_one_or_none()
+    course.enrolled = bool(enrolled_at)
+    course.enrolled_days = None
+    if enrolled_at:
+        course.enrolled_days = (datetime.utcnow() - enrolled_at).days
+
+    return course, lesson

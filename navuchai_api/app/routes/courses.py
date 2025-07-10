@@ -20,7 +20,12 @@ from app.crud import (
     get_current_user_optional,
     get_last_course_and_lesson,
 )
-from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
+from app.schemas.course import (
+    CourseCreate,
+    CourseResponse,
+    CourseWithDetails,
+    CourseRead,
+)
 from app.schemas.lesson import LessonResponse
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
@@ -37,7 +42,7 @@ async def list_courses(
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ):
-    courses_raw = await get_courses(db)
+    courses_raw = await get_courses(db, user)
     courses = [CourseResponse.model_validate(c) for c in courses_raw]
     current = None
     if user:
@@ -49,39 +54,71 @@ async def list_courses(
             }
     return {"current": current, "courses": courses}
 
+
 @router.get(
     "/{id}",
     response_model=CourseRead,
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
-async def read_course(id: int, db=Depends(get_db)):
-    course = await get_course_with_content(db, id)
+async def read_course(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    course = await get_course_with_content(db, id, user)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
     return course
 
 
-@router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(admin_moderator_required)])
-async def create(course: CourseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+@router.post(
+    "/",
+    response_model=CourseResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def create(
+    course: CourseCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     return await create_course(db, course, user.id)
 
 
-@router.put("/{course_id}/", response_model=CourseResponse, dependencies=[Depends(admin_moderator_required)])
-async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db)):
+@router.put(
+    "/{course_id}/",
+    response_model=CourseResponse,
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def update(
+    course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db)
+):
     return await update_course(db, course_id, data)
 
 
-@router.delete("/{course_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
+@router.delete(
+    "/{course_id}/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(admin_moderator_required)],
+)
 async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
     await delete_course(db, course_id)
 
 
-@router.get("/{course_id}/modules/", response_model=list[ModuleWithLessons], dependencies=[Depends(authorized_required)])
-async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db),
-                              user: User = Depends(get_current_user)):
-    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+@router.get(
+    "/{course_id}/modules/",
+    response_model=list[ModuleWithLessons],
+    dependencies=[Depends(authorized_required)],
+)
+async def list_course_modules(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(
+        db, course_id, user.id
+    ):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
     for module in modules:
@@ -95,29 +132,56 @@ async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)
     return []
 
 
-@router.post("/{course_id}/modules/", response_model=ModuleResponse, status_code=status.HTTP_201_CREATED)
-async def create_module_route(course_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db)):
+@router.post(
+    "/{course_id}/modules/",
+    response_model=ModuleResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_module_route(
+    course_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db)
+):
     return await create_module_for_course(db, course_id, data)
 
 
 @router.get("/{course_id}/progress/", dependencies=[Depends(authorized_required)])
-async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+async def course_progress(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(
+        db, course_id, user.id
+    ):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     percent = await get_course_progress(db, course_id, user.id)
     return {"percent": percent}
 
 
-@router.post("/{course_id}/tests/", response_model=CourseTestBase, dependencies=[Depends(admin_moderator_required)])
-async def create_course_test_route(course_id: int, data: CourseTestCreate, db: AsyncSession = Depends(get_db)):
+@router.post(
+    "/{course_id}/tests/",
+    response_model=CourseTestBase,
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def create_course_test_route(
+    course_id: int, data: CourseTestCreate, db: AsyncSession = Depends(get_db)
+):
     data.course_id = course_id
     return await create_course_test(db, data)
 
 
-@router.get("/{course_id}/tests/", response_model=list[TestResponse], dependencies=[Depends(authorized_required)])
-async def list_course_tests_route(course_id: int, db: AsyncSession = Depends(get_db),
-                                  user: User = Depends(get_current_user)):
-    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+@router.get(
+    "/{course_id}/tests/",
+    response_model=list[TestResponse],
+    dependencies=[Depends(authorized_required)],
+)
+async def list_course_tests_route(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(
+        db, course_id, user.id
+    ):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     progress = await get_course_progress(db, course_id, user.id)
     if user.role.code not in ["admin", "moderator"] and progress < 100:

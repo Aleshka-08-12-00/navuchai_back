@@ -18,6 +18,9 @@ class CourseBase(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     created_at: datetime
+    enrolled: Optional[bool] = None
+    students_count: int = Field(default=0, alias="studentsCount")
+    enrolled_days: Optional[int] = Field(default=None, alias="enrolledDays")
 
     class Config:
         from_attributes = True
@@ -55,6 +58,9 @@ class CourseRead(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     modules: List[ModuleRead]
+    enrolled: Optional[bool] = None
+    students_count: int = Field(default=0, alias="studentsCount")
+    enrolled_days: Optional[int] = Field(default=None, alias="enrolledDays")
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
