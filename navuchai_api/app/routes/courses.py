@@ -19,6 +19,7 @@ from app.crud import (
     get_course_tests,
     get_current_user_optional,
     get_last_course_and_lesson,
+    authorized_required,
 )
 from app.schemas.course import (
     CourseCreate,
@@ -32,7 +33,7 @@ from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
-from app.crud import authorized_required, get_course_with_content
+
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
 
@@ -46,17 +47,14 @@ async def list_courses(
     courses = [CourseResponse.model_validate(c) for c in courses_raw]
     current = None
     if user:
-        course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
+        course_obj, _ = await get_last_course_and_lesson(db, user.id)
         if course_obj:
-            current = {
-                "course": CourseResponse.model_validate(course_obj).model_dump(),
-                "lesson": LessonResponse.model_validate(lesson_obj).model_dump(),
-            }
+            current = CourseResponse.model_validate(course_obj)
     return {"current": current, "courses": courses}
 
 
 @router.get(
-    "/{course_id}/",
+    "/{course_id}",
     response_model=CourseRead,
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
