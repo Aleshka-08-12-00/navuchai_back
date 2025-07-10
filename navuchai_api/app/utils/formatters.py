@@ -35,35 +35,35 @@ def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str
                     # Показывать только ответы пользователя
                     if 'options' in filtered_answer:
                         filtered_answer['options'] = filtered_answer['options'].copy()
-                        # Удаляем correctAnswer
+                        # Очищаем correctAnswer
                         if 'correctAnswer' in filtered_answer['options']:
-                            del filtered_answer['options']['correctAnswer']
-                        # Удаляем allAnswer
+                            filtered_answer['options']['correctAnswer'] = []
+                        # Очищаем allAnswer
                         if 'allAnswer' in filtered_answer['options']:
-                            del filtered_answer['options']['allAnswer']
+                            filtered_answer['options']['allAnswer'] = []
                     
                     # В check_details оставляем только user_answer/user_answers
                     if 'check_details' in filtered_answer:
                         filtered_answer['check_details'] = filtered_answer['check_details'].copy()
                         if 'correct_answer' in filtered_answer['check_details']:
-                            del filtered_answer['check_details']['correct_answer']
+                            filtered_answer['check_details']['correct_answer'] = ""
                         if 'correct_answers' in filtered_answer['check_details']:
-                            del filtered_answer['check_details']['correct_answers']
+                            filtered_answer['check_details']['correct_answers'] = []
                 
                 elif test_answer_view_mode == 'none':
                     # Не показывать ответы вообще
                     if 'options' in filtered_answer:
                         filtered_answer['options'] = filtered_answer['options'].copy()
-                        # Удаляем correctAnswer
+                        # Очищаем correctAnswer
                         if 'correctAnswer' in filtered_answer['options']:
-                            del filtered_answer['options']['correctAnswer']
-                        # Удаляем allAnswer
+                            filtered_answer['options']['correctAnswer'] = []
+                        # Очищаем allAnswer
                         if 'allAnswer' in filtered_answer['options']:
-                            del filtered_answer['options']['allAnswer']
+                            filtered_answer['options']['allAnswer'] = []
                     
-                    # Удаляем check_details полностью
+                    # Очищаем check_details
                     if 'check_details' in filtered_answer:
-                        del filtered_answer['check_details']
+                        filtered_answer['check_details'] = {}
                 
                 elif test_answer_view_mode == 'user_and_correct':
                     # Показывать ответы пользователя с правильным ответом (оставляем как есть)
