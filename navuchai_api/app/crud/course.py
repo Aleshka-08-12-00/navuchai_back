@@ -2,11 +2,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import func
 from app.models import Course, User, Module, Lesson, LessonProgress, CourseEnrollment
 from app.schemas.course import CourseCreate
+from .lesson import get_course_progress
 from app.exceptions import NotFoundException, DatabaseException
 
 
@@ -44,7 +45,15 @@ async def get_courses(db: AsyncSession, user: User | None = None):
             enrolled = True
         enrolled_days = None
         if enrolled_at and user and user.role.code != "admin":
-            enrolled_days = (datetime.utcnow() - enrolled_at).days
+            enrolled_days = (datetime.now(timezone.utc) - enrolled_at).days
+
+        done = False
+        if user:
+            if user.role.code == "admin":
+                done = True
+            else:
+                progress = await get_course_progress(db, c.id, user.id)
+                done = progress == 100
 
         courses.append(
             {
@@ -61,6 +70,7 @@ async def get_courses(db: AsyncSession, user: User | None = None):
                 "students_count": counts.get(c.id, 0),
                 "enrolled": enrolled,
                 "enrolled_days": enrolled_days,
+                "done": done,
             }
         )
 
@@ -91,12 +101,20 @@ async def get_course_with_content(
     )
     course.students_count = count_res.scalar() or 0
 
+    # lessons count
+    lessons_count = 0
+    if course.modules:
+        lessons_count = sum(len(m.lessons) for m in course.modules)
+    course.lessons_count = lessons_count
+
     # enrollment info
     course.enrolled = False
     course.enrolled_days = None
+    course.done = False
     if user:
         if user.role.code == "admin":
             course.enrolled = True
+            course.done = True
         else:
             enr_res = await db.execute(
                 select(CourseEnrollment.enrolled_at).where(
@@ -107,7 +125,10 @@ async def get_course_with_content(
             enrolled_at = enr_res.scalar_one_or_none()
             if enrolled_at:
                 course.enrolled = True
-                course.enrolled_days = (datetime.utcnow() - enrolled_at).days
+                course.enrolled_days = (datetime.now(timezone.utc) - enrolled_at).days
+            progress = await get_course_progress(db, course_id, user.id)
+            if progress == 100:
+                course.done = True
 
     return course
 
@@ -204,7 +225,11 @@ async def get_last_course_and_lesson(db: AsyncSession, user_id: int):
     enrolled_at = enr_res.scalar_one_or_none()
     course.enrolled = bool(enrolled_at)
     course.enrolled_days = None
+    course.done = False
     if enrolled_at:
-        course.enrolled_days = (datetime.utcnow() - enrolled_at).days
+        course.enrolled_days = (datetime.now(timezone.utc) - enrolled_at).days
+    progress = await get_course_progress(db, course.id, user_id)
+    if progress == 100:
+        course.done = True
 
     return course, lesson
