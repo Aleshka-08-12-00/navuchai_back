@@ -5,7 +5,76 @@ from app.schemas.user import UserResponse
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from typing import Union, Any
+from typing import Union, Any, Dict
+
+
+def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str, test_answer_view_mode: str) -> Dict[str, Any]:
+    """
+    Фильтрует ответы в результате в зависимости от роли пользователя и настроек теста
+    
+    Args:
+        result_data: Данные результата теста
+        user_role_code: Код роли пользователя ('admin', 'moderator', 'user')
+        test_answer_view_mode: Режим показа ответов теста ('user_only', 'none', 'user_and_correct')
+    
+    Returns:
+        Отфильтрованные данные результата
+    """
+    # Админы и модераторы видят все ответы
+    if user_role_code in ["admin", "moderator"]:
+        return result_data
+    
+    # Для обычных пользователей применяем фильтрацию
+    if user_role_code == "user":
+        if 'checked_answers' in result_data:
+            filtered_answers = []
+            for answer in result_data['checked_answers']:
+                filtered_answer = answer.copy()
+                
+                if test_answer_view_mode == 'user_only':
+                    # Показывать только ответы пользователя
+                    if 'options' in filtered_answer:
+                        filtered_answer['options'] = filtered_answer['options'].copy()
+                        # Удаляем correctAnswer
+                        if 'correctAnswer' in filtered_answer['options']:
+                            del filtered_answer['options']['correctAnswer']
+                        # Удаляем allAnswer
+                        if 'allAnswer' in filtered_answer['options']:
+                            del filtered_answer['options']['allAnswer']
+                    
+                    # В check_details оставляем только user_answer/user_answers
+                    if 'check_details' in filtered_answer:
+                        filtered_answer['check_details'] = filtered_answer['check_details'].copy()
+                        if 'correct_answer' in filtered_answer['check_details']:
+                            del filtered_answer['check_details']['correct_answer']
+                        if 'correct_answers' in filtered_answer['check_details']:
+                            del filtered_answer['check_details']['correct_answers']
+                
+                elif test_answer_view_mode == 'none':
+                    # Не показывать ответы вообще
+                    if 'options' in filtered_answer:
+                        filtered_answer['options'] = filtered_answer['options'].copy()
+                        # Удаляем correctAnswer
+                        if 'correctAnswer' in filtered_answer['options']:
+                            del filtered_answer['options']['correctAnswer']
+                        # Удаляем allAnswer
+                        if 'allAnswer' in filtered_answer['options']:
+                            del filtered_answer['options']['allAnswer']
+                    
+                    # Удаляем check_details полностью
+                    if 'check_details' in filtered_answer:
+                        del filtered_answer['check_details']
+                
+                elif test_answer_view_mode == 'user_and_correct':
+                    # Показывать ответы пользователя с правильным ответом (оставляем как есть)
+                    pass
+                
+                filtered_answers.append(filtered_answer)
+            
+            result_data = result_data.copy()
+            result_data['checked_answers'] = filtered_answers
+    
+    return result_data
 
 
 def format_test_with_names(test, category_name: str, creator_name: str, locale_code: str, status_name: str, status_name_ru: str, status_color: str, access_status_name: str = None, access_status_code: str = None, access_status_color: str = None, user_completed: int = None, user_percent: int = None, access_code: str = None, is_completed: bool = None) -> dict:
@@ -79,7 +148,7 @@ def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
     )
 
 
-def convert_result(result: Result) -> ResultResponse:
+def convert_result(result: Result, current_user: Any = None) -> ResultResponse:
     """Преобразует модель Result в схему ResultResponse"""
     result_data = result.result.copy() if result.result else {}
     
@@ -108,6 +177,13 @@ def convert_result(result: Result) -> ResultResponse:
     # Удаляем поля времени из result_data, так как они уже обработаны
     result_data.pop('time_start', None)
     result_data.pop('time_end', None)
+    
+    # Применяем фильтрацию ответов в зависимости от роли пользователя и настроек теста
+    if current_user and result.test:
+        user_role_code = current_user.role.code if current_user.role else "user"
+        test_answer_view_mode = result.test.answer_view_mode.value if result.test.answer_view_mode else "user_only"
+        result_data = filter_answers_by_view_mode(result_data, user_role_code, test_answer_view_mode)
+    # Если current_user не передан, показываем все ответы (для обратной совместимости)
     
     return ResultResponse(
         id=result.id,

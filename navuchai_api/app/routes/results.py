@@ -197,7 +197,7 @@ async def create_test_result(
             raise ForbiddenException("Нельзя создать результат для другого пользователя")
 
         created_result = await result_crud.create_result(db, result)
-        return convert_result(created_result)
+        return convert_result(created_result, current_user)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при сохранении результата")
 
@@ -213,7 +213,7 @@ async def get_result_by_id(
         # Если не админ или модератор — проверяем, что пользователь запрашивает свой результат
         if current_user.role.code not in ["admin", "moderator"] and result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
-        return convert_result(result)
+        return convert_result(result, current_user)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результата")
 
@@ -229,7 +229,7 @@ async def get_user_results(
         if current_user.role.code not in ["admin", "moderator"] and user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
         results = await result_crud.get_user_results(db, user_id)
-        return [convert_result(result) for result in results]
+        return [convert_result(result, current_user) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результатов пользователя")
 
@@ -242,7 +242,7 @@ async def get_test_results(
 ):
     try:
         results = await result_crud.get_test_results(db, test_id)
-        return [convert_result(result) for result in results]
+        return [convert_result(result, current_user) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результатов теста")
 
@@ -257,7 +257,7 @@ async def get_all_results(
             results = await result_crud.get_all_results(db)
         else:
             results = await result_crud.get_user_results(db, current_user.id)
-        return [convert_result(result) for result in results]
+        return [convert_result(result, current_user) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка результатов")
 
