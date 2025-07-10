@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
@@ -15,6 +16,8 @@ from app.crud import (
     create_module_for_course,
     get_course_progress,
     user_enrolled,
+    count_course_enrollments,
+    get_course_enrollment,
     create_course_test,
     get_course_tests,
     get_course_test,
@@ -40,7 +43,23 @@ async def list_courses(
     user: User | None = Depends(get_current_user_optional),
 ):
     courses_raw = await get_courses(db)
-    courses = [CourseResponse.model_validate(c) for c in courses_raw]
+    courses: list[CourseResponse] = []
+    for c in courses_raw:
+        course = CourseResponse.model_validate(c)
+        course.enrolled_count = await count_course_enrollments(db, course.id)
+        if user:
+            if user.role.code == "admin":
+                course.enrolled = True
+            else:
+                enrollment = await get_course_enrollment(db, course.id, user.id)
+                if enrollment:
+                    course.enrolled = True
+                    course.enrolled_days = (datetime.utcnow() - enrollment.enrolled_at).days
+                else:
+                    course.enrolled = False
+        else:
+            course.enrolled = False
+        courses.append(course)
     current = None
     if user:
         course_obj, lesson_obj = await get_last_course_and_lesson(db, user.id)
@@ -57,10 +76,18 @@ async def list_courses(
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
-async def read_course(id: int, db=Depends(get_db)):
+async def read_course(id: int, db=Depends(get_db), user: User = Depends(get_current_user)):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
+    course.enrolled_count = await count_course_enrollments(db, id)
+    if user.role.code == "admin":
+        course.enrolled = True
+    else:
+        enrollment = await get_course_enrollment(db, id, user.id)
+        course.enrolled = bool(enrollment)
+        if enrollment:
+            course.enrolled_days = (datetime.utcnow() - enrollment.enrolled_at).days
     return course
 
 

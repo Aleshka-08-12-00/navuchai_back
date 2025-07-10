@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from app.models import CourseEnrollment
 from app.exceptions import NotFoundException
 
@@ -34,3 +34,19 @@ async def user_enrolled(db: AsyncSession, course_id: int, user_id: int) -> bool:
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+async def count_course_enrollments(db: AsyncSession, course_id: int) -> int:
+    result = await db.execute(
+        select(func.count()).select_from(CourseEnrollment).where(CourseEnrollment.course_id == course_id)
+    )
+    return result.scalar() or 0
+
+
+async def get_course_enrollment(db: AsyncSession, course_id: int, user_id: int) -> CourseEnrollment | None:
+    result = await db.execute(
+        select(CourseEnrollment).where(
+            and_(CourseEnrollment.course_id == course_id, CourseEnrollment.user_id == user_id)
+        )
+    )
+    return result.scalar_one_or_none()
