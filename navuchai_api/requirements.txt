@@ -18,3 +18,7 @@ Pillow>=10.0.0
 
 # Yandex Cloud ML SDK
 yandex-cloud-ml-sdk
+
+# Email sending
+fastapi-mail
+jinja2

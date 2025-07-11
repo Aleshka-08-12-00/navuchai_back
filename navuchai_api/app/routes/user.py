@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.crud import get_users, get_user, update_user, delete_user, admin_moderator_required, admin_required, update_user_role, authorized_required
+from app.crud import get_users, get_user, update_user, delete_user, admin_moderator_required, admin_required, update_user_role, authorized_required, reset_user_password
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
-from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate
+from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate, PasswordResetRequest, PasswordResetResponse
 from app.models import User
+from app.utils.email_service import email_service
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -69,3 +70,48 @@ async def change_user_role(
         "user_id": user.id,
         "new_role": update_role.role_code.value
     }
+
+
+@router.post("/reset-password/", response_model=PasswordResetResponse)
+async def reset_password(
+    reset_request: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Восстановление пароля пользователя
+    
+    Отправляет новый временный пароль на email пользователя.
+    Доступно только для зарегистрированных пользователей (не гостей).
+    """
+    try:
+        result = await reset_user_password(db, reset_request.email)
+        return PasswordResetResponse(
+            message=result["message"],
+            success=result["success"]
+        )
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Неожиданная ошибка: {str(e)}")
+
+
+@router.post("/test-email/", dependencies=[Depends(admin_required)])
+async def test_email_settings(
+    reset_request: PasswordResetRequest
+):
+    """
+    Тестирование настроек email
+    
+    Отправляет тестовое письмо для проверки конфигурации email.
+    Доступно только для администраторов.
+    """
+    try:
+        await email_service.send_test_email(reset_request.email)
+        return {
+            "message": f"Тестовое письмо отправлено на {reset_request.email}",
+            "success": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при отправке тестового письма: {str(e)}")

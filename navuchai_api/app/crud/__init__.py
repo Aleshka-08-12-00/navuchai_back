@@ -4,7 +4,7 @@ from .question import get_questions, get_question, create_question, update_quest
     get_questions_by_test_id
 from .test import get_tests, get_test, create_test, delete_test, update_test, get_user_tests, get_test_by_code, get_test_by_access_code, get_test_universal
 from .test_question import create_test_question, delete_test_question
-from .user import get_users, get_user, update_user, delete_user, update_user_role
+from .user import get_users, get_user, update_user, delete_user, update_user_role, reset_user_password
 from .user_auth import get_current_user, get_current_user_optional
 from .course import (
     get_courses,

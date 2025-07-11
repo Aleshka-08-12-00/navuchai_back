@@ -27,3 +27,27 @@ MINIO_REGION = os.getenv("MINIO_REGION", "us-east-1")
 
 if not all([MINIO_URL, MINIO_ACCESS_KEY, MINIO_SECRET_KEY]):
     raise ValueError("Не все настройки MinIO заданы в .env файле!")
+
+# Email settings
+MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+MAIL_FROM = os.getenv("MAIL_FROM")
+MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
+MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+MAIL_TLS = os.getenv("MAIL_TLS", "True").lower() == "true"
+MAIL_SSL = os.getenv("MAIL_SSL", "False").lower() == "true"
+MAIL_STARTTLS = os.getenv("MAIL_STARTTLS", "True").lower() == "true"
+MAIL_SSL_TLS = os.getenv("MAIL_SSL_TLS", "False").lower() == "true"
+
+# Email configuration for password reset
+EMAIL_CONFIG = {
+    "MAIL_USERNAME": MAIL_USERNAME,
+    "MAIL_PASSWORD": MAIL_PASSWORD,
+    "MAIL_FROM": MAIL_FROM,
+    "MAIL_PORT": MAIL_PORT,
+    "MAIL_SERVER": MAIL_SERVER,
+    "MAIL_STARTTLS": MAIL_STARTTLS,
+    "MAIL_SSL_TLS": MAIL_SSL_TLS,
+    "USE_CREDENTIALS": True,
+    "VALIDATE_CERTS": True
+}

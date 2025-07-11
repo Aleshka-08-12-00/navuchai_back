@@ -2,10 +2,14 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+import secrets
+import string
 
 from app.models import User, Role
 from app.schemas.user import UserUpdate
 from app.exceptions import NotFoundException, DatabaseException
+from app.auth import get_password_hash
+from app.utils.email_service import email_service
 
 
 async def get_users(db: AsyncSession):
@@ -81,3 +85,98 @@ async def update_user_role(db: AsyncSession, user_id: int, role_code: str):
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при обновлении роли пользователя")
+
+
+def _generate_temporary_password(length: int = 12) -> str:
+    """
+    Генерация временного пароля
+    
+    Args:
+        length: Длина пароля (по умолчанию 12 символов)
+    
+    Returns:
+        Сгенерированный пароль
+    """
+    # Используем буквы, цифры и специальные символы
+    characters = string.ascii_letters + string.digits + "!@#$%^&*"
+    # Генерируем пароль, исключая похожие символы
+    password = ''.join(secrets.choice(characters) for _ in range(length))
+    return password
+
+
+async def reset_user_password(db: AsyncSession, email: str) -> dict:
+    """
+    Восстановление пароля пользователя
+    
+    Args:
+        db: Сессия базы данных
+        email: Email пользователя
+    
+    Returns:
+        Словарь с результатом операции
+    """
+    try:
+        # Находим пользователя по email
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise NotFoundException(f"Пользователь с email {email} не найден")
+        
+        # Проверяем, что пользователь не является гостем
+        if user.role and user.role.code == "guest":
+            raise DatabaseException("Восстановление пароля недоступно для гостевых пользователей")
+        
+        # Генерируем новый временный пароль
+        new_password = _generate_temporary_password()
+        
+        # Хешируем новый пароль
+        hashed_password = get_password_hash(new_password)
+        
+        # Обновляем пароль в базе данных
+        user.password = hashed_password
+        await db.commit()
+        await db.refresh(user)
+        
+        # Отправляем email с новым паролем
+        try:
+            await email_service.send_password_reset_email(email, new_password, user.name)
+        except Exception as email_error:
+            # Если не удалось отправить email, откатываем изменения пароля
+            await db.rollback()
+            raise DatabaseException(f"Не удалось отправить email: {str(email_error)}")
+        
+        return {
+            "message": f"Новый пароль отправлен на email {email}",
+            "success": True,
+            "user_id": user.id,
+            "user_name": user.name
+        }
+        
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при восстановлении пароля: {str(e)}")
+    except (NotFoundException, DatabaseException):
+        # Перебрасываем исключения, которые мы создали
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise DatabaseException(f"Неожиданная ошибка при восстановлении пароля: {str(e)}")
+
+
+async def get_user_by_email(db: AsyncSession, email: str) -> User:
+    """
+    Получение пользователя по email
+    
+    Args:
+        db: Сессия базы данных
+        email: Email пользователя
+    
+    Returns:
+        Пользователь или None
+    """
+    try:
+        result = await db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении пользователя по email")
