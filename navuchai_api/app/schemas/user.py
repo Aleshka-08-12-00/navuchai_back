@@ -55,3 +55,12 @@ class PasswordChange(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    success: bool

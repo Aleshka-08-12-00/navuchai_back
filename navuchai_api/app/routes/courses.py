@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, List
 from app.dependencies import get_db
 from app.crud import (
     get_courses,
@@ -24,7 +25,7 @@ from app.crud import (
     get_course_students_count,
     get_course_lessons_count,
 )
-from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
+from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead, ListCoursesResponse
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
@@ -40,24 +41,40 @@ async def list_courses(
     db: AsyncSession = Depends(get_db),
     user: User | None = Depends(get_current_user_optional),
 ):
-    courses_raw = await get_courses(db)
-    courses: list[CourseResponse] = []
-    for c in courses_raw:
-        course = CourseResponse.model_validate(c)
-        if user:
-            course.progress = await get_course_progress(db, course.id, user.id)
-        courses.append(course)
     courses_raw = await get_courses(db, user.id if user else None)
-    courses = [CourseResponse.model_validate(c) for c in courses_raw]
+
+    courses: list[CourseRead] = []
+    for data in courses_raw:
+        course = CourseRead.model_validate(data, from_attributes=True)
+        cid = course.id
+        course.lessons_count = await get_course_lessons_count(db, cid)
+        course.students_count = await get_course_students_count(db, cid)
+
+        if user:
+            progress = await get_course_progress(db, cid, user.id)
+            course.progress = progress
+            course.done = progress == 100
+            course.enrolled = (
+                True if user.role.code == "admin" else await user_enrolled(db, cid, user.id)
+            )
+
+        courses.append(course)
+
+    current: CourseRead | None = None
     if user:
         course_obj, _ = await get_last_course_and_lesson(db, user.id)
         if course_obj:
-            setattr(course_obj, "enrolled", await user_enrolled(db, course_obj.id, user.id))
-            progress = await get_course_progress(db, course_obj.id, user.id)
-            setattr(course_obj, "progress", progress)
-            setattr(course_obj, "done", progress == 100)
-            current = CourseResponse.model_validate(course_obj)
+            cid = course_obj.id
+            course_obj.enrolled = await user_enrolled(db, cid, user.id)
+            progress = await get_course_progress(db, cid, user.id)
+            course_obj.progress = progress
+            course_obj.done = progress == 100
+            course_obj.lessons_count = await get_course_lessons_count(db, cid)
+            course_obj.students_count = await get_course_students_count(db, cid)
+            current = CourseRead.model_validate(course_obj, from_attributes=True)
+
     return {"current": current, "courses": courses}
+
 
 @router.get(
     "/{id}/",

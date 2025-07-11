@@ -57,15 +57,19 @@ class CourseRead(BaseModel):
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
-    lessons_count: int = Field(alias="lessonsCount")
-    students_count: int = Field(alias="studentsCount")
+    lessons_count: Optional[int] = Field(default=None, alias="lessonsCount")
+    students_count: Optional[int] = Field(default=None, alias="studentsCount")
     
-    modules: List[ModuleRead]
     enrolled: Optional[bool] = None
     progress: Optional[float] = None
     done: Optional[bool] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class ListCoursesResponse(BaseModel):
+    current: Optional[CourseRead]
+    courses: List[CourseRead]
 
 
 CourseWithDetails.model_rebuild()
