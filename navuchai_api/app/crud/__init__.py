@@ -15,6 +15,8 @@ from .course import (
     get_course_with_content,
     update_course_images,
     get_last_course_and_lesson,
+    get_course_students_count,
+    get_course_lessons_count,
 )
 from .module import create_module, get_module, update_module, delete_module, get_modules_by_course, get_modules_with_lessons_by_course, create_module_for_course
 from .lesson import create_lesson, get_lesson, update_lesson, delete_lesson, get_lessons_by_module, create_lesson_for_module
