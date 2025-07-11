@@ -19,6 +19,8 @@ from app.crud import (
     get_course_tests,
     get_current_user_optional,
     get_last_course_and_lesson,
+    get_course_students_count,
+    get_course_lessons_count,
 )
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead
 from app.schemas.lesson import LessonResponse
@@ -55,11 +57,25 @@ async def list_courses(
     response_model_exclude={"modules"},
     dependencies=[Depends(authorized_required)],
 )
-async def read_course(id: int, db=Depends(get_db)):
+async def read_course(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     course = await get_course_with_content(db, id)
     if not course:
         raise HTTPException(status_code=404, detail="Курс не найден")
-    return course
+    lessons_count = await get_course_lessons_count(db, id)
+    students_count = await get_course_students_count(db, id)
+    if user.role.code == "admin":
+        enrolled = True
+    else:
+        enrolled = await user_enrolled(db, id, user.id)
+    course_data = CourseRead.model_validate(course, from_attributes=True)
+    course_data.lessons_count = lessons_count
+    course_data.students_count = students_count
+    course_data.enrolled = enrolled
+    return course_data
 
 
 @router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED,

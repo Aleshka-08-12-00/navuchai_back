@@ -54,6 +54,9 @@ class CourseRead(BaseModel):
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+    lessons_count: int = Field(alias="lessonsCount")
+    students_count: int = Field(alias="studentsCount")
+    enrolled: bool
     modules: List[ModuleRead]
 
     model_config = {"from_attributes": True, "populate_by_name": True}

@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
-from app.models import Course, User, Module, Lesson, LessonProgress
+from sqlalchemy import func
+from app.models import Course, User, Module, Lesson, LessonProgress, CourseEnrollment
 from app.schemas.course import CourseCreate
 from app.exceptions import NotFoundException, DatabaseException
 
@@ -114,3 +115,22 @@ async def get_last_course_and_lesson(db: AsyncSession, user_id: int):
     if not row:
         return None, None
     return row
+
+
+async def get_course_lessons_count(db: AsyncSession, course_id: int) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Lesson)
+        .join(Module, Lesson.module_id == Module.id)
+        .where(Module.course_id == course_id)
+    )
+    return result.scalar() or 0
+
+
+async def get_course_students_count(db: AsyncSession, course_id: int) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(CourseEnrollment)
+        .where(CourseEnrollment.course_id == course_id)
+    )
+    return result.scalar() or 0
