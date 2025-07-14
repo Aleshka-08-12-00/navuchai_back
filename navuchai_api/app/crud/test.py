@@ -97,7 +97,8 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             welcome_message=test.welcome_message,
             goodbye_message=test.goodbye_message,
             access=test.access,
-            answer_view_mode=test.answer_view_mode
+            answer_view_mode=test.answer_view_mode,
+            grade_options=test.grade_options
         )
         db.add(new_test)
         await db.commit()

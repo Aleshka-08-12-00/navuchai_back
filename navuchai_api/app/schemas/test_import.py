@@ -26,6 +26,7 @@ class TestImportData(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     answer_view_mode: str = "user_only"
+    grade_options: Optional[Dict[str, Any]] = None
     questions: List[QuestionImportData]
 
 

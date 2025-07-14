@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 import enum
-from sqlalchemy.dialects.postgresql import TIMESTAMP as PG_TIMESTAMP
+from sqlalchemy.dialects.postgresql import TIMESTAMP as PG_TIMESTAMP, JSONB
 
 
 class TestAccessEnum(str, enum.Enum):
@@ -38,6 +38,7 @@ class Test(Base):
     access = Column(Enum(TestAccessEnum, name='test_access_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=TestAccessEnum.PRIVATE)
     answer_view_mode = Column(Enum(AnswerViewModeEnum, name='answer_view_mode_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=AnswerViewModeEnum.USER_ONLY)
     code = Column(String, nullable=True, server_default=text("encode(gen_random_bytes(16), 'base64')"))
+    grade_options = Column(JSONB, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
@@ -26,6 +26,21 @@ class TestBase(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     code: Optional[str] = None
+    grade_options: Optional[Dict[str, Any]] = {
+        "systemName": "itog",
+        "displayName": "Итоговая оценка",
+        "autoGrade": True,
+        "scaleType": "percent",
+        "scale": [
+            {"min": 80, "max": 100, "grade": 5},
+            {"min": 55, "max": 80, "grade": 4},
+            {"min": 35, "max": 55, "grade": 3},
+            {"min": 0, "max": 35, "grade": 2}
+        ],
+        "showToUser": True,
+        "customMessage": "Ваша оценка: {{grade}}",
+        "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
+    }
 
     class Config:
         from_attributes = True
@@ -69,6 +84,21 @@ class TestCreate(BaseModel):
     goodbye_message: Optional[str] = None
     access: TestAccessEnum = TestAccessEnum.PRIVATE
     answer_view_mode: AnswerViewModeEnum = AnswerViewModeEnum.USER_ONLY
+    grade_options: Optional[Dict[str, Any]] = {
+        "systemName": "itog",
+        "displayName": "Итоговая оценка",
+        "autoGrade": True,
+        "scaleType": "percent",
+        "scale": [
+            {"min": 80, "max": 100, "grade": 5},
+            {"min": 55, "max": 80, "grade": 4},
+            {"min": 35, "max": 55, "grade": 3},
+            {"min": 0, "max": 35, "grade": 2}
+        ],
+        "showToUser": True,
+        "customMessage": "Ваша оценка: {{grade}}",
+        "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
+    }
 
     class Config:
         from_attributes = True
@@ -88,6 +118,7 @@ class TestUpdate(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     answer_view_mode: Optional[AnswerViewModeEnum] = None
+    grade_options: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -115,6 +146,21 @@ class TestResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     code: Optional[str] = None
+    grade_options: Optional[Dict[str, Any]] = {
+        "systemName": "itog",
+        "displayName": "Итоговая оценка",
+        "autoGrade": True,
+        "scaleType": "percent",
+        "scale": [
+            {"min": 80, "max": 100, "grade": 5},
+            {"min": 55, "max": 80, "grade": 4},
+            {"min": 35, "max": 55, "grade": 3},
+            {"min": 0, "max": 35, "grade": 2}
+        ],
+        "showToUser": True,
+        "customMessage": "Ваша оценка: {{grade}}",
+        "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
+    }
 
     class Config:
         from_attributes = True
@@ -143,6 +189,21 @@ class TestListResponse(BaseModel):
     completed: Optional[int] = None
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
+    grade_options: Optional[Dict[str, Any]] = {
+        "systemName": "itog",
+        "displayName": "Итоговая оценка",
+        "autoGrade": True,
+        "scaleType": "percent",
+        "scale": [
+            {"min": 80, "max": 100, "grade": 5},
+            {"min": 55, "max": 80, "grade": 4},
+            {"min": 35, "max": 55, "grade": 3},
+            {"min": 0, "max": 35, "grade": 2}
+        ],
+        "showToUser": True,
+        "customMessage": "Ваша оценка: {{grade}}",
+        "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
+    }
 
     class Config:
         from_attributes = True
