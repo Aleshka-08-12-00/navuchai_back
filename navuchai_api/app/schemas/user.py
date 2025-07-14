@@ -31,6 +31,10 @@ class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     email: Optional[str] = None
+    img_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    position_id: Optional[int] = None
+    department_id: Optional[int] = None
     phone_number: Optional[str] = None
 
     class Config:
