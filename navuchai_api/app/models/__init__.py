@@ -9,6 +9,7 @@ from .course_test import CourseTest
 from .module_test import ModuleTest
 from .course_enrollment import CourseEnrollment
 from .lesson_progress import LessonProgress
+from .course_rating import CourseRating
 from .test import Test
 from .question import Question
 from .test_question import TestQuestion
@@ -48,6 +49,7 @@ __all__ = [
     "CourseTest",
     "ModuleTest",
     "CourseEnrollment",
-    "LessonProgress"
+    "LessonProgress",
+    "CourseRating"
 ]
 
