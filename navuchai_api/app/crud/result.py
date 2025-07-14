@@ -74,7 +74,7 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         await db.commit()
         await db.refresh(new_result)
         # Явно подгружаем связанные объекты test и user для корректной сериализации
-        await db.refresh(new_result, attribute_names=["test", "user"])
+        await db.refresh(new_result, attribute_names=["test", "user", "user.organization", "user.position", "user.department", "user.role"])
         return new_result
     except SQLAlchemyError as e:
         await db.rollback()
@@ -89,7 +89,10 @@ async def get_result(db: AsyncSession, result_id: int):
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
-                selectinload(Result.user)
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
             )
             .where(Result.id == result_id)
         )
@@ -111,7 +114,10 @@ async def get_user_results(db: AsyncSession, user_id: int) -> List[Result]:
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
-                selectinload(Result.user)
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
             )
             .where(Result.user_id == user_id)
             .order_by(Result.created_at.desc())
@@ -129,7 +135,10 @@ async def get_test_results(db: AsyncSession, test_id: int):
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
-                selectinload(Result.user)
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
             )
             .where(Result.test_id == test_id)
         )
@@ -149,7 +158,10 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
-                selectinload(Result.user)
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
             )
             .order_by(Result.created_at.desc())
         )
