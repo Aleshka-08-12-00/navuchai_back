@@ -65,7 +65,9 @@ async def list_courses(
         course_obj, _ = await get_last_course_and_lesson(db, user.id)
         if course_obj:
             cid = course_obj.id
-            course_obj.enrolled = await user_enrolled(db, cid, user.id)
+            course_obj.enrolled = (
+                True if user.role.code == "admin" else await user_enrolled(db, cid, user.id)
+            )
             progress = await get_course_progress(db, cid, user.id)
             course_obj.progress = progress
             course_obj.done = progress == 100
