@@ -20,6 +20,11 @@ class UserRegister(BaseModel):
     password: str
     username: str
     role_id: int
+    img_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    position_id: Optional[int] = None
+    department_id: Optional[int] = None
+    phone_number: Optional[str] = None
 
 
 class UserOut(BaseModel):

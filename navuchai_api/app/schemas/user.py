@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     role_id: int
     username: str
     email: str
+    phone_number: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -23,13 +24,34 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
+    phone_number: Optional[str] = None
 
 
 class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     email: Optional[str] = None
+    phone_number: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
+
+class OrganizationResponse(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True
+
+class PositionResponse(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True
+
+class DepartmentResponse(BaseModel):
+    id: int
+    name: str
     class Config:
         from_attributes = True
 
@@ -41,7 +63,11 @@ class UserResponse(UserBase):
     role: RoleBase
     created_at: datetime
     updated_at: datetime
-
+    photo_url: Optional[str] = None
+    organization: Optional[str] = None
+    position: Optional[str] = None
+    department: Optional[str] = None
+    phone_number: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -64,3 +90,30 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetResponse(BaseModel):
     message: str
     success: bool
+
+class OrganizationBase(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True
+
+class PositionBase(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True
+
+class DepartmentBase(BaseModel):
+    id: int
+    name: str
+    class Config:
+        from_attributes = True
+
+class OrganizationList(BaseModel):
+    organizations: list[OrganizationBase]
+
+class PositionList(BaseModel):
+    positions: list[PositionBase]
+
+class DepartmentList(BaseModel):
+    departments: list[DepartmentBase]

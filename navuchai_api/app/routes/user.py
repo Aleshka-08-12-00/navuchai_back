@@ -5,9 +5,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.crud import get_users, get_user, update_user, delete_user, admin_moderator_required, admin_required, update_user_role, authorized_required, reset_user_password
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
-from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate, PasswordResetRequest, PasswordResetResponse
+from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate, PasswordResetRequest, PasswordResetResponse, OrganizationBase, PositionBase, DepartmentBase
 from app.models import User
 from app.utils.email_service import email_service
+from app.crud.user import get_organizations, get_positions, get_departments
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -15,6 +16,19 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 @router.get("/", response_model=list[UserResponse], dependencies=[Depends(admin_moderator_required)])
 async def list_users(db: AsyncSession = Depends(get_db)):
     return await get_users(db)
+
+
+@router.get("/organizations/", response_model=list[OrganizationBase])
+async def list_organizations(db: AsyncSession = Depends(get_db)):
+    return await get_organizations(db)
+
+@router.get("/positions/", response_model=list[PositionBase])
+async def list_positions(db: AsyncSession = Depends(get_db)):
+    return await get_positions(db)
+
+@router.get("/departments/", response_model=list[DepartmentBase])
+async def list_departments(db: AsyncSession = Depends(get_db)):
+    return await get_departments(db)
 
 
 @router.get("/{user_id}/", response_model=UserResponse)

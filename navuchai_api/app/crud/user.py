@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import secrets
 import string
+from sqlalchemy.orm import selectinload
 
-from app.models import User, Role
+from app.models import User, Role, Organization, Position, Department
 from app.schemas.user import UserUpdate
 from app.exceptions import NotFoundException, DatabaseException
 from app.auth import get_password_hash
@@ -14,19 +15,65 @@ from app.utils.email_service import email_service
 
 async def get_users(db: AsyncSession):
     try:
-        result = await db.execute(select(User).join(User.role))
-        return result.scalars().unique().all()
+        result = await db.execute(
+            select(User)
+            .join(User.role)
+            .options(
+                selectinload(User.organization),
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.img)
+            )
+        )
+        users = result.scalars().unique().all()
+        # Формируем нужный формат
+        user_list = []
+        for user in users:
+            user_dict = user.__dict__.copy()
+            user_dict['photo_url'] = user.img.path if user.img else None
+            user_dict['organization'] = user.organization.name if user.organization else None
+            user_dict['position'] = user.position.name if user.position else None
+            user_dict['department'] = user.department.name if user.department else None
+            user_dict['phone_number'] = user.phone_number
+            # Удаляем лишние поля
+            user_dict.pop('img', None)
+            user_dict.pop('img_id', None)
+            user_dict.pop('organization_id', None)
+            user_dict.pop('position_id', None)
+            user_dict.pop('department_id', None)
+            user_list.append(user_dict)
+        return user_list
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка пользователей")
 
 
 async def get_user(db: AsyncSession, user_id: int):
     try:
-        result = await db.execute(select(User).filter(User.id == user_id))
+        result = await db.execute(
+            select(User)
+            .options(
+                selectinload(User.organization),
+                selectinload(User.position),
+                selectinload(User.department),
+                selectinload(User.img)
+            )
+            .filter(User.id == user_id)
+        )
         user = result.scalar_one_or_none()
         if not user:
             raise NotFoundException("Пользователь не найден")
-        return user
+        user_dict = user.__dict__.copy()
+        user_dict['photo_url'] = user.img.path if user.img else None
+        user_dict['organization'] = user.organization.name if user.organization else None
+        user_dict['position'] = user.position.name if user.position else None
+        user_dict['department'] = user.department.name if user.department else None
+        user_dict['phone_number'] = user.phone_number
+        user_dict.pop('img', None)
+        user_dict.pop('img_id', None)
+        user_dict.pop('organization_id', None)
+        user_dict.pop('position_id', None)
+        user_dict.pop('department_id', None)
+        return user_dict
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении данных пользователя")
 
@@ -180,3 +227,25 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User:
         return result.scalar_one_or_none()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении пользователя по email")
+
+
+async def get_organizations(db: AsyncSession):
+    try:
+        result = await db.execute(select(Organization))
+        return result.scalars().all()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка организаций")
+
+async def get_positions(db: AsyncSession):
+    try:
+        result = await db.execute(select(Position))
+        return result.scalars().all()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка позиций")
+
+async def get_departments(db: AsyncSession):
+    try:
+        result = await db.execute(select(Department))
+        return result.scalars().all()
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении списка департаментов")

@@ -23,6 +23,9 @@ from .user_group_member import UserGroupMember
 from .test_access import TestAccess
 from .question_type import QuestionType
 from .test_access_status import TestAccessStatus
+from .organization import Organization
+from .position import Position
+from .department import Department
 
 __all__ = [
     "Base",
@@ -48,6 +51,9 @@ __all__ = [
     "CourseTest",
     "ModuleTest",
     "CourseEnrollment",
-    "LessonProgress"
+    "LessonProgress",
+    "Organization",
+    "Position",
+    "Department"
 ]
 

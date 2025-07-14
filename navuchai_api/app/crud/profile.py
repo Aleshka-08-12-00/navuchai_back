@@ -8,13 +8,24 @@ from app.auth import get_password_hash, verify_password
 from app.exceptions import NotFoundException, DatabaseException
 
 
-async def get_user_profile(db: AsyncSession, user_id: int) -> User:
+async def get_user_profile(db: AsyncSession, user_id: int):
     try:
         result = await db.execute(select(User).filter(User.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
             raise NotFoundException("Пользователь не найден")
-        return user
+        user_dict = user.__dict__.copy()
+        user_dict['photo_url'] = user.img.path if hasattr(user, 'img') and user.img else None
+        user_dict['organization'] = user.organization.name if hasattr(user, 'organization') and user.organization else None
+        user_dict['position'] = user.position.name if hasattr(user, 'position') and user.position else None
+        user_dict['department'] = user.department.name if hasattr(user, 'department') and user.department else None
+        user_dict['phone_number'] = user.phone_number
+        user_dict.pop('img', None)
+        user_dict.pop('img_id', None)
+        user_dict.pop('organization_id', None)
+        user_dict.pop('position_id', None)
+        user_dict.pop('department_id', None)
+        return user_dict
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении данных профиля")
 
