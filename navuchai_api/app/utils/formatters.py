@@ -2,6 +2,7 @@ from app.models import Result, UserAnswer
 from app.schemas.result import ResultResponse, UserAnswerResponse
 from app.schemas.test import TestResponse
 from app.schemas.user import UserResponse
+from app.schemas.role import RoleBase
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -148,6 +149,24 @@ def convert_user_answer(answer: UserAnswer) -> UserAnswerResponse:
     )
 
 
+def user_to_response_dict(user):
+    return {
+        "id": user.id,
+        "name": user.name,
+        "role_id": user.role_id,
+        "username": user.username,
+        "email": user.email,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+        "photo_url": user.img.path if hasattr(user, 'img') and user.img else None,
+        "organization": user.organization.name if hasattr(user, 'organization') and user.organization else None,
+        "position": user.position.name if hasattr(user, 'position') and user.position else None,
+        "department": user.department.name if hasattr(user, 'department') and user.department else None,
+        "phone_number": user.phone_number,
+        "role": RoleBase.model_validate(user.role, from_attributes=True) if user.role else None,
+    }
+
+
 def convert_result(result: Result, current_user: Any = None) -> ResultResponse:
     """Преобразует модель Result в схему ResultResponse"""
     result_data = result.result.copy() if result.result else {}
@@ -197,7 +216,7 @@ def convert_result(result: Result, current_user: Any = None) -> ResultResponse:
         created_at=result.created_at,
         updated_at=result.updated_at,
         test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
-        user=UserResponse.model_validate(result.user, from_attributes=True) if result.user else None,
+        user=UserResponse.model_validate(user_to_response_dict(result.user)) if result.user else None,
     )
 
 
