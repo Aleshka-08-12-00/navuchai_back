@@ -98,7 +98,8 @@ async def update_user(db: AsyncSession, user_id: int, user: UserUpdate):
 
 async def delete_user(db: AsyncSession, user_id: int):
     try:
-        user = await get_user(db, user_id)
+        result = await db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             raise NotFoundException("Пользователь не найден")
 
