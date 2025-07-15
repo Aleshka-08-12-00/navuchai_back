@@ -126,6 +126,9 @@ async def update_test(db: AsyncSession, test_id: int, test: TestUpdate) -> Test:
             raise NotFoundException("Тест не найден")
         
         update_data = test.model_dump(exclude_unset=True)
+        # thumbnail_id=0 -> None
+        if 'thumbnail_id' in update_data and update_data['thumbnail_id'] == 0:
+            update_data['thumbnail_id'] = None
         for field, value in update_data.items():
             setattr(existing_test, field, value)
         
