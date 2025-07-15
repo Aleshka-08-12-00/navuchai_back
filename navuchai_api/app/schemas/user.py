@@ -73,9 +73,9 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     photo_url: Optional[str] = None
-    organization: Optional[OrganizationResponse] = None
-    position: Optional[PositionResponse] = None
-    department: Optional[DepartmentResponse] = None
+    organization: Optional[str] = None
+    position: Optional[str] = None
+    department: Optional[str] = None
     phone_number: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
