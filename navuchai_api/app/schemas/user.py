@@ -36,6 +36,7 @@ class UserProfileUpdate(BaseModel):
     position_id: Optional[int] = None
     department_id: Optional[int] = None
     phone_number: Optional[str] = None
+    thumbnail_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -73,6 +74,7 @@ class UserResponse(UserBase):
     created_at: datetime
     updated_at: datetime
     photo_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     organization: Optional[str] = None
     position: Optional[str] = None
     department: Optional[str] = None

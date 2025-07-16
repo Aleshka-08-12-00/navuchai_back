@@ -20,6 +20,7 @@ async def get_user_profile(db: AsyncSession, user_id: int):
         user_dict['position'] = user.position.name if hasattr(user, 'position') and user.position else None
         user_dict['department'] = user.department.name if hasattr(user, 'department') and user.department else None
         user_dict['phone_number'] = user.phone_number
+        user_dict['thumbnail_url'] = user.thumbnail.path if hasattr(user, 'thumbnail') and user.thumbnail else None
         user_dict.pop('img', None)
         user_dict.pop('img_id', None)
         user_dict.pop('organization_id', None)
@@ -50,6 +51,7 @@ async def update_user_profile(db: AsyncSession, user_id: int, profile: UserProfi
         user_dict['position'] = existing_user.position.name if hasattr(existing_user, 'position') and existing_user.position else None
         user_dict['department'] = existing_user.department.name if hasattr(existing_user, 'department') and existing_user.department else None
         user_dict['phone_number'] = existing_user.phone_number
+        user_dict['thumbnail_url'] = existing_user.thumbnail.path if hasattr(existing_user, 'thumbnail') and existing_user.thumbnail else None
         user_dict.pop('img', None)
         user_dict.pop('img_id', None)
         user_dict.pop('organization_id', None)
