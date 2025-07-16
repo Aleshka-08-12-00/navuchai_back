@@ -172,6 +172,11 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
             result["customMessage"] = custom_message
         if hidden_result_message:
             result["hiddenResultMessage"] = hidden_result_message
+        # Добавляем autoGrade и showToUser
+        if "autoGrade" in grade_options:
+            result["autoGrade"] = grade_options["autoGrade"]
+        if "showToUser" in grade_options:
+            result["showToUser"] = grade_options["showToUser"]
 
     # Формируем message в зависимости от результата
     if is_passed:
