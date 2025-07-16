@@ -301,3 +301,23 @@ async def upload_avatar(
         raise DatabaseException(f"Ошибка при загрузке файла: {str(e)}")
     except Exception as e:
         raise DatabaseException(f"Неожиданная ошибка при загрузке файла: {str(e)}")
+
+
+@router.delete("/delete-avatar/", status_code=204)
+async def delete_avatar(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    try:
+        user_result = await db.execute(select(User).where(User.id == current_user.id))
+        user = user_result.scalar_one_or_none()
+        if not user:
+            raise DatabaseException("Пользователь не найден")
+        user.img_id = 174
+        user.thumbnail_id = 175
+        await db.commit()
+        await db.refresh(user)
+        return
+    except Exception as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при удалении аватарки: {str(e)}")
