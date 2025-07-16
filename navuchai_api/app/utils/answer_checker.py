@@ -12,7 +12,7 @@ def clean_html(text: str) -> str:
     return re.sub(r'<[^>]+>', '', text)
 
 
-def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnswerCreate], test_time_limit: int = 0) -> Dict[str, Any]:
+def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnswerCreate], test_time_limit: int = 0, grade_options: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Обрабатывает результаты теста и возвращает словарь с результатами
 
@@ -90,9 +90,30 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
             total_score += score
 
     percentage = round((total_score / max_possible_score * 100), 1) if max_possible_score > 0 else 0
-    is_passed = percentage >= 60
 
-    return {
+    def get_pass_status_from_scale(value, grade_options):
+        scale = (grade_options or {}).get("scale", [])
+        scale_type = (grade_options or {}).get("scaleType", "percent")
+        sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+        for grade_range in sorted_scale:
+            min_val = grade_range.get("min", 0)
+            max_val = grade_range.get("max", 100)
+            if min_val <= value <= max_val:
+                return grade_range.get("pass", False)
+        return False
+
+    is_passed = False
+    if grade_options:
+        if grade_options.get("scaleType") == "percent":
+            is_passed = get_pass_status_from_scale(percentage, grade_options)
+        elif grade_options.get("scaleType") == "points":
+            is_passed = get_pass_status_from_scale(total_score, grade_options)
+        else:
+            is_passed = False
+    else:
+        is_passed = percentage >= 60
+
+    result = {
         "total_score": total_score,
         "max_possible_score": max_possible_score,
         "percentage": percentage,
@@ -102,8 +123,67 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
         "total_time_seconds": total_time_seconds,
         "test_time_limit": test_time_limit,
         "is_passed": is_passed,
-        "message": "Тест не пройден: процент выполнения меньше 60%" if not is_passed else None
+        "message": None
     }
+
+    # Добавляем оценку на основе настроек теста
+    grade = None
+    color = None
+    if grade_options and grade_options.get("scaleType") == "percent":
+        scale = grade_options.get("scale", [])
+        sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+        grade_range = None
+        for gr in sorted_scale:
+            if gr.get("min", 0) <= percentage <= gr.get("max", 100):
+                grade_range = gr
+                break
+        if grade_range:
+            grade = str(grade_range.get("grade", "2"))
+            color = grade_range.get("color")
+        else:
+            grade = str(scale[-1].get("grade", "2")) if scale else "2"
+            color = scale[-1].get("color") if scale else None
+        result["grade"] = grade
+        result["color"] = color
+    elif grade_options and grade_options.get("scaleType") == "points":
+        scale = grade_options.get("scale", [])
+        sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+        grade_range = None
+        for gr in sorted_scale:
+            if gr.get("min", 0) <= total_score <= gr.get("max", 100):
+                grade_range = gr
+                break
+        if grade_range:
+            grade = str(grade_range.get("grade", "2"))
+            color = grade_range.get("color")
+        else:
+            grade = str(scale[-1].get("grade", "2")) if scale else "2"
+            color = scale[-1].get("color") if scale else None
+        result["grade"] = grade
+        result["color"] = color
+
+    # Добавляем customMessage и hiddenResultMessage из grade_options
+    if grade_options:
+        custom_message = grade_options.get("customMessage")
+        hidden_result_message = grade_options.get("hiddenResultMessage")
+        if custom_message and grade:
+            result["customMessage"] = f"{custom_message}{grade}"
+        elif custom_message:
+            result["customMessage"] = custom_message
+        if hidden_result_message:
+            result["hiddenResultMessage"] = hidden_result_message
+
+    # Формируем message в зависимости от результата
+    if is_passed:
+        result["message"] = "Вы прошли тест"
+    else:
+        # Проверка превышения лимита времени на тест
+        if test_time_limit > 0 and total_time_seconds > test_time_limit:
+            result["message"] = "Время на выполнение теста истекло"
+        else:
+            result["message"] = "Недостаточно баллов для прохождения теста"
+
+    return result
 
 
 def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool, Dict[str, Any]]:
@@ -236,3 +316,61 @@ def check_true_false(question: Question, answer: Dict[str, Any], correct_score: 
         }
     except Exception as e:
         return incorrect_score, False, {"error": f"Ошибка при проверке ответа TRUE/FALSE: {str(e)}"}
+
+
+def calculate_grade_by_percentage(percentage: float, grade_options: Dict[str, Any]) -> str:
+    """
+    Рассчитывает оценку на основе процента правильных ответов
+    
+    Args:
+        percentage: Процент правильных ответов (0-100)
+        grade_options: Настройки оценивания теста
+        
+    Returns:
+        str: Оценка (например, "5", "4", "3", "2")
+    """
+    scale = grade_options.get("scale", [])
+    
+    # Сортируем шкалу по убыванию минимального значения
+    sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+    
+    # Ищем подходящую оценку
+    for grade_range in sorted_scale:
+        min_val = grade_range.get("min", 0)
+        max_val = grade_range.get("max", 100)
+        grade = grade_range.get("grade", "2")
+        
+        if min_val <= percentage <= max_val:
+            return str(grade)
+    
+    # Если не найдена подходящая оценка, возвращаем минимальную
+    return str(scale[-1].get("grade", "2")) if scale else "2"
+
+
+def calculate_grade_by_points(points: int, grade_options: Dict[str, Any]) -> str:
+    """
+    Рассчитывает оценку на основе количества баллов
+    
+    Args:
+        points: Количество набранных баллов
+        grade_options: Настройки оценивания теста
+        
+    Returns:
+        str: Оценка (например, "5", "4", "3", "2")
+    """
+    scale = grade_options.get("scale", [])
+    
+    # Сортируем шкалу по убыванию минимального значения
+    sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+    
+    # Ищем подходящую оценку
+    for grade_range in sorted_scale:
+        min_val = grade_range.get("min", 0)
+        max_val = grade_range.get("max", 100)
+        grade = grade_range.get("grade", "2")
+        
+        if min_val <= points <= max_val:
+            return str(grade)
+    
+    # Если не найдена подходящая оценка, возвращаем минимальную
+    return str(scale[-1].get("grade", "2")) if scale else "2"
