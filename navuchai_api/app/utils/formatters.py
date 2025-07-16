@@ -110,6 +110,8 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "answer_view_mode": test.answer_view_mode,
         "code": test.code,
         "access_code": access_code,
+        # добавляем grade_options из БД
+        "grade_options": test.grade_options,
     }
     
     if access_status_name is not None:
