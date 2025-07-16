@@ -27,18 +27,17 @@ class TestBase(BaseModel):
     answer_view_mode: AnswerViewModeEnum
     code: Optional[str] = None
     grade_options: Optional[Dict[str, Any]] = {
-        "systemName": "itog",
-        "displayName": "Итоговая оценка",
+        "scale": [
+            {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
+            {"max": 79, "min": 50, "pass": False, "color": "#ffd54f", "grade": 3},
+            {"max": 49, "min": 0, "pass": False, "color": "#b71c1c", "grade": 2}
+        ],
         "autoGrade": True,
         "scaleType": "percent",
-        "scale": [
-            {"min": 80, "max": 100, "grade": 5},
-            {"min": 55, "max": 80, "grade": 4},
-            {"min": 35, "max": 55, "grade": 3},
-            {"min": 0, "max": 35, "grade": 2}
-        ],
         "showToUser": True,
-        "customMessage": "Ваша оценка: {{grade}}",
+        "systemName": "final_grade",
+        "displayName": "Итоговая оценка",
+        "customMessage": "Ваша оценка: ",
         "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
     }
 
@@ -85,18 +84,17 @@ class TestCreate(BaseModel):
     access: TestAccessEnum = TestAccessEnum.PRIVATE
     answer_view_mode: AnswerViewModeEnum = AnswerViewModeEnum.USER_ONLY
     grade_options: Optional[Dict[str, Any]] = {
-        "systemName": "itog",
-        "displayName": "Итоговая оценка",
+        "scale": [
+            {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
+            {"max": 79, "min": 50, "pass": False, "color": "#ffd54f", "grade": 3},
+            {"max": 49, "min": 0, "pass": False, "color": "#b71c1c", "grade": 2}
+        ],
         "autoGrade": True,
         "scaleType": "percent",
-        "scale": [
-            {"min": 80, "max": 100, "grade": 5},
-            {"min": 55, "max": 80, "grade": 4},
-            {"min": 35, "max": 55, "grade": 3},
-            {"min": 0, "max": 35, "grade": 2}
-        ],
         "showToUser": True,
-        "customMessage": "Ваша оценка: {{grade}}",
+        "systemName": "final_grade",
+        "displayName": "Итоговая оценка",
+        "customMessage": "Ваша оценка: ",
         "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
     }
 
@@ -147,18 +145,17 @@ class TestResponse(BaseModel):
     updated_at: datetime
     code: Optional[str] = None
     grade_options: Optional[Dict[str, Any]] = {
-        "systemName": "itog",
-        "displayName": "Итоговая оценка",
+        "scale": [
+            {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
+            {"max": 79, "min": 50, "pass": False, "color": "#ffd54f", "grade": 3},
+            {"max": 49, "min": 0, "pass": False, "color": "#b71c1c", "grade": 2}
+        ],
         "autoGrade": True,
         "scaleType": "percent",
-        "scale": [
-            {"min": 80, "max": 100, "grade": 5},
-            {"min": 55, "max": 80, "grade": 4},
-            {"min": 35, "max": 55, "grade": 3},
-            {"min": 0, "max": 35, "grade": 2}
-        ],
         "showToUser": True,
-        "customMessage": "Ваша оценка: {{grade}}",
+        "systemName": "final_grade",
+        "displayName": "Итоговая оценка",
+        "customMessage": "Ваша оценка: ",
         "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
     }
 
@@ -190,18 +187,17 @@ class TestListResponse(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     grade_options: Optional[Dict[str, Any]] = {
-        "systemName": "itog",
-        "displayName": "Итоговая оценка",
+        "scale": [
+            {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
+            {"max": 79, "min": 50, "pass": False, "color": "#ffd54f", "grade": 3},
+            {"max": 49, "min": 0, "pass": False, "color": "#b71c1c", "grade": 2}
+        ],
         "autoGrade": True,
         "scaleType": "percent",
-        "scale": [
-            {"min": 80, "max": 100, "grade": 5},
-            {"min": 55, "max": 80, "grade": 4},
-            {"min": 35, "max": 55, "grade": 3},
-            {"min": 0, "max": 35, "grade": 2}
-        ],
         "showToUser": True,
-        "customMessage": "Ваша оценка: {{grade}}",
+        "systemName": "final_grade",
+        "displayName": "Итоговая оценка",
+        "customMessage": "Ваша оценка: ",
         "hiddenResultMessage": "Спасибо за участие, результаты будут отправлены позже..."
     }
 
