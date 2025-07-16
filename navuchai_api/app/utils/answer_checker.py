@@ -177,6 +177,8 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
             result["showToUser"] = grade_options["showToUser"]
         if "scaleType" in grade_options:
             result["scaleType"] = grade_options["scaleType"]
+        if "displayName" in grade_options:
+            result["displayName"] = grade_options["displayName"]
 
     # Формируем message в зависимости от результата
     if is_passed:
