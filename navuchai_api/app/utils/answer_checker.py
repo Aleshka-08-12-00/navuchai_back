@@ -166,9 +166,7 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
     if grade_options:
         custom_message = grade_options.get("customMessage")
         hidden_result_message = grade_options.get("hiddenResultMessage")
-        if custom_message and grade:
-            result["customMessage"] = f"{custom_message}{grade}"
-        elif custom_message:
+        if custom_message:
             result["customMessage"] = custom_message
         if hidden_result_message:
             result["hiddenResultMessage"] = hidden_result_message
