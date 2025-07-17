@@ -17,5 +17,6 @@ class Course(Base):
     modules = relationship('Module', back_populates='course', cascade='all, delete-orphan')
     enrollments = relationship('CourseEnrollment', back_populates='course', cascade='all, delete-orphan')
     tests = relationship('CourseTest', back_populates='course', cascade='all, delete-orphan')
+    ratings = relationship('CourseRating', back_populates='course', cascade='all, delete-orphan')
     image = relationship('File', foreign_keys=[img_id], lazy='selectin')
     thumbnail = relationship('File', foreign_keys=[thumbnail_id], lazy='selectin')
