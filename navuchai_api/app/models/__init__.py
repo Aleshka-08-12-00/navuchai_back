@@ -26,6 +26,7 @@ from .test_access_status import TestAccessStatus
 from .organization import Organization
 from .position import Position
 from .department import Department
+from .course_rating import CourseRating
 
 __all__ = [
     "Base",
@@ -54,6 +55,7 @@ __all__ = [
     "LessonProgress",
     "Organization",
     "Position",
-    "Department"
+    "Department",
+    "CourseRating"
 ]
 

@@ -32,3 +32,4 @@ from .course_test import (
     delete_course_test,
 )
 from .module_test import create_module_test, get_module_tests
+from .course_rating import set_course_rating, get_course_avg_rating

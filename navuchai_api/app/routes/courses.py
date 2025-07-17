@@ -24,8 +24,11 @@ from app.crud import (
     get_last_course_and_lesson,
     get_course_students_count,
     get_course_lessons_count,
+    set_course_rating,
+    get_course_avg_rating,
 )
 from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, CourseRead, ListCoursesResponse
+from app.schemas.course_rating import CourseRatingCreate
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
 from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
@@ -49,6 +52,7 @@ async def list_courses(
         cid = course.id
         course.lessons_count = await get_course_lessons_count(db, cid)
         course.students_count = await get_course_students_count(db, cid)
+        course.rating = await get_course_avg_rating(db, cid)
 
         if user:
             progress = await get_course_progress(db, cid, user.id)
@@ -71,6 +75,7 @@ async def list_courses(
             course_obj.done = progress == 100
             course_obj.lessons_count = await get_course_lessons_count(db, cid)
             course_obj.students_count = await get_course_students_count(db, cid)
+            course_obj.rating = await get_course_avg_rating(db, cid)
             current = CourseRead.model_validate(course_obj, from_attributes=True)
 
     return {"current": current, "courses": courses}
@@ -91,6 +96,7 @@ async def read_course(
         raise HTTPException(status_code=404, detail="Курс не найден")
     lessons_count = await get_course_lessons_count(db, id)
     students_count = await get_course_students_count(db, id)
+    rating = await get_course_avg_rating(db, id)
     progress = await get_course_progress(db, id, user.id)
     done = progress == 100
     if user.role.code == "admin":
@@ -102,6 +108,7 @@ async def read_course(
     course_data.progress = progress
     course_data.done = done
     course_data.students_count = students_count
+    course_data.rating = rating
     course_data.enrolled = enrolled
     return course_data
 
@@ -133,6 +140,7 @@ async def create(
     course_obj = await create_course(db, course, user.id)
     resp = CourseResponse.model_validate(course_obj)
     resp.progress = 0.0
+    resp.rating = 0.0
     return resp
 
 @router.put(
@@ -149,6 +157,7 @@ async def update(
     course_obj = await update_course(db, course_id, data)
     resp = CourseResponse.model_validate(course_obj)
     resp.progress = await get_course_progress(db, resp.id, user.id)
+    resp.rating = await get_course_avg_rating(db, resp.id)
     return resp
 
 
@@ -185,6 +194,16 @@ async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), us
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     percent = await get_course_progress(db, course_id, user.id)
     return {"percent": percent}
+
+
+@router.post("/{course_id}/rating/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(authorized_required)])
+async def add_course_rating_route(
+    course_id: int,
+    data: CourseRatingCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    await set_course_rating(db, course_id, user.id, data.rating)
 
 
 @router.post("/{course_id}/tests/", response_model=CourseTestBase, dependencies=[Depends(admin_moderator_required)])
