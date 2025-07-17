@@ -51,6 +51,7 @@ class TestResult(BaseModel):
     time_end: datetime
     total_time_seconds: int
     checked_answers: List[CheckedAnswer]
+    grade: Optional[str] = None
 
 
 class ResultResponse(BaseModel):

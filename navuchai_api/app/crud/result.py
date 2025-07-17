@@ -26,7 +26,7 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         if not user:
             raise NotFoundException(f"Пользователь с ID {result_data.user_id} не найден")
         questions = await get_questions_by_test_id(db, result_data.test_id)
-        test_results = process_test_results(questions, result_data.answers, test.time_limit)
+        test_results = process_test_results(questions, result_data.answers, test.time_limit, test.grade_options)
         for answer in test_results['checked_answers']:
             if isinstance(answer.get('time_start'), datetime):
                 answer['time_start'] = answer['time_start'].isoformat()

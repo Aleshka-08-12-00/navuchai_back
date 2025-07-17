@@ -35,6 +35,7 @@ async def get_users(db: AsyncSession):
             user_dict['position'] = user.position.name if user.position else None
             user_dict['department'] = user.department.name if user.department else None
             user_dict['phone_number'] = user.phone_number
+            user_dict['thumbnail_url'] = user.thumbnail.path if hasattr(user, 'thumbnail') and user.thumbnail else None
             # Удаляем лишние поля
             user_dict.pop('img', None)
             user_dict.pop('img_id', None)
@@ -68,6 +69,7 @@ async def get_user(db: AsyncSession, user_id: int):
         user_dict['position'] = user.position.name if user.position else None
         user_dict['department'] = user.department.name if user.department else None
         user_dict['phone_number'] = user.phone_number
+        user_dict['thumbnail_url'] = user.thumbnail.path if hasattr(user, 'thumbnail') and user.thumbnail else None
         user_dict.pop('img', None)
         user_dict.pop('img_id', None)
         user_dict.pop('organization_id', None)
