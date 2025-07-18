@@ -21,6 +21,7 @@ class CourseBase(BaseModel):
     enrolled: Optional[bool] = None
     progress: Optional[float] = None
     done: Optional[bool] = None
+    rating: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -59,6 +60,7 @@ class CourseRead(BaseModel):
     thumbnail: Optional[FileInDB] = None
     lessons_count: Optional[int] = Field(default=None, alias="lessonsCount")
     students_count: Optional[int] = Field(default=None, alias="studentsCount")
+    rating: Optional[float] = None
     
     enrolled: Optional[bool] = None
     progress: Optional[float] = None
