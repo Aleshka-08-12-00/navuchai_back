@@ -153,6 +153,14 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
                 result["displayName"] = grade_options["displayName"]
         return result
 
+    # --- Исправление: всегда инициализируем result ---
+    result = {
+        "checked_answers": checked_answers,
+        "time_start": time_start,
+        "time_end": time_end,
+        "total_time_seconds": total_time_seconds,
+        "test_time_limit": test_time_limit
+    }
     # Добавляем оценку на основе настроек теста
     grade = None
     color = None
