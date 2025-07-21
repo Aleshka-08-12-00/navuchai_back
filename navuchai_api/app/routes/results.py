@@ -20,6 +20,7 @@ from app.utils import convert_result
 from app.utils.excel_parser import generate_analytics_excel
 from app.utils.formatters import apply_excel_formatting
 from app.utils.report_generator import generate_result_excel, transliterate_cyrillic
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -289,15 +290,17 @@ async def export_result(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{result_id}/finalize/", response_model=ResultResponse)
+class FinalizeResultBody(BaseModel):
+    result_id: int
+
+@router.post("/finalize/", response_model=ResultResponse)
 async def finalize_result_after_manual_check(
-    result_id: int,
+    body: FinalizeResultBody,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
 ):
-    # Только админ/модератор может финализировать результат
     if current_user.role.code not in ["admin", "moderator"]:
         raise ForbiddenException("Нет прав для финализации результата после ручной проверки")
     from app.crud.result import finalize_manual_check_result
-    result = await finalize_manual_check_result(db, result_id)
+    result = await finalize_manual_check_result(db, body.result_id)
     return convert_result(result, current_user)
