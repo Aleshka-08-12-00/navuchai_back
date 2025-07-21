@@ -225,6 +225,16 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
         else:
             result["message"] = "Недостаточно баллов для прохождения теста"
 
+    # Добавляем итоговые поля всегда
+    result["total_score"] = total_score
+    result["max_possible_score"] = max_possible_score
+    result["percentage"] = percentage
+    result["is_passed"] = is_passed
+    result["message"] = "Вы прошли тест" if is_passed else "Недостаточно баллов для прохождения теста"
+    if grade is not None:
+        result["grade"] = grade
+    if color is not None:
+        result["color"] = color
     return result
 
 
