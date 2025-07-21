@@ -67,7 +67,14 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
                 is_correct = False
                 check_details = {"message": f"Превышен лимит времени на вопрос ({question_time_limit} секунд)"}
             else:
-                score, is_correct, check_details = check_answer(question, answer.answer)
+                question_type = question.type.code if question.type else "UNKNOWN"
+                # --- ДОРАБОТКА: если ESSAY/FILE/VOICE и ручная проверка уже проведена ---
+                if question_type in ["ESSAY", "FILE", "VOICE"] and answer.answer.get("check_details") and not answer.answer["check_details"].get("manual_check_required", False):
+                    score = answer.answer.get("score", 0)
+                    is_correct = answer.answer.get("is_correct", False)
+                    check_details = answer.answer["check_details"]
+                else:
+                    score, is_correct, check_details = check_answer(question, answer.answer)
 
             # Получаем тип вопроса в виде строки
             question_type = question.type.code if question.type else "UNKNOWN"
@@ -113,18 +120,38 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
     else:
         is_passed = percentage >= 60
 
-    result = {
-        "total_score": total_score,
-        "max_possible_score": max_possible_score,
-        "percentage": percentage,
-        "checked_answers": checked_answers,
-        "time_start": time_start,
-        "time_end": time_end,
-        "total_time_seconds": total_time_seconds,
-        "test_time_limit": test_time_limit,
-        "is_passed": is_passed,
-        "message": None
-    }
+    manual_check_required = any(
+        ans.get("check_details", {}).get("manual_check_required") is True
+        for ans in checked_answers
+    )
+
+    if manual_check_required:
+        result = {
+            "checked_answers": checked_answers,
+            "time_start": time_start,
+            "time_end": time_end,
+            "total_time_seconds": total_time_seconds,
+            "test_time_limit": test_time_limit,
+            "manual_check_required": True,
+            "message": "Тест содержит вопросы, требующие ручной проверки. Итоговый результат будет доступен после проверки."
+        }
+        # Добавляем дополнительные поля из grade_options, если нужно
+        if grade_options:
+            custom_message = grade_options.get("customMessage")
+            hidden_result_message = grade_options.get("hiddenResultMessage")
+            if custom_message:
+                result["customMessage"] = custom_message
+            if hidden_result_message:
+                result["hiddenResultMessage"] = hidden_result_message
+            if "autoGrade" in grade_options:
+                result["autoGrade"] = grade_options["autoGrade"]
+            if "showToUser" in grade_options:
+                result["showToUser"] = grade_options["showToUser"]
+            if "scaleType" in grade_options:
+                result["scaleType"] = grade_options["scaleType"]
+            if "displayName" in grade_options:
+                result["displayName"] = grade_options["displayName"]
+        return result
 
     # Добавляем оценку на основе настроек теста
     grade = None
@@ -222,10 +249,6 @@ def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool,
         return check_single_choice(question, answer, correct_score, incorrect_score)
     elif question_type == "MULTIPLE_CHOICE":
         return check_multiple_choice(question, answer, correct_score, incorrect_score)
-    elif question_type == "TEXT":
-        return check_text(question, answer, correct_score, incorrect_score)
-    elif question_type == "NUMBER":
-        return check_number(question, answer, correct_score, incorrect_score)
     elif question_type == "TRUE_FALSE":
         return check_true_false(question, answer, correct_score, incorrect_score)
     elif question_type in ["SHORT_ANSWER", "SURVEY", "DESCRIPTIVE"]:
@@ -233,6 +256,24 @@ def check_answer(question: Question, answer: Dict[str, Any]) -> Tuple[int, bool,
         return correct_score, True, {
             "user_answer": answer.get("value", ""),
             "message": "Ответ принят без проверки"
+        }
+    elif question_type in ["ESSAY", "FILE", "VOICE"]:
+        # Если ручная проверка уже проведена (is_correct выставлен)
+        if "is_correct" in answer:
+            is_correct = answer["is_correct"]
+            score = correct_score if is_correct else incorrect_score
+            details = answer.get("check_details", {})
+            details["user_answer"] = answer.get("value", "")
+            details["message"] = details.get("message", "Вопрос проверен")
+            # Удаляем manual_check_required, если был
+            if "manual_check_required" in details:
+                del details["manual_check_required"]
+            return score, is_correct, details
+        # Если ручная проверка не проведена
+        return 0, False, {
+            "user_answer": answer.get("value", ""),
+            "manual_check_required": True,
+            "message": "Требуется ручная проверка ответа"
         }
     else:
         raise BadRequestException(f"Неизвестный тип вопроса: {question_type}")
@@ -271,36 +312,6 @@ def check_multiple_choice(question: Question, answer: Dict[str, Any], correct_sc
         "correct_answers": correct_answers,
         "user_answers": user_answers
     }
-
-
-def check_text(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
-    """Проверяет текстовый ответ"""
-    correct_answer = question.answers.get("correctAnswer", [""])[0]
-    user_answer = answer.get("value", "").strip().lower()
-    
-    if not correct_answer:
-        return incorrect_score, False, {"error": "Отсутствует правильный ответ"}
-    
-    is_correct = user_answer == correct_answer.strip().lower()
-    return correct_score if is_correct else incorrect_score, is_correct, {
-        "correct_answer": correct_answer,
-        "user_answer": user_answer
-    }
-
-
-def check_number(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:
-    """Проверяет числовой ответ"""
-    try:
-        correct_answer = float(question.answers.get("correctAnswer", [0])[0])
-        user_answer = float(answer.get("value", 0))
-        
-        is_correct = abs(user_answer - correct_answer) < 0.0001  # Учитываем погрешность для чисел с плавающей точкой
-        return correct_score if is_correct else incorrect_score, is_correct, {
-            "correct_answer": correct_answer,
-            "user_answer": user_answer
-        }
-    except (ValueError, TypeError):
-        return incorrect_score, False, {"error": "Некорректный формат числового ответа"}
 
 
 def check_true_false(question: Question, answer: Dict[str, Any], correct_score: int, incorrect_score: int) -> Tuple[int, bool, Dict[str, Any]]:

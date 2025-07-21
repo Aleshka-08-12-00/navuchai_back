@@ -287,3 +287,17 @@ async def export_result(
         raise HTTPException(status_code=404, detail=str(e))
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{result_id}/finalize/", response_model=ResultResponse)
+async def finalize_result_after_manual_check(
+    result_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    # Только админ/модератор может финализировать результат
+    if current_user.role.code not in ["admin", "moderator"]:
+        raise ForbiddenException("Нет прав для финализации результата после ручной проверки")
+    from app.crud.result import finalize_manual_check_result
+    result = await finalize_manual_check_result(db, result_id)
+    return convert_result(result, current_user)
