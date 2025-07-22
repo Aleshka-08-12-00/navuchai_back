@@ -311,7 +311,7 @@ class ManualCheckBody(BaseModel):
     question_id: int
     is_correct: bool
 
-@router.patch("/manual_check/", response_model=ResultResponse)
+@router.post("/manual_check/", response_model=ResultResponse)
 async def manual_check_answer(
     body: ManualCheckBody,
     db: AsyncSession = Depends(get_db),
