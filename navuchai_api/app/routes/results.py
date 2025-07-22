@@ -309,6 +309,7 @@ async def finalize_result_after_manual_check(
 class ManualCheckBody(BaseModel):
     result_id: int
     question_id: int
+    is_correct: bool
 
 @router.patch("/manual_check/", response_model=ResultResponse)
 async def manual_check_answer(
@@ -324,7 +325,7 @@ async def manual_check_answer(
     updated = False
     for ans in checked_answers:
         if ans.get("question_id") == body.question_id:
-            ans["is_correct"] = True
+            ans["is_correct"] = body.is_correct
             if "check_details" in ans and isinstance(ans["check_details"], dict):
                 ans["check_details"]["message"] = "Вопрос проверен модератором"
             updated = True
