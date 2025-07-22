@@ -304,3 +304,39 @@ async def finalize_result_after_manual_check(
     from app.crud.result import finalize_manual_check_result
     result = await finalize_manual_check_result(db, body.result_id)
     return convert_result(result, current_user)
+
+
+class ManualCheckBody(BaseModel):
+    result_id: int
+    question_id: int
+
+@router.patch("/manual_check/", response_model=ResultResponse)
+async def manual_check_answer(
+    body: ManualCheckBody,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    if current_user.role.code not in ["admin", "moderator"]:
+        raise ForbiddenException("Нет прав для ручной проверки ответа")
+    from app.crud.result import get_result
+    result_obj = await get_result(db, body.result_id)
+    checked_answers = result_obj.result.get("checked_answers", [])
+    updated = False
+    for ans in checked_answers:
+        if ans.get("question_id") == body.question_id:
+            ans["is_correct"] = True
+            if "check_details" in ans and isinstance(ans["check_details"], dict):
+                ans["check_details"]["message"] = "Вопрос проверен модератором"
+            updated = True
+            break
+    if not updated:
+        raise NotFoundException(f"Вопрос с ID {body.question_id} не найден в результате {body.result_id}")
+    result_obj.result["checked_answers"] = checked_answers
+    from sqlalchemy.ext.mutable import MutableDict
+    if not isinstance(result_obj.result, MutableDict):
+        from sqlalchemy.dialects.postgresql import JSONB
+        from sqlalchemy.ext.mutable import MutableDict
+        result_obj.result = MutableDict(result_obj.result)
+    await db.commit()
+    await db.refresh(result_obj)
+    return convert_result(result_obj, current_user)
