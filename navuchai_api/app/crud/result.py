@@ -321,6 +321,8 @@ async def finalize_manual_check_result(db: AsyncSession, result_id: int):
         result_obj.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(result_obj)
+        # Явно подгружаем связанные объекты user и test для сериализации
+        await db.refresh(result_obj, attribute_names=["user", "test"])
         return result_obj
     except SQLAlchemyError as e:
         await db.rollback()
