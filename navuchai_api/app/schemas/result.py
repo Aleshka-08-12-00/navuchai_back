@@ -67,6 +67,6 @@ class ResultResponse(BaseModel):
     updated_at: datetime
     test: Optional[TestResponse] = None
     user: Optional[UserResponse] = None
-    group: Optional[Dict[str, Any]] = None
+    groups: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True) 

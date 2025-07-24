@@ -16,16 +16,16 @@ from app.models.test_group import TestGroup
 
 
 async def get_group_for_test(db: Session, test_id: int):
-    group_link = await db.execute(
+    group_links = await db.execute(
         select(TestGroupTest.test_group_id).where(TestGroupTest.test_id == test_id)
     )
-    group_id = group_link.scalar_one_or_none()
-    if group_id:
-        group_obj_result = await db.execute(
-            select(TestGroup).where(TestGroup.id == group_id)
+    group_ids = group_links.scalars().all()
+    if group_ids:
+        group_objs_result = await db.execute(
+            select(TestGroup).where(TestGroup.id.in_(group_ids))
         )
-        return group_obj_result.scalar_one_or_none()
-    return None
+        return group_objs_result.scalars().all()
+    return []
 
 
 def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str, test_answer_view_mode: str) -> Dict[str, Any]:
@@ -215,13 +215,16 @@ async def convert_result(result: Result, current_user: Any = None, db: Any = Non
             user_role_code = current_user.role.code if current_user.role else "user"
             test_answer_view_mode = result.test.answer_view_mode.value if result.test.answer_view_mode else "user_only"
             result_data = filter_answers_by_view_mode(result_data, user_role_code, test_answer_view_mode)
-        group = None
+        groups = None
         if db and result.test_id:
-            group_obj = await get_group_for_test(db, result.test_id)
-            if group_obj:
-                group = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
-                         for k, v in group_obj.__dict__.items()
-                         if not k.startswith('_') and not isinstance(v, (dict, list, set, tuple))}
+            group_objs = await get_group_for_test(db, result.test_id)
+            if group_objs:
+                groups = [
+                    {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                     for k, v in group_obj.__dict__.items()
+                     if not k.startswith('_') and not isinstance(v, (dict, list, set, tuple))}
+                    for group_obj in group_objs
+                ]
         return ResultResponse(
             id=result.id,
             user_id=result.user_id,
@@ -235,7 +238,7 @@ async def convert_result(result: Result, current_user: Any = None, db: Any = Non
             updated_at=result.updated_at,
             test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
             user=UserResponse.model_validate(user_to_response_dict(result.user)) if result.user else None,
-            group=group
+            groups=groups
         )
     except Exception as e:
         print('EXCEPTION IN CONVERT_RESULT:', e)
