@@ -7,16 +7,16 @@ from app.schemas.user import UserResponse
 
 class UserAnswerCreate(BaseModel):
     question_id: int
-    time_start: datetime
-    time_end: datetime
+    time_start: Optional[datetime] = None
+    time_end: Optional[datetime] = None
     answer: Dict[str, Any]
 
 
 class ResultCreate(BaseModel):
     test_id: int
     user_id: int
-    time_start: datetime
-    time_end: datetime
+    time_start: Optional[datetime] = None
+    time_end: Optional[datetime] = None
     answers: List[UserAnswerCreate]
 
 
@@ -25,8 +25,8 @@ class UserAnswerResponse(BaseModel):
     question_id: int
     user_id: int
     answer: Dict[str, Any]
-    time_start: datetime
-    time_end: datetime
+    time_start: Optional[datetime] = None
+    time_end: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -39,8 +39,9 @@ class CheckedAnswer(BaseModel):
     score: int
     is_correct: bool
     check_details: Dict[str, Any]
-    time_start: datetime
-    time_end: datetime
+    time_start: Optional[datetime] = None
+    time_end: Optional[datetime] = None
+    answered: bool = True
 
 
 class TestResult(BaseModel):

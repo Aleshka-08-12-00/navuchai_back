@@ -7,7 +7,7 @@ from app.routes import (
     category, locale, files, role, user_groups,
     test_access, test_status, results, question_type,
     test_access_status, courses, modules, lessons, enrollment, module_tests,
-    test_import, analytics_views, faq, faq_categories
+    test_import, analytics_views, faq, faq_categories, category_access
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -46,6 +46,7 @@ app.include_router(test_import)
 app.include_router(analytics_views)
 app.include_router(faq)
 app.include_router(faq_categories)
+app.include_router(category_access)
 
 
 @app.on_event("startup")
