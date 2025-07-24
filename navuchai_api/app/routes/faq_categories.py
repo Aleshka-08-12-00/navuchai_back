@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -10,6 +10,7 @@ from app.crud import (
     delete_faq_category,
     admin_moderator_required,
     authorized_required,
+    is_user_in_group,
 )
 from app.dependencies import get_db
 from app.schemas import (
@@ -41,7 +42,17 @@ async def list_categories_route(
     user: User = Depends(authorized_required),
 ):
     try:
-        return await get_faq_categories(db)
+        categories = await get_faq_categories(db)
+        if user.role.code not in ["admin", "moderator"]:
+            filtered = []
+            for cat in categories:
+                if cat.user_group_id is None:
+                    filtered.append(cat)
+                else:
+                    if await is_user_in_group(db, cat.user_group_id, user.id):
+                        filtered.append(cat)
+            categories = filtered
+        return categories
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении категорий FAQ")
 
@@ -53,7 +64,14 @@ async def get_category_route(
     user: User = Depends(authorized_required),
 ):
     try:
-        return await get_faq_category(db, category_id)
+        category = await get_faq_category(db, category_id)
+        if (
+            category.user_group_id is not None
+            and user.role.code not in ["admin", "moderator"]
+            and not await is_user_in_group(db, category.user_group_id, user.id)
+        ):
+            raise HTTPException(status_code=403, detail="Нет доступа к категории")
+        return category
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении категории FAQ")
 

@@ -10,7 +10,13 @@ from app.exceptions import DatabaseException, NotFoundException
 
 async def create_faq(db: AsyncSession, data: FaqCreate, owner_id: int, username: str) -> Faq:
     try:
-        obj = Faq(category_id=data.category_id, question=data.question, owner_id=owner_id, username=username)
+        obj = Faq(
+            category_id=data.category_id,
+            question=data.question,
+            owner_id=owner_id,
+            username=username,
+            answered=False,
+        )
         db.add(obj)
         await db.commit()
         await db.refresh(obj)
@@ -46,6 +52,8 @@ async def answer_faq(db: AsyncSession, faq_id: int, data: FaqAnswerUpdate) -> Fa
     obj = await get_faq(db, faq_id)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(obj, field, value)
+    if data.answer is not None:
+        obj.answered = True
     try:
         await db.commit()
         await db.refresh(obj)

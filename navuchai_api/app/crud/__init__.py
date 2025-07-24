@@ -47,3 +47,13 @@ from .faq import (
     answer_faq,
     increment_faq_hits,
 )
+from .user_group import (
+    create_group,
+    get_group,
+    get_groups,
+    update_group,
+    delete_group,
+    add_group_member,
+    remove_group_member,
+    is_user_in_group,
+)
