@@ -219,12 +219,26 @@ async def convert_result(result: Result, current_user: Any = None, db: Any = Non
         if db and result.test_id:
             group_objs = await get_group_for_test(db, result.test_id)
             if group_objs:
-                groups = [
-                    {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
-                     for k, v in group_obj.__dict__.items()
-                     if not k.startswith('_') and not isinstance(v, (dict, list, set, tuple))}
-                    for group_obj in group_objs
-                ]
+                groups = []
+                for group_obj in group_objs:
+                    group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                                 for k, v in group_obj.__dict__.items()
+                                 if not k.startswith('_')
+                                 and k not in {'status', 'img', 'thumbnail'}
+                                 and not isinstance(v, (dict, list, set, tuple))}
+                    # enrich status
+                    if hasattr(group_obj, 'status') and group_obj.status:
+                        group_dict['status_name'] = group_obj.status.name
+                        group_dict['status_name_ru'] = group_obj.status.name_ru
+                        group_dict['status_color'] = group_obj.status.color
+                    else:
+                        group_dict['status_name'] = None
+                        group_dict['status_name_ru'] = None
+                        group_dict['status_color'] = None
+                    # enrich image/thumbnail
+                    group_dict['image'] = group_obj.img.path if hasattr(group_obj, 'img') and group_obj.img else None
+                    group_dict['thumbnail'] = group_obj.thumbnail.path if hasattr(group_obj, 'thumbnail') and group_obj.thumbnail else None
+                    groups.append(group_dict)
         return ResultResponse(
             id=result.id,
             user_id=result.user_id,
