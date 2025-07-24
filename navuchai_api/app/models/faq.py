@@ -12,7 +12,6 @@ class Faq(Base):
     question = Column(Text)
     date = Column(TIMESTAMP, nullable=False, server_default=func.now())
     answer = Column(Text)
-    answered = Column(Boolean, nullable=False, default=False)
     hits = Column(Integer, nullable=False, default=0)
     active = Column(Boolean, nullable=False, default=True)
     owner_id = Column(Integer, ForeignKey('user.id'), nullable=False)

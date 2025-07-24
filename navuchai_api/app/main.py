@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+
 from app.config import engine
 from app.models import Base
 from app.routes import (
