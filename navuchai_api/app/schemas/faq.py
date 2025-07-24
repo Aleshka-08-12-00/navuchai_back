@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class FaqBase(BaseModel):
@@ -9,10 +9,14 @@ class FaqBase(BaseModel):
     question: str | None = None
     date: datetime
     answer: str | None = None
-    answered: bool
     hits: int
     active: bool
     owner_id: int
+
+    @computed_field(return_type=bool)
+    @property
+    def answered(self) -> bool:
+        return bool(self.answer)
 
     class Config:
         from_attributes = True
