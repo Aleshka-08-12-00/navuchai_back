@@ -13,9 +13,32 @@ from app.utils import format_test_with_names
 # Получение списка всех групп
 async def get_test_groups(db: AsyncSession):
     try:
-        stmt = select(TestGroup)
+        stmt = select(TestGroup).options(
+            selectinload(TestGroup.status),
+            selectinload(TestGroup.img),
+            selectinload(TestGroup.thumbnail)
+        )
         result = await db.execute(stmt)
-        return result.scalars().all()
+        groups = result.scalars().all()
+        enriched = []
+        for group in groups:
+            group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                          for k, v in group.__dict__.items()
+                          if not k.startswith('_')
+                          and k not in {'status', 'img', 'thumbnail'}
+                          and not isinstance(v, (dict, list, set, tuple))}
+            if hasattr(group, 'status') and group.status:
+                group_dict['status_name'] = group.status.name
+                group_dict['status_name_ru'] = group.status.name_ru
+                group_dict['status_color'] = group.status.color
+            else:
+                group_dict['status_name'] = None
+                group_dict['status_name_ru'] = None
+                group_dict['status_color'] = None
+            group_dict['image'] = group.img.path if hasattr(group, 'img') and group.img else None
+            group_dict['thumbnail'] = group.thumbnail.path if hasattr(group, 'thumbnail') and group.thumbnail else None
+            enriched.append(group_dict)
+        return enriched
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}")
 

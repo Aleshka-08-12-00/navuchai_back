@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-from app.schemas.test_group import TestGroup, TestGroupCreate, TestGroupUpdate, TestGroupList
+from app.schemas.test_group import TestGroup, TestGroupCreate, TestGroupUpdate, TestGroupList, TestGroupEnriched
 from app.schemas.test_group_test import TestGroupTest, TestGroupTestCreate
 from app.crud import test_group as crud
 from app.dependencies import get_db
@@ -12,18 +12,34 @@ from app.exceptions import NotFoundException, DatabaseException
 
 router = APIRouter(prefix="/api/test-groups", tags=["Test groups"])
 
-@router.get("/", response_model=List[TestGroup])
+@router.get("/", response_model=List[TestGroupEnriched])
 async def list_test_groups(db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
     try:
         return await crud.get_test_groups(db)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка групп")
 
-@router.get("/{group_id}", response_model=TestGroup)
+@router.get("/{group_id}", response_model=TestGroupEnriched)
 async def get_test_group(group_id: int, db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
     try:
         group = await crud.get_test_group(db, group_id)
-        return group
+        # enrich
+        group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                      for k, v in group.__dict__.items()
+                      if not k.startswith('_')
+                      and k not in {'status', 'img', 'thumbnail'}
+                      and not isinstance(v, (dict, list, set, tuple))}
+        if hasattr(group, 'status') and group.status:
+            group_dict['status_name'] = group.status.name
+            group_dict['status_name_ru'] = group.status.name_ru
+            group_dict['status_color'] = group.status.color
+        else:
+            group_dict['status_name'] = None
+            group_dict['status_name_ru'] = None
+            group_dict['status_color'] = None
+        group_dict['image'] = group.img.path if hasattr(group, 'img') and group.img else None
+        group_dict['thumbnail'] = group.thumbnail.path if hasattr(group, 'thumbnail') and group.thumbnail else None
+        return group_dict
     except NotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:

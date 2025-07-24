@@ -41,3 +41,11 @@ class TestGroup(TestGroupInDBBase):
 class TestGroupList(BaseModel):
     items: List[TestGroup]
     total: int
+
+
+class TestGroupEnriched(TestGroup):
+    status_name: Optional[str] = None
+    status_name_ru: Optional[str] = None
+    status_color: Optional[str] = None
+    image: Optional[str] = None
+    thumbnail: Optional[str] = None
