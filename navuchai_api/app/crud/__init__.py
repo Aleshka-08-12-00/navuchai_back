@@ -33,3 +33,17 @@ from .course_test import (
 )
 from .module_test import create_module_test, get_module_tests
 from .course_rating import set_course_rating, get_course_avg_rating
+from .faq_category import (
+    create_faq_category,
+    get_faq_category,
+    get_faq_categories,
+    update_faq_category,
+    delete_faq_category,
+)
+from .faq import (
+    create_faq,
+    get_faq,
+    get_faqs,
+    answer_faq,
+    increment_faq_hits,
+)

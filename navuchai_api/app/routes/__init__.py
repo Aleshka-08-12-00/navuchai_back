@@ -20,6 +20,8 @@ from app.routes.enrollment import router as enrollment_router
 from app.routes.module_tests import router as module_tests_router
 from app.routes.test_import import router as test_import_router
 from .analytics import router as analytics_views_router
+from app.routes.faq import router as faq_router
+from app.routes.faq_categories import router as faq_categories_router
 
 auth = auth_router
 tests = tests_router
@@ -43,3 +45,5 @@ enrollment = enrollment_router
 module_tests = module_tests_router
 test_import = test_import_router
 analytics_views = analytics_views_router
+faq = faq_router
+faq_categories = faq_categories_router
