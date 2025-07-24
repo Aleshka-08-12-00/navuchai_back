@@ -82,6 +82,10 @@ async def add_test_to_group(db: AsyncSession, data: TestGroupTestCreate):
 # Получение тестов по group_id с полной инфой (возврат ORM-объектов для TestWithDetails)
 async def get_tests_by_group_id(db: AsyncSession, group_id: int):
     try:
+        # Получаем саму группу
+        group_stmt = select(TestGroup).where(TestGroup.id == group_id)
+        group_result = await db.execute(group_stmt)
+        group_obj = group_result.scalar_one_or_none()
         stmt = (
             select(
                 Test, Category.name, User.name, Locale.code, 
@@ -98,7 +102,6 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
         )
         result = await db.execute(stmt)
         rows = result.all()
-        # Собираем объекты, совместимые с TestWithDetails
         tests = []
         for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows:
             test.category_name = category_name
@@ -107,6 +110,7 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
             test.status_name = status_name
             test.status_name_ru = status_name_ru
             test.status_color = status_color
+            test.group = group_obj
             tests.append(test)
         return tests
     except SQLAlchemyError as e:

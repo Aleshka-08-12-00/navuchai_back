@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
 from app.models.test import TestAccessEnum, AnswerViewModeEnum
+from app.schemas.test_group import TestGroup
 
 
 class TestBase(BaseModel):
@@ -55,6 +56,7 @@ class TestWithDetails(TestBase):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     code: Optional[str] = None
+    group: Optional[TestGroup] = None
 
 
 class TestWithAccessDetails(TestWithDetails):
