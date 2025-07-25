@@ -10,6 +10,7 @@ from app.exceptions import DatabaseException, NotFoundException
 from app.models import Test, Category, User, Locale, TestStatus
 from app.utils import format_test_with_names
 
+
 # Получение списка всех групп
 async def get_test_groups(db: AsyncSession):
     try:
@@ -42,6 +43,7 @@ async def get_test_groups(db: AsyncSession):
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}")
 
+
 # Получение одной группы
 async def get_test_group(db: AsyncSession, group_id: int):
     try:
@@ -54,6 +56,7 @@ async def get_test_group(db: AsyncSession, group_id: int):
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении группы: {str(e)}")
 
+
 # Создание группы
 async def create_test_group(db: AsyncSession, group: TestGroupCreate):
     try:
@@ -65,6 +68,7 @@ async def create_test_group(db: AsyncSession, group: TestGroupCreate):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при создании группы: {str(e)}")
+
 
 # Обновление группы
 async def update_test_group(db: AsyncSession, group_id: int, group: TestGroupUpdate):
@@ -79,6 +83,7 @@ async def update_test_group(db: AsyncSession, group_id: int, group: TestGroupUpd
         await db.rollback()
         raise DatabaseException(f"Ошибка при обновлении группы: {str(e)}")
 
+
 # Удаление группы
 async def delete_test_group(db: AsyncSession, group_id: int):
     try:
@@ -89,6 +94,7 @@ async def delete_test_group(db: AsyncSession, group_id: int):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при удалении группы: {str(e)}")
+
 
 # Добавление теста в группу
 async def add_test_to_group(db: AsyncSession, data: TestGroupTestCreate):
@@ -102,6 +108,28 @@ async def add_test_to_group(db: AsyncSession, data: TestGroupTestCreate):
         await db.rollback()
         raise DatabaseException(f"Ошибка при добавлении теста в группу: {str(e)}")
 
+
+# Удаление теста из группы
+async def remove_test_from_group(db: AsyncSession, test_id: int, group_id: int):
+    from sqlalchemy import select
+    from app.models.test_group_test import TestGroupTest
+    try:
+        stmt = select(TestGroupTest).where(
+            TestGroupTest.test_id == test_id,
+            TestGroupTest.test_group_id == group_id
+        )
+        result = await db.execute(stmt)
+        link = result.scalar_one_or_none()
+        if not link:
+            raise NotFoundException("Связь теста с группой не найдена")
+        await db.delete(link)
+        await db.commit()
+        return {"detail": "Тест удалён из группы"}
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при удалении теста из группы: {str(e)}")
+
+
 # Получение тестов по group_id с полной инфой (возврат ORM-объектов для TestWithDetails)
 async def get_tests_by_group_id(db: AsyncSession, group_id: int):
     try:
@@ -111,7 +139,7 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
         group_obj = group_result.scalar_one_or_none()
         stmt = (
             select(
-                Test, Category.name, User.name, Locale.code, 
+                Test, Category.name, User.name, Locale.code,
                 TestStatus.name, TestStatus.name_ru, TestStatus.color
             )
             .join(Category, Test.category_id == Category.id)
@@ -137,4 +165,4 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
             tests.append(test)
         return tests
     except SQLAlchemyError as e:
-        raise DatabaseException(f"Ошибка при получении тестов группы: {str(e)}") 
+        raise DatabaseException(f"Ошибка при получении тестов группы: {str(e)}")

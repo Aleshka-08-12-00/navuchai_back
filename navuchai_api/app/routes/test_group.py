@@ -9,8 +9,24 @@ from app.schemas.test import TestWithDetails
 from app.crud import admin_moderator_required, authorized_required
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions import NotFoundException, DatabaseException
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/test-groups", tags=["Test groups"])
+
+
+class RemoveTestFromGroupBody(BaseModel):
+    test_id: int
+    test_group_id: int
+
+
+@router.delete("/remove-test/")
+async def remove_test_from_group(
+        data: RemoveTestFromGroupBody,
+        db: AsyncSession = Depends(get_db),
+        user=Depends(admin_moderator_required)
+):
+    from app.crud import test_group as crud
+    return await crud.remove_test_from_group(db, data.test_id, data.test_group_id)
 
 
 @router.get("/", response_model=List[TestGroupEnriched])
