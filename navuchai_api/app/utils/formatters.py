@@ -7,6 +7,25 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 from typing import Union, Any, Dict
+from app.models.test_group_test import TestGroupTest
+from app.schemas.test_group import TestGroup as TestGroupSchema
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+import logging
+from app.models.test_group import TestGroup
+
+
+async def get_group_for_test(db: Session, test_id: int):
+    group_links = await db.execute(
+        select(TestGroupTest.test_group_id).where(TestGroupTest.test_id == test_id)
+    )
+    group_ids = group_links.scalars().all()
+    if group_ids:
+        group_objs_result = await db.execute(
+            select(TestGroup).where(TestGroup.id.in_(group_ids))
+        )
+        return group_objs_result.scalars().all()
+    return []
 
 
 def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str, test_answer_view_mode: str) -> Dict[str, Any]:
@@ -169,57 +188,76 @@ def user_to_response_dict(user):
     }
 
 
-def convert_result(result: Result, current_user: Any = None) -> ResultResponse:
-    """Преобразует модель Result в схему ResultResponse"""
-    result_data = result.result.copy() if result.result else {}
-    
-    # Получаем время из result_data или используем completed_at как fallback
-    time_start = None
-    time_end = None
-    
-    if 'time_start' in result_data:
-        try:
-            time_start = datetime.fromisoformat(result_data['time_start'])
-        except (ValueError, TypeError):
+async def convert_result(result: Result, current_user: Any = None, db: Any = None) -> ResultResponse:
+    import traceback
+    try:
+        result_data = result.result.copy() if result.result else {}
+        # Получаем время из result_data или используем completed_at как fallback
+        time_start = None
+        time_end = None
+        if 'time_start' in result_data:
+            try:
+                time_start = datetime.fromisoformat(result_data['time_start'])
+            except (ValueError, TypeError):
+                time_start = result.completed_at
+        if 'time_end' in result_data:
+            try:
+                time_end = datetime.fromisoformat(result_data['time_end'])
+            except (ValueError, TypeError):
+                time_end = result.completed_at
+        if not time_start:
             time_start = result.completed_at
-    
-    if 'time_end' in result_data:
-        try:
-            time_end = datetime.fromisoformat(result_data['time_end'])
-        except (ValueError, TypeError):
+        if not time_end:
             time_end = result.completed_at
-    
-    # Если время не найдено, используем completed_at
-    if not time_start:
-        time_start = result.completed_at
-    if not time_end:
-        time_end = result.completed_at
-    
-    # Удаляем поля времени из result_data, так как они уже обработаны
-    result_data.pop('time_start', None)
-    result_data.pop('time_end', None)
-    
-    # Применяем фильтрацию ответов в зависимости от роли пользователя и настроек теста
-    if current_user and result.test:
-        user_role_code = current_user.role.code if current_user.role else "user"
-        test_answer_view_mode = result.test.answer_view_mode.value if result.test.answer_view_mode else "user_only"
-        result_data = filter_answers_by_view_mode(result_data, user_role_code, test_answer_view_mode)
-    # Если current_user не передан, показываем все ответы (для обратной совместимости)
-    
-    return ResultResponse(
-        id=result.id,
-        user_id=result.user_id,
-        test_id=result.test_id,
-        score=result.score,
-        result=result_data,
-        time_start=time_start,
-        time_end=time_end,
-        completed_at=result.completed_at,
-        created_at=result.created_at,
-        updated_at=result.updated_at,
-        test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
-        user=UserResponse.model_validate(user_to_response_dict(result.user)) if result.user else None,
-    )
+        result_data.pop('time_start', None)
+        result_data.pop('time_end', None)
+        if current_user and result.test:
+            user_role_code = current_user.role.code if current_user.role else "user"
+            test_answer_view_mode = result.test.answer_view_mode.value if result.test.answer_view_mode else "user_only"
+            result_data = filter_answers_by_view_mode(result_data, user_role_code, test_answer_view_mode)
+        groups = None
+        if db and result.test_id:
+            group_objs = await get_group_for_test(db, result.test_id)
+            if group_objs:
+                groups = []
+                for group_obj in group_objs:
+                    group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                                 for k, v in group_obj.__dict__.items()
+                                 if not k.startswith('_')
+                                 and k not in {'status', 'img', 'thumbnail'}
+                                 and not isinstance(v, (dict, list, set, tuple))}
+                    # enrich status
+                    if hasattr(group_obj, 'status') and group_obj.status:
+                        group_dict['status_name'] = group_obj.status.name
+                        group_dict['status_name_ru'] = group_obj.status.name_ru
+                        group_dict['status_color'] = group_obj.status.color
+                    else:
+                        group_dict['status_name'] = None
+                        group_dict['status_name_ru'] = None
+                        group_dict['status_color'] = None
+                    # enrich image/thumbnail
+                    group_dict['image'] = group_obj.img.path if hasattr(group_obj, 'img') and group_obj.img else None
+                    group_dict['thumbnail'] = group_obj.thumbnail.path if hasattr(group_obj, 'thumbnail') and group_obj.thumbnail else None
+                    groups.append(group_dict)
+        return ResultResponse(
+            id=result.id,
+            user_id=result.user_id,
+            test_id=result.test_id,
+            score=result.score,
+            result=result_data,
+            time_start=time_start,
+            time_end=time_end,
+            completed_at=result.completed_at,
+            created_at=result.created_at,
+            updated_at=result.updated_at,
+            test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
+            user=UserResponse.model_validate(user_to_response_dict(result.user)) if result.user else None,
+            groups=groups
+        )
+    except Exception as e:
+        print('EXCEPTION IN CONVERT_RESULT:', e)
+        traceback.print_exc()
+        raise
 
 
 def format_numeric_value(value: Any) -> Union[float, int, Any]:

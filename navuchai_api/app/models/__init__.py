@@ -27,6 +27,8 @@ from .organization import Organization
 from .position import Position
 from .department import Department
 from .course_rating import CourseRating
+from .test_group import TestGroup
+from .test_group_test import TestGroupTest
 from .faq_category import FaqCategory
 from .faq import Faq
 
@@ -59,6 +61,8 @@ __all__ = [
     "Position",
     "Department",
     "CourseRating",
+    "TestGroup",
+    "TestGroupTest",
     "FaqCategory",
     "Faq"
 ]

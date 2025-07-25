@@ -38,7 +38,7 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         new_result = Result(
             test_id=result_data.test_id,
             user_id=result_data.user_id,
-            score=test_results['total_score'],
+            score=test_results['total_score'] if 'total_score' in test_results else None,
             result=test_results
         )
         db.add(new_result)
@@ -241,3 +241,89 @@ async def get_result_answers(db: AsyncSession, result_id: int) -> List[UserAnswe
         return result.scalars().all()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении ответов пользователя: {str(e)}")
+
+
+async def finalize_manual_check_result(db: AsyncSession, result_id: int):
+    """Пересчитывает результат теста после ручной проверки и обновляет запись Result"""
+    try:
+        stmt = (
+            select(Result)
+            .options(selectinload(Result.test))
+            .where(Result.id == result_id)
+        )
+        result_obj = (await db.execute(stmt)).scalar_one_or_none()
+        if not result_obj:
+            raise NotFoundException(f"Результат с ID {result_id} не найден")
+        test = result_obj.test
+        if not test:
+            raise NotFoundException(f"Тест с ID {result_obj.test_id} не найден")
+        checked_answers = result_obj.result.get("checked_answers", [])
+        # Удаляем manual_check_required из корня и check_details
+        result_obj.result.pop("manual_check_required", None)
+        for ans in checked_answers:
+            if "check_details" in ans and isinstance(ans["check_details"], dict):
+                ans["check_details"].pop("manual_check_required", None)
+        # Выставляем score по is_correct
+        for ans in checked_answers:
+            if "is_correct" in ans:
+                settings = ans.get("options", {}).get("settings", {})
+                correct_score = settings.get("correctScore", 1)
+                incorrect_score = settings.get("incorrectScore", 0)
+                ans["score"] = correct_score if ans["is_correct"] else incorrect_score
+        total_score = sum(ans.get("score", 0) for ans in checked_answers)
+        max_possible_score = sum(ans.get("max_score", 0) for ans in checked_answers)
+        percentage = round((total_score / max_possible_score * 100), 1) if max_possible_score > 0 else 0
+        grade_options = test.grade_options or {}
+        scale_type = grade_options.get("scaleType", "percent")
+        scale = grade_options.get("scale", [])
+        sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+        grade_range = None
+        if scale_type == "percent":
+            for gr in sorted_scale:
+                if gr.get("min", 0) <= percentage <= gr.get("max", 100):
+                    grade_range = gr
+                    break
+        elif scale_type == "points":
+            for gr in sorted_scale:
+                if gr.get("min", 0) <= total_score <= gr.get("max", 100):
+                    grade_range = gr
+                    break
+        if grade_range:
+            grade = str(grade_range.get("grade", "2"))
+            color = grade_range.get("color")
+        else:
+            grade = str(scale[-1].get("grade", "2")) if scale else "2"
+            color = scale[-1].get("color") if scale else None
+        def get_pass_status_from_scale(value, grade_options):
+            scale = (grade_options or {}).get("scale", [])
+            sorted_scale = sorted(scale, key=lambda x: x.get("min", 0), reverse=True)
+            for grade_range in sorted_scale:
+                min_val = grade_range.get("min", 0)
+                max_val = grade_range.get("max", 100)
+                if min_val <= value <= max_val:
+                    return grade_range.get("pass", False)
+            return False
+        if scale_type == "percent":
+            is_passed = get_pass_status_from_scale(percentage, grade_options)
+        elif scale_type == "points":
+            is_passed = get_pass_status_from_scale(total_score, grade_options)
+        else:
+            is_passed = percentage >= 60
+        message = "Вы прошли тест" if is_passed else "Недостаточно баллов для прохождения теста"
+        result_obj.result["total_score"] = total_score
+        result_obj.result["max_possible_score"] = max_possible_score
+        result_obj.result["percentage"] = percentage
+        result_obj.result["grade"] = grade
+        result_obj.result["color"] = color
+        result_obj.result["is_passed"] = is_passed
+        result_obj.result["message"] = message
+        result_obj.score = total_score
+        result_obj.updated_at = datetime.utcnow()
+        await db.commit()
+        await db.refresh(result_obj)
+        # Явно подгружаем связанные объекты user и test для сериализации
+        await db.refresh(result_obj, attribute_names=["user", "test"])
+        return result_obj
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при финализации результата: {str(e)}")

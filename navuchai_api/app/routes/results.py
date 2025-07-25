@@ -20,6 +20,7 @@ from app.utils import convert_result
 from app.utils.excel_parser import generate_analytics_excel
 from app.utils.formatters import apply_excel_formatting
 from app.utils.report_generator import generate_result_excel, transliterate_cyrillic
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/results", tags=["Results"])
 
@@ -192,12 +193,10 @@ async def create_test_result(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        # Проверяем, что пользователь создает результат для себя
         if result.user_id != current_user.id:
             raise ForbiddenException("Нельзя создать результат для другого пользователя")
-
         created_result = await result_crud.create_result(db, result)
-        return convert_result(created_result, current_user)
+        return await convert_result(created_result, current_user, db)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при сохранении результата")
 
@@ -210,10 +209,9 @@ async def get_result_by_id(
 ):
     try:
         result = await result_crud.get_result(db, result_id)
-        # Если не админ или модератор — проверяем, что пользователь запрашивает свой результат
         if current_user.role.code not in ["admin", "moderator"] and result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
-        return convert_result(result, current_user)
+        return await convert_result(result, current_user, db)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результата")
 
@@ -225,11 +223,10 @@ async def get_user_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        # Если не админ или модератор — проверяем, что пользователь запрашивает свои результаты
         if current_user.role.code not in ["admin", "moderator"] and user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
         results = await result_crud.get_user_results(db, user_id)
-        return [convert_result(result, current_user) for result in results]
+        return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результатов пользователя")
 
@@ -242,7 +239,7 @@ async def get_test_results(
 ):
     try:
         results = await result_crud.get_test_results(db, test_id)
-        return [convert_result(result, current_user) for result in results]
+        return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результатов теста")
 
@@ -257,7 +254,7 @@ async def get_all_results(
             results = await result_crud.get_all_results(db)
         else:
             results = await result_crud.get_user_results(db, current_user.id)
-        return [convert_result(result, current_user) for result in results]
+        return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка результатов")
 
@@ -287,3 +284,56 @@ async def export_result(
         raise HTTPException(status_code=404, detail=str(e))
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class FinalizeResultBody(BaseModel):
+    result_id: int
+
+@router.post("/finalize/", response_model=ResultResponse)
+async def finalize_result_after_manual_check(
+    body: FinalizeResultBody,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    if current_user.role.code not in ["admin", "moderator"]:
+        raise ForbiddenException("Нет прав для финализации результата после ручной проверки")
+    from app.crud.result import finalize_manual_check_result
+    result = await finalize_manual_check_result(db, body.result_id)
+    return await convert_result(result, current_user, db)
+
+
+class ManualCheckBody(BaseModel):
+    result_id: int
+    question_id: int
+    is_correct: bool
+
+@router.post("/manual_check/", response_model=ResultResponse)
+async def manual_check_answer(
+    body: ManualCheckBody,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    if current_user.role.code not in ["admin", "moderator"]:
+        raise ForbiddenException("Нет прав для ручной проверки ответа")
+    from app.crud.result import get_result
+    result_obj = await get_result(db, body.result_id)
+    checked_answers = result_obj.result.get("checked_answers", [])
+    updated = False
+    for ans in checked_answers:
+        if ans.get("question_id") == body.question_id:
+            ans["is_correct"] = body.is_correct
+            if "check_details" in ans and isinstance(ans["check_details"], dict):
+                ans["check_details"]["message"] = "Вопрос проверен модератором"
+            updated = True
+            break
+    if not updated:
+        raise NotFoundException(f"Вопрос с ID {body.question_id} не найден в результате {body.result_id}")
+    result_obj.result["checked_answers"] = checked_answers
+    from sqlalchemy.ext.mutable import MutableDict
+    if not isinstance(result_obj.result, MutableDict):
+        from sqlalchemy.dialects.postgresql import JSONB
+        from sqlalchemy.ext.mutable import MutableDict
+        result_obj.result = MutableDict(result_obj.result)
+    await db.commit()
+    await db.refresh(result_obj)
+    return await convert_result(result_obj, current_user, db)
