@@ -118,4 +118,14 @@ async def remove_group_member(db: AsyncSession, group_id: int, user_id: int) -> 
         return member
     except SQLAlchemyError as e:
         await db.rollback()
-        raise DatabaseException(f"Ошибка при удалении пользователя из группы: {str(e)}") 
+        raise DatabaseException(f"Ошибка при удалении пользователя из группы: {str(e)}")
+
+
+async def is_user_in_group(db: AsyncSession, group_id: int, user_id: int) -> bool:
+    result = await db.execute(
+        select(UserGroupMember).where(
+            UserGroupMember.group_id == group_id,
+            UserGroupMember.user_id == user_id,
+        )
+    )
+    return result.scalar_one_or_none() is not None

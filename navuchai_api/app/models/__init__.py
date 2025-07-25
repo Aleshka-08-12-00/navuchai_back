@@ -29,6 +29,8 @@ from .department import Department
 from .course_rating import CourseRating
 from .test_group import TestGroup
 from .test_group_test import TestGroupTest
+from .faq_category import FaqCategory
+from .faq import Faq
 
 __all__ = [
     "Base",
@@ -60,6 +62,8 @@ __all__ = [
     "Department",
     "CourseRating",
     "TestGroup",
-    "TestGroupTest"
+    "TestGroupTest",
+    "FaqCategory",
+    "Faq"
 ]
 
