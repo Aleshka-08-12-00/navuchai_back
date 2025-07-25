@@ -217,3 +217,50 @@ async def get_guest_users_by_test_route(
         return [GuestUserResponse(**user) for user in guest_users]
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+class GroupTestGroupAccessBody(BaseModel):
+    test_group_id: int
+    group_id: int
+    status_id: int | None = None
+
+class UserTestGroupAccessBody(BaseModel):
+    test_group_id: int
+    user_id: int
+    status_id: int | None = None
+
+@router.post("/group-test-group/")
+async def add_group_test_group_access(
+    data: GroupTestGroupAccessBody,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.create_group_test_group_access(db, data.test_group_id, data.group_id, data.status_id)
+
+@router.post("/user-test-group/")
+async def add_user_test_group_access(
+    data: UserTestGroupAccessBody,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.create_user_test_group_access(db, data.test_group_id, data.user_id, data.status_id)
+
+@router.delete("/group-test-group/")
+async def delete_group_test_group_access(
+    data: GroupTestGroupAccessBody,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.delete_group_test_group_access(db, data.test_group_id, data.group_id)
+
+@router.delete("/user-test-group/")
+async def delete_user_test_group_access(
+    data: UserTestGroupAccessBody,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.delete_user_test_group_access(db, data.test_group_id, data.user_id)

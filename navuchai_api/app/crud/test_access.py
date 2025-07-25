@@ -577,3 +577,130 @@ async def get_guest_users_by_test(db: AsyncSession, test_id: int) -> list[dict]:
         raise DatabaseException(f"Ошибка при получении списка гостевых пользователей: {str(e)}")
     except Exception as e:
         raise DatabaseException(f"Неожиданная ошибка при получении списка гостевых пользователей: {str(e)}") 
+
+async def create_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int, status_id: int = None):
+    """Создание доступа ко всем тестам группы тестов для группы пользователей"""
+    from app.crud.test_group import get_tests_by_group_id
+    from app.models import UserGroupMember
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        query = select(UserGroupMember).where(UserGroupMember.group_id == group_id)
+        result = await db.execute(query)
+        group_members = result.scalars().all()
+        if not group_members:
+            raise NotFoundException(f"В группе пользователей {group_id} нет пользователей")
+        created_accesses = []
+        for test in tests:
+            for member in group_members:
+                existing_access = await get_test_access(db, test.id, member.user_id)
+                if not existing_access:
+                    test_access_payload = TestAccessCreate(
+                        test_id=test.id,
+                        user_id=member.user_id,
+                        status_id=status_id if status_id is not None else 1
+                    )
+                    access_code = _generate_access_code() if member.user_id else None
+                    db_test_access = TestAccess(
+                        **test_access_payload.model_dump(exclude_none=True),
+                        group_id=group_id,
+                        completed_number=0,
+                        avg_percent=0,
+                        access_code=access_code
+                    )
+                    db.add(db_test_access)
+                    await db.commit()
+                    await db.refresh(db_test_access)
+                    created_accesses.append(db_test_access)
+        return created_accesses
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при создании доступа к группе тестов: {str(e)}")
+
+async def create_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int, status_id: int = None):
+    """Создание доступа ко всем тестам группы тестов для одного пользователя"""
+    from app.crud.test_group import get_tests_by_group_id
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        created_accesses = []
+        for test in tests:
+            existing_access = await get_test_access(db, test.id, user_id)
+            if not existing_access:
+                test_access_payload = TestAccessCreate(
+                    test_id=test.id,
+                    user_id=user_id,
+                    status_id=status_id if status_id is not None else 1
+                )
+                access_code = _generate_access_code() if user_id else None
+                db_test_access = TestAccess(
+                    **test_access_payload.model_dump(exclude_none=True),
+                    completed_number=0,
+                    avg_percent=0,
+                    access_code=access_code
+                )
+                db.add(db_test_access)
+                await db.commit()
+                await db.refresh(db_test_access)
+                created_accesses.append(db_test_access)
+        return created_accesses
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при создании доступа к группе тестов: {str(e)}")
+
+async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int):
+    """Удаление доступа ко всем тестам группы тестов для группы пользователей"""
+    from app.crud.test_group import get_tests_by_group_id
+    from app.models import UserGroupMember
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        query = select(UserGroupMember).where(UserGroupMember.group_id == group_id)
+        result = await db.execute(query)
+        group_members = result.scalars().all()
+        if not group_members:
+            raise NotFoundException(f"В группе пользователей {group_id} нет пользователей")
+        deleted_count = 0
+        for test in tests:
+            for member in group_members:
+                result = await db.execute(
+                    select(TestAccess).where(
+                        TestAccess.test_id == test.id,
+                        TestAccess.user_id == member.user_id
+                    )
+                )
+                access = result.scalar_one_or_none()
+                if access:
+                    await db.delete(access)
+                    deleted_count += 1
+        await db.commit()
+        return {"detail": f"Удалено {deleted_count} доступов"}
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при удалении доступа к группе тестов: {str(e)}")
+
+async def delete_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int):
+    """Удаление доступа ко всем тестам группы тестов для одного пользователя"""
+    from app.crud.test_group import get_tests_by_group_id
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        deleted_count = 0
+        for test in tests:
+            result = await db.execute(
+                select(TestAccess).where(
+                    TestAccess.test_id == test.id,
+                    TestAccess.user_id == user_id
+                )
+            )
+            access = result.scalar_one_or_none()
+            if access:
+                await db.delete(access)
+                deleted_count += 1
+        await db.commit()
+        return {"detail": f"Удалено {deleted_count} доступов"}
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при удалении доступа к группе тестов: {str(e)}") 
