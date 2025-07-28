@@ -704,3 +704,112 @@ async def delete_user_test_group_access(db: AsyncSession, test_group_id: int, us
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при удалении доступа к группе тестов: {str(e)}") 
+
+async def get_test_group_users(db: AsyncSession, test_group_id: int):
+    """Получить список пользователей, у которых есть доступ к группе тестов"""
+    from app.crud.test_group import get_tests_by_group_id
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            return []
+        test_ids = [test.id for test in tests]
+        result = await db.execute(
+            select(TestAccess)
+            .options(selectinload(TestAccess.user).selectinload(User.role))
+            .options(selectinload(TestAccess.status))
+            .where(TestAccess.test_id.in_(test_ids))
+        )
+        test_accesses = result.scalars().all()
+        if not test_accesses:
+            return []
+        users_with_access = []
+        for access in test_accesses:
+            if access.user and access.group_id is None:
+                user_data = {
+                    "user_id": access.user.id,
+                    "email": access.user.email,
+                    "name": access.user.name,
+                    "role_id": access.user.role_id,
+                    "role": {
+                        "name": access.user.role.name if access.user.role else None,
+                        "code": access.user.role.code if access.user.role else None
+                    },
+                    "access_id": access.id,
+                    "test_id": access.test_id,
+                    "group_id": access.group_id,
+                    "start_date": access.start_date,
+                    "end_date": access.end_date,
+                    "status_id": access.status_id,
+                    "status_name": access.status.name if access.status else None,
+                    "is_completed": access.is_completed
+                }
+                users_with_access.append(user_data)
+        return users_with_access
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении списка пользователей: {str(e)}")
+
+async def get_test_group_groups(db: AsyncSession, test_group_id: int):
+    """Получить список групп пользователей, у которых есть доступ к группе тестов"""
+    from app.crud.test_group import get_tests_by_group_id
+    try:
+        tests = await get_tests_by_group_id(db, test_group_id)
+        if not tests:
+            return []
+        test_ids = [test.id for test in tests]
+        result = await db.execute(
+            select(TestAccess.group_id)
+            .where(TestAccess.test_id.in_(test_ids))
+            .where(TestAccess.group_id.isnot(None))
+            .distinct()
+        )
+        group_ids = [row[0] for row in result.all()]
+        if not group_ids:
+            return []
+        groups_with_access = []
+        for group_id in group_ids:
+            group_result = await db.execute(
+                select(UserGroup)
+                .options(selectinload(UserGroup.members).selectinload(UserGroupMember.user).selectinload(User.role))
+                .where(UserGroup.id == group_id)
+            )
+            group = group_result.scalar_one_or_none()
+            if group:
+                users_count_result = await db.execute(
+                    select(func.count())
+                    .select_from(TestAccess)
+                    .where(
+                        TestAccess.test_id.in_(test_ids),
+                        TestAccess.group_id == group_id
+                    )
+                )
+                users_count = users_count_result.scalar_one()
+                members = []
+                for member in group.members:
+                    if member.user:
+                        members.append({
+                            "id": member.id,
+                            "user_id": member.user_id,
+                            "group_id": member.group_id,
+                            "name": member.user.name,
+                            "email": member.user.email,
+                            "username": member.user.username,
+                            "role_id": member.user.role_id,
+                            "role": {
+                                "name": member.user.role.name if member.user.role else None,
+                                "code": member.user.role.code if member.user.role else None
+                            } if member.user.role else None,
+                            "created_at": member.created_at,
+                            "updated_at": member.updated_at
+                        })
+                group_data = {
+                    "group_id": group.id,
+                    "name": group.name,
+                    "description": group.description,
+                    "users_count": users_count,
+                    "created_at": group.created_at,
+                    "members": members
+                }
+                groups_with_access.append(group_data)
+        return groups_with_access
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}") 

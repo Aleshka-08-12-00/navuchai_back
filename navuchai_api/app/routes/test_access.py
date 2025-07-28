@@ -264,3 +264,21 @@ async def delete_user_test_group_access(
 ):
     from app.crud import test_access as crud
     return await crud.delete_user_test_group_access(db, data.test_group_id, data.user_id)
+
+@router.get("/test-group/{test_group_id}/users/")
+async def get_test_group_users(
+    test_group_id: int,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.get_test_group_users(db, test_group_id)
+
+@router.get("/test-group/{test_group_id}/groups/")
+async def get_test_group_groups(
+    test_group_id: int,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(admin_moderator_required)
+):
+    from app.crud import test_access as crud
+    return await crud.get_test_group_groups(db, test_group_id)
