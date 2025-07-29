@@ -41,7 +41,7 @@ router = APIRouter(prefix="/api/files", tags=["Files"])
 @router.post("/upload/", response_model=FileUploadResponse)
 async def upload_file(
         file: UploadFile = File(...),
-        current_user: User = Depends(admin_moderator_required),
+        current_user: User = Depends(authorized_required),
         db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -94,7 +94,7 @@ async def upload_file(
 async def upload_image(
         file: UploadFile = File(...),
         course_id: int | None = Query(default=None, alias="courseId"),
-        current_user: User = Depends(admin_moderator_required),
+        current_user: User = Depends(authorized_required),
         db: AsyncSession = Depends(get_db)
 ):
     try:
