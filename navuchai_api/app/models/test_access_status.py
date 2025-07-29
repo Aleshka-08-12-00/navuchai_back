@@ -15,4 +15,6 @@ class TestAccessStatus(Base):
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
     # Обратная связь с TestAccess
-    test_accesses = relationship("TestAccess", back_populates="status") 
+    test_accesses = relationship("TestAccess", back_populates="status")
+    # Обратная связь с TestGroupAccess
+    test_group_accesses = relationship("TestGroupAccess", back_populates="status") 

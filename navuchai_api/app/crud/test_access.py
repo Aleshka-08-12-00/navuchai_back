@@ -581,6 +581,8 @@ async def get_guest_users_by_test(db: AsyncSession, test_id: int) -> list[dict]:
 async def create_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int, status_id: int = None):
     """Создание доступа ко всем тестам группы тестов для группы пользователей"""
     from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group_access import create_test_group_access
+    from app.schemas.test_group_access import TestGroupAccessCreate
     from app.models import UserGroupMember
     try:
         tests = await get_tests_by_group_id(db, test_group_id)
@@ -591,6 +593,17 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
         group_members = result.scalars().all()
         if not group_members:
             raise NotFoundException(f"В группе пользователей {group_id} нет пользователей")
+        
+        # Создаем записи в таблице test_group_access для каждого пользователя в группе
+        for member in group_members:
+            test_group_access_data = TestGroupAccessCreate(
+                test_group_id=test_group_id,
+                user_id=member.user_id,
+                user_group_id=group_id,
+                status_id=status_id
+            )
+            await create_test_group_access(db, test_group_access_data)
+        
         created_accesses = []
         for test in tests:
             for member in group_members:
@@ -620,10 +633,21 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
 async def create_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int, status_id: int = None):
     """Создание доступа ко всем тестам группы тестов для одного пользователя"""
     from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group_access import create_test_group_access
+    from app.schemas.test_group_access import TestGroupAccessCreate
     try:
         tests = await get_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        
+        # Создаем запись в таблице test_group_access
+        test_group_access_data = TestGroupAccessCreate(
+            test_group_id=test_group_id,
+            user_id=user_id,
+            status_id=status_id
+        )
+        await create_test_group_access(db, test_group_access_data)
+        
         created_accesses = []
         for test in tests:
             existing_access = await get_test_access(db, test.id, user_id)
@@ -651,6 +675,7 @@ async def create_user_test_group_access(db: AsyncSession, test_group_id: int, us
 async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int):
     """Удаление доступа ко всем тестам группы тестов для группы пользователей"""
     from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group_access import delete_test_group_access
     from app.models import UserGroupMember
     try:
         tests = await get_tests_by_group_id(db, test_group_id)
@@ -661,6 +686,11 @@ async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, g
         group_members = result.scalars().all()
         if not group_members:
             raise NotFoundException(f"В группе пользователей {group_id} нет пользователей")
+        
+        # Удаляем записи из таблицы test_group_access для каждого пользователя в группе
+        for member in group_members:
+            await delete_test_group_access(db, test_group_id, member.user_id)
+        
         deleted_count = 0
         for test in tests:
             for member in group_members:
@@ -683,10 +713,15 @@ async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, g
 async def delete_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int):
     """Удаление доступа ко всем тестам группы тестов для одного пользователя"""
     from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group_access import delete_test_group_access
     try:
         tests = await get_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
+        
+        # Удаляем запись из таблицы test_group_access
+        await delete_test_group_access(db, test_group_id, user_id)
+        
         deleted_count = 0
         for test in tests:
             result = await db.execute(

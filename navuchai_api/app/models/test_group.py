@@ -20,4 +20,5 @@ class TestGroup(Base):
     img = relationship('File', foreign_keys=[img_id], lazy='selectin')
     thumbnail = relationship('File', foreign_keys=[thumbnail_id], lazy='selectin')
     status = relationship('TestStatus', foreign_keys=[status_id], lazy='selectin')
-    tests = relationship('TestGroupTest', back_populates='test_group', cascade='all, delete-orphan') 
+    tests = relationship('TestGroupTest', back_populates='test_group', cascade='all, delete-orphan')
+    test_group_accesses = relationship('TestGroupAccess', back_populates='test_group', cascade='all, delete-orphan') 

@@ -32,7 +32,9 @@ async def remove_test_from_group(
 @router.get("/", response_model=List[TestGroupEnriched])
 async def list_test_groups(db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
     try:
-        return await crud.get_test_groups(db)
+        # Получаем роль пользователя
+        user_role_code = user.role.code if user.role else None
+        return await crud.get_test_groups_by_user_access(db, user.id, user_role_code)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка групп")
 
@@ -40,7 +42,9 @@ async def list_test_groups(db: AsyncSession = Depends(get_db), user=Depends(auth
 @router.get("/{group_id}/", response_model=TestGroupEnriched)
 async def get_test_group(group_id: int, db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
     try:
-        group = await crud.get_test_group(db, group_id)
+        # Получаем роль пользователя
+        user_role_code = user.role.code if user.role else None
+        group = await crud.get_test_group_with_access_check(db, group_id, user.id, user_role_code)
         # enrich
         group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                       for k, v in group.__dict__.items()
@@ -110,6 +114,12 @@ async def get_tests_by_group_id(
         user=Depends(authorized_required)
 ):
     try:
+        # Сначала проверяем доступ к группе
+        user_role_code = user.role.code if user.role else None
+        await crud.get_test_group_with_access_check(db, group_id, user.id, user_role_code)
+        # Если доступ есть, возвращаем тесты
         return await crud.get_tests_by_group_id(db, group_id)
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении тестов группы")

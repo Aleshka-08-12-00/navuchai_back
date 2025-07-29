@@ -44,6 +44,52 @@ async def get_test_groups(db: AsyncSession):
         raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}")
 
 
+# Получение списка групп тестов с учетом доступа пользователя
+async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_role_code: str):
+    try:
+        # Для админа и модератора возвращаем все группы
+        if user_role_code in ['admin', 'moderator']:
+            return await get_test_groups(db)
+        
+        # Для обычных пользователей возвращаем только группы, к которым у них есть доступ
+        from app.models.test_group_access import TestGroupAccess
+        
+        stmt = (
+            select(TestGroup)
+            .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+            .where(TestGroupAccess.user_id == user_id)
+            .options(
+                selectinload(TestGroup.status),
+                selectinload(TestGroup.img),
+                selectinload(TestGroup.thumbnail)
+            )
+        )
+        result = await db.execute(stmt)
+        groups = result.scalars().all()
+        
+        enriched = []
+        for group in groups:
+            group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                          for k, v in group.__dict__.items()
+                          if not k.startswith('_')
+                          and k not in {'status', 'img', 'thumbnail'}
+                          and not isinstance(v, (dict, list, set, tuple))}
+            if hasattr(group, 'status') and group.status:
+                group_dict['status_name'] = group.status.name
+                group_dict['status_name_ru'] = group.status.name_ru
+                group_dict['status_color'] = group.status.color
+            else:
+                group_dict['status_name'] = None
+                group_dict['status_name_ru'] = None
+                group_dict['status_color'] = None
+            group_dict['image'] = group.img.path if hasattr(group, 'img') and group.img else None
+            group_dict['thumbnail'] = group.thumbnail.path if hasattr(group, 'thumbnail') and group.thumbnail else None
+            enriched.append(group_dict)
+        return enriched
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении списка групп: {str(e)}")
+
+
 # Получение одной группы
 async def get_test_group(db: AsyncSession, group_id: int):
     try:
@@ -52,6 +98,35 @@ async def get_test_group(db: AsyncSession, group_id: int):
         group = result.scalar_one_or_none()
         if not group:
             raise NotFoundException("Группа не найдена")
+        return group
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении группы: {str(e)}")
+
+
+# Получение одной группы с проверкой доступа пользователя
+async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user_id: int, user_role_code: str):
+    try:
+        # Для админа и модератора разрешаем доступ к любой группе
+        if user_role_code in ['admin', 'moderator']:
+            return await get_test_group(db, group_id)
+        
+        # Для обычных пользователей проверяем наличие доступа
+        from app.models.test_group_access import TestGroupAccess
+        
+        stmt = (
+            select(TestGroup)
+            .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+            .where(
+                TestGroup.id == group_id,
+                TestGroupAccess.user_id == user_id
+            )
+        )
+        result = await db.execute(stmt)
+        group = result.scalar_one_or_none()
+        
+        if not group:
+            raise NotFoundException("Группа не найдена или у вас нет доступа к ней")
+        
         return group
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении группы: {str(e)}")
