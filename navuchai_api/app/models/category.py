@@ -15,3 +15,8 @@ class Category(Base):
 
     # Связь с тестами
     tests = relationship("Test", back_populates="category")
+    accesses = relationship(
+        "CategoryAccess",
+        back_populates="category",
+        cascade="all, delete-orphan",
+    )

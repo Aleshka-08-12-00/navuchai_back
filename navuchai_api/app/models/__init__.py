@@ -27,6 +27,9 @@ from .organization import Organization
 from .position import Position
 from .department import Department
 from .course_rating import CourseRating
+from .faq_category import FaqCategory
+from .faq import Faq
+from .category_access import CategoryAccess
 
 __all__ = [
     "Base",
@@ -52,10 +55,13 @@ __all__ = [
     "CourseTest",
     "ModuleTest",
     "CourseEnrollment",
+    "CategoryAccess",
     "LessonProgress",
     "Organization",
     "Position",
     "Department",
-    "CourseRating"
+    "CourseRating",
+    "FaqCategory",
+    "Faq"
 ]
 

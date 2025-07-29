@@ -85,9 +85,28 @@ def process_test_results(questions: List[Dict[str, Any]], answers: List[UserAnsw
                 "time_end": answer.time_end,
                 "time_seconds": question_time_seconds,
                 "time_limit": question_time_limit,
-                "is_time_exceeded": is_time_exceeded
+                "is_time_exceeded": is_time_exceeded,
+                "answered": True
             })
             total_score += score
+        else:
+            question_type = question.type.code if question.type else "UNKNOWN"
+            checked_answers.append({
+                "question_id": question.id,
+                "question_text": question.text,
+                "question_type": question_type,
+                "max_score": question_data['max_score'],
+                "score": 0,
+                "is_correct": False,
+                "check_details": {"message": "No answer"},
+                "options": question.answers,
+                "time_start": None,
+                "time_end": None,
+                "time_seconds": 0,
+                "time_limit": question.time_limit or 0,
+                "is_time_exceeded": False,
+                "answered": False
+            })
 
     percentage = round((total_score / max_possible_score * 100), 1) if max_possible_score > 0 else 0
 

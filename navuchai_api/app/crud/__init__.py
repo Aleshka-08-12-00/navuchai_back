@@ -25,6 +25,12 @@ from .result import get_analytics_user_performance
 from .analytics import get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
 from .lesson import create_lesson, get_lesson, update_lesson, delete_lesson, get_lessons_by_module, create_lesson_for_module, complete_lesson, get_module_progress, get_course_progress
 from .enrollment import enroll_user, unenroll_user, get_user_courses, user_enrolled
+from .category_access import (
+    grant_category_access,
+    revoke_category_access,
+    get_user_categories,
+    user_has_category_access,
+)
 from .course_test import (
     create_course_test,
     get_course_tests,
@@ -33,3 +39,17 @@ from .course_test import (
 )
 from .module_test import create_module_test, get_module_tests
 from .course_rating import set_course_rating, get_course_avg_rating
+from .faq_category import (
+    create_faq_category,
+    get_faq_category,
+    get_faq_categories,
+    update_faq_category,
+    delete_faq_category,
+)
+from .faq import (
+    create_faq,
+    get_faq,
+    get_faqs,
+    answer_faq,
+    increment_faq_hits,
+)
