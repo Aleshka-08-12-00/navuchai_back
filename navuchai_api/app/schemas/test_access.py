@@ -6,7 +6,8 @@ from pydantic import BaseModel
 class TestAccessBase(BaseModel):
     test_id: int
     user_id: Optional[int] = None
-    group_id: Optional[int] = None
+    user_group_id: Optional[int] = None
+    test_group_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status_id: int
@@ -25,7 +26,7 @@ class TestAccessCreate(BaseModel):
 
 class TestAccessGroupCreate(BaseModel):
     test_id: int
-    group_id: int
+    user_group_id: int
     status_id: Optional[int] = None
 
     class Config:
@@ -36,7 +37,8 @@ class TestAccessResponse(BaseModel):
     id: int
     test_id: int
     user_id: int
-    group_id: Optional[int] = None
+    user_group_id: Optional[int] = None
+    test_group_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status_id: int
@@ -81,6 +83,15 @@ class GuestUserResponse(BaseModel):
     is_completed: bool
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DeleteTestAccessByTestGroupRequest(BaseModel):
+    user_id: int
+    test_id: int
+    test_group_id: int
 
     class Config:
         from_attributes = True 

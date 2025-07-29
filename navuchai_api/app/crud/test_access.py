@@ -112,7 +112,7 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
             access_code = _generate_access_code() if member.user_id else None
             db_test_access = TestAccess(
                 **test_access_payload.model_dump(exclude_none=True),
-                group_id=group_id,
+                user_group_id=group_id,
                 completed_number=0,
                 avg_percent=0,
                 access_code=access_code
@@ -233,6 +233,30 @@ async def get_all_test_accesses(db: AsyncSession):
         raise DatabaseException(f"Ошибка при получении списка доступов: {str(e)}")
 
 
+async def delete_test_access_by_test_group(db: AsyncSession, user_id: int, test_id: int, test_group_id: int):
+    """Удаление доступа к тесту по user_id, test_id и test_group_id"""
+    try:
+        result = await db.execute(
+            select(TestAccess).where(
+                TestAccess.user_id == user_id,
+                TestAccess.test_id == test_id,
+                TestAccess.test_group_id == test_group_id
+            )
+        )
+        test_access = result.scalar_one_or_none()
+        
+        if not test_access:
+            raise NotFoundException(f"Доступ к тесту {test_id} для пользователя {user_id} в группе тестов {test_group_id} не найден")
+        
+        await db.delete(test_access)
+        await db.commit()
+        
+        return {"detail": f"Доступ к тесту {test_id} для пользователя {user_id} в группе тестов {test_group_id} удален"}
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при удалении доступа к тесту: {str(e)}")
+
+
 async def delete_test_access(db: AsyncSession, test_id: int, user_id: int):
     """Удалить доступ пользователя к тесту"""
     try:
@@ -252,7 +276,7 @@ async def delete_group_test_access(db: AsyncSession, test_id: int, group_id: int
         result = await db.execute(
             select(TestAccess).where(
                 TestAccess.test_id == test_id,
-                TestAccess.group_id == group_id
+                TestAccess.user_group_id == group_id
             )
         )
         test_accesses = result.scalars().all()
@@ -284,7 +308,7 @@ async def get_test_users(db: AsyncSession, test_id: int):
             return []
         users_with_access = []
         for access in test_accesses:
-            if access.user and access.group_id is None:
+            if access.user and access.user_group_id is None:
                 user_data = {
                     "user_id": access.user.id,
                     "email": access.user.email,
@@ -295,7 +319,8 @@ async def get_test_users(db: AsyncSession, test_id: int):
                         "code": access.user.role.code if access.user.role else None
                     },
                     "access_id": access.id,
-                    "group_id": access.group_id,
+                    "user_group_id": access.user_group_id,
+                    "test_group_id": access.test_group_id,
                     "start_date": access.start_date,
                     "end_date": access.end_date,
                     "status_id": access.status_id,
@@ -312,9 +337,9 @@ async def get_test_groups(db: AsyncSession, test_id: int):
     """Получить список групп, назначенных на тест"""
     try:
         result = await db.execute(
-            select(TestAccess.group_id)
+            select(TestAccess.user_group_id)
             .where(TestAccess.test_id == test_id)
-            .where(TestAccess.group_id.isnot(None))
+            .where(TestAccess.user_group_id.isnot(None))
             .distinct()
         )
         group_ids = [row[0] for row in result.all()]
@@ -334,7 +359,7 @@ async def get_test_groups(db: AsyncSession, test_id: int):
                     .select_from(TestAccess)
                     .where(
                         TestAccess.test_id == test_id,
-                        TestAccess.group_id == group_id
+                        TestAccess.user_group_id == group_id
                     )
                 )
                 users_count = users_count_result.scalar_one()
@@ -415,13 +440,15 @@ async def get_all_test_users(db: AsyncSession, test_id: int):
                         "code": access.user.role.code if access.user.role else None
                     },
                     "access_id": access.id,
-                    "group_id": access.group_id,
-                    "group_name": access.group.name if access.group else None,
+                    "user_group_id": access.user_group_id,
+                    "test_group_id": access.test_group_id,
+                    "user_group_name": access.user_group.name if access.user_group else None,
+                    "test_group_name": access.test_group.name if access.test_group else None,
                     "start_date": access.start_date,
                     "end_date": access.end_date,
                     "status_id": access.status_id,
                     "status_name": access.status.name if access.status else None,
-                    "access_type": "group" if access.group_id else "individual",
+                    "access_type": "group" if access.user_group_id else "individual",
                     "is_completed": access.is_completed
                 }
                 users_with_access.append(user_data)
@@ -617,7 +644,8 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
                     access_code = _generate_access_code() if member.user_id else None
                     db_test_access = TestAccess(
                         **test_access_payload.model_dump(exclude_none=True),
-                        group_id=group_id,
+                        user_group_id=group_id,
+                        test_group_id=test_group_id,
                         completed_number=0,
                         avg_percent=0,
                         access_code=access_code
@@ -660,6 +688,7 @@ async def create_user_test_group_access(db: AsyncSession, test_group_id: int, us
                 access_code = _generate_access_code() if user_id else None
                 db_test_access = TestAccess(
                     **test_access_payload.model_dump(exclude_none=True),
+                    test_group_id=test_group_id,
                     completed_number=0,
                     avg_percent=0,
                     access_code=access_code
@@ -760,7 +789,7 @@ async def get_test_group_users(db: AsyncSession, test_group_id: int):
             return []
         users_with_access = []
         for access in test_accesses:
-            if access.user and access.group_id is None:
+            if access.user and access.user_group_id is None:
                 user_data = {
                     "user_id": access.user.id,
                     "email": access.user.email,
@@ -773,7 +802,8 @@ async def get_test_group_users(db: AsyncSession, test_group_id: int):
                     "access_id": access.id,
                     "test_id": access.test_id,
                     "test_name": access.test.title if access.test else None,
-                    "group_id": access.group_id,
+                    "user_group_id": access.user_group_id,
+                    "test_group_id": access.test_group_id,
                     "start_date": access.start_date,
                     "end_date": access.end_date,
                     "status_id": access.status_id,
@@ -794,9 +824,9 @@ async def get_test_group_groups(db: AsyncSession, test_group_id: int):
             return []
         test_ids = [test.id for test in tests]
         result = await db.execute(
-            select(TestAccess.group_id)
+            select(TestAccess.user_group_id)
             .where(TestAccess.test_id.in_(test_ids))
-            .where(TestAccess.group_id.isnot(None))
+            .where(TestAccess.user_group_id.isnot(None))
             .distinct()
         )
         group_ids = [row[0] for row in result.all()]
@@ -816,7 +846,7 @@ async def get_test_group_groups(db: AsyncSession, test_group_id: int):
                     .select_from(TestAccess)
                     .where(
                         TestAccess.test_id.in_(test_ids),
-                        TestAccess.group_id == group_id
+                        TestAccess.user_group_id == group_id
                     )
                 )
                 users_count = users_count_result.scalar_one()

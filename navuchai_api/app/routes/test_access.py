@@ -8,7 +8,7 @@ from app.dependencies import get_db
 from app.crud import admin_moderator_required
 from app.crud import test_access as crud
 from app.models.user import User
-from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate, GuestTestAccessCreate, GuestTestAccessResponse, GuestUserResponse
+from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate, GuestTestAccessCreate, GuestTestAccessResponse, GuestUserResponse, DeleteTestAccessByTestGroupRequest
 from app.schemas.test import TestResponse
 from app.exceptions import DatabaseException, NotFoundException
 
@@ -46,7 +46,7 @@ async def create_group_test_access(
         return await crud.create_group_test_access(
             db=db,
             test_id=data.test_id,
-            group_id=data.group_id,
+            group_id=data.user_group_id,
             status_id=data.status_id
         )
     except (DatabaseException, NotFoundException) as e:
@@ -109,6 +109,19 @@ async def delete_user_test_access(
     """Удалить доступ пользователя к тесту"""
     try:
         return await crud.delete_test_access(db, test_id, user_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/user-test-group-access/")
+async def delete_user_test_access_by_test_group(
+        data: DeleteTestAccessByTestGroupRequest,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(admin_moderator_required)
+):
+    """Удаление доступа к тесту по user_id, test_id и test_group_id"""
+    try:
+        return await crud.delete_test_access_by_test_group(db, data.user_id, data.test_id, data.test_group_id)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -221,7 +234,7 @@ async def get_guest_users_by_test_route(
 
 class GroupTestGroupAccessBody(BaseModel):
     test_group_id: int
-    group_id: int
+    group_id: int  # Это user_group_id
     status_id: int | None = None
 
 class UserTestGroupAccessBody(BaseModel):

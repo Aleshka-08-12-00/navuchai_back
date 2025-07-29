@@ -15,5 +15,5 @@ class UserGroup(Base):
 
     creator = relationship("User", back_populates="created_groups")
     members = relationship("UserGroupMember", back_populates="group", cascade="all, delete-orphan")
-    test_accesses = relationship("TestAccess", back_populates="group", cascade="all, delete-orphan")
+    test_accesses = relationship("TestAccess", back_populates="user_group", cascade="all, delete-orphan")
     test_group_accesses = relationship("TestGroupAccess", back_populates="user_group", cascade="all, delete-orphan") 

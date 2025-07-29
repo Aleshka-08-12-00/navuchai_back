@@ -11,7 +11,8 @@ class TestAccess(Base):
     id = Column(Integer, primary_key=True, index=True)
     test_id = Column(Integer, ForeignKey("test.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    group_id = Column(Integer, ForeignKey("user_group.id", ondelete="CASCADE"))
+    user_group_id = Column(Integer, ForeignKey("user_group.id", ondelete="CASCADE"))
+    test_group_id = Column(Integer, ForeignKey("test_group.id", ondelete="CASCADE"))
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     status_id = Column(Integer, ForeignKey("test_access_status.id"), nullable=False, default=1, server_default="1")
@@ -24,5 +25,6 @@ class TestAccess(Base):
 
     test = relationship("Test", back_populates="test_accesses")
     user = relationship("User", back_populates="test_accesses")
-    group = relationship("UserGroup", back_populates="test_accesses")
+    user_group = relationship("UserGroup", back_populates="test_accesses")
+    test_group = relationship("TestGroup", back_populates="test_accesses")
     status = relationship("TestAccessStatus", back_populates="test_accesses") 

@@ -9,3 +9,4 @@ from .module_test import ModuleTestBase, ModuleTestCreate
 from .faq import FaqCreate, FaqAnswerUpdate, FaqInDB
 from .faq_category import FaqCategoryCreate, FaqCategoryUpdate, FaqCategoryInDB
 from .test_group_access import TestGroupAccessCreate, TestGroupAccessUpdate, TestGroupAccessResponse
+from .test_access import DeleteTestAccessByTestGroupRequest
