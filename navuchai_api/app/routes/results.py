@@ -60,20 +60,20 @@ async def export_results_excel(
     try:
         # Получаем аналитические данные из представления analytics_user_performance
         analytics_data = await get_analytics_data_by_view(db, 'analytics_user_performance')
-        
+
         # Создаем DataFrame из аналитических данных
         df = pd.DataFrame(analytics_data)
-        
+
         # Очищаем datetime колонки от часовых поясов
         df = clean_datetime_columns(df)
-        
+
         # Получаем маппинг колонок для переименования
         column_mapping = get_column_mapping('analytics_user_performance')
-        
+
         # Переименовываем колонки для лучшей читаемости в Excel
         if column_mapping:
             df = df.rename(columns=column_mapping)
-        
+
         # Принудительно приводим все потенциально числовые колонки к float, кроме дат и времени
         numeric_keywords = [
             'процент', 'percent', 'балл', 'score', 'total', 'всего', 'дней', 'попыт', 'attempt',
@@ -83,23 +83,24 @@ async def export_results_excel(
         exclude_keywords = ['дата', 'date', 'время', 'time']
         for col in df.columns:
             col_lower = str(col).lower()
-            if any(keyword in col_lower for keyword in numeric_keywords) and not any(ex in col_lower for ex in exclude_keywords):
+            if any(keyword in col_lower for keyword in numeric_keywords) and not any(
+                    ex in col_lower for ex in exclude_keywords):
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-        
+
         # Применяем форматирование для Excel (округляем до сотых, заменяем 0E-20 на 0)
         df = apply_excel_formatting(df)
-        
+
         # Создаем Excel файл
         output = BytesIO()
         sheet_name = get_sheet_name('analytics_user_performance')
         filename = get_filename('analytics_user_performance')
-        
+
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name=sheet_name, index=False)
-            
+
             # Получаем рабочий лист для форматирования
             worksheet = writer.sheets[sheet_name]
-            
+
             # Автоматически подгоняем ширину колонок
             for column in worksheet.columns:
                 max_length = 0
@@ -112,7 +113,7 @@ async def export_results_excel(
                         pass
                 adjusted_width = min(max_length + 2, 50)  # Ограничиваем максимальную ширину
                 worksheet.column_dimensions[column_letter].width = adjusted_width
-        
+
         output.seek(0)
         return StreamingResponse(
             output,
@@ -156,7 +157,8 @@ async def export_analytics_excel(
         exclude_keywords = ['дата', 'date', 'время', 'time']
         for col in df.columns:
             col_lower = str(col).lower()
-            if any(keyword in col_lower for keyword in numeric_keywords) and not any(ex in col_lower for ex in exclude_keywords):
+            if any(keyword in col_lower for keyword in numeric_keywords) and not any(
+                    ex in col_lower for ex in exclude_keywords):
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         df = apply_excel_formatting(df)
         output = BytesIO()
@@ -261,9 +263,9 @@ async def get_all_results(
 
 @router.get("/{result_id}/export/")
 async def export_result(
-    result_id: int,
-    current_user: User = Depends(authorized_required),
-    db: AsyncSession = Depends(get_db)
+        result_id: int,
+        current_user: User = Depends(authorized_required),
+        db: AsyncSession = Depends(get_db)
 ):
     """Экспорт результата теста только в Excel формате (без параметра format)"""
     try:
@@ -289,11 +291,12 @@ async def export_result(
 class FinalizeResultBody(BaseModel):
     result_id: int
 
+
 @router.post("/finalize/", response_model=ResultResponse)
 async def finalize_result_after_manual_check(
-    body: FinalizeResultBody,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        body: FinalizeResultBody,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     if current_user.role.code not in ["admin", "moderator"]:
         raise ForbiddenException("Нет прав для финализации результата после ручной проверки")
@@ -306,12 +309,14 @@ class ManualCheckBody(BaseModel):
     result_id: int
     question_id: int
     is_correct: bool
+    moderator_message: str = None
+
 
 @router.post("/manual_check/", response_model=ResultResponse)
 async def manual_check_answer(
-    body: ManualCheckBody,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(authorized_required)
+        body: ManualCheckBody,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
 ):
     if current_user.role.code not in ["admin", "moderator"]:
         raise ForbiddenException("Нет прав для ручной проверки ответа")
@@ -323,6 +328,9 @@ async def manual_check_answer(
         if ans.get("question_id") == body.question_id:
             ans["is_correct"] = body.is_correct
             if "check_details" in ans and isinstance(ans["check_details"], dict):
+                # Сохраняем сообщение модератора в отдельное поле
+                if body.moderator_message:
+                    ans["check_details"]["moderator_message"] = body.moderator_message
                 ans["check_details"]["message"] = "Вопрос проверен модератором"
             updated = True
             break
