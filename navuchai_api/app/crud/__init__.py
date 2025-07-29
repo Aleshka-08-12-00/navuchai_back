@@ -67,6 +67,7 @@ from .test_group_access import (
 )
 from .test_group import (
     get_test_groups,
+    get_active_test_groups,
     get_test_groups_by_user_access,
     get_test_group,
     get_test_group_with_access_check,
