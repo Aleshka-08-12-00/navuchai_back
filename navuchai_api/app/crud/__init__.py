@@ -105,3 +105,11 @@ from .test_group import (
     remove_test_from_group,
     get_tests_by_group_id,
 )
+from .category import (
+    create_category,
+    get_category,
+    get_categories,
+    get_categories_by_test_group,
+    update_category,
+    delete_category,
+)

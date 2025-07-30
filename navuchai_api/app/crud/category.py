@@ -53,4 +53,24 @@ async def delete_category(db: AsyncSession, category_id: int) -> None:
         await db.commit()
     except SQLAlchemyError as e:
         await db.rollback()
-        raise DatabaseException(f"Ошибка при удалении категории: {str(e)}") 
+        raise DatabaseException(f"Ошибка при удалении категории: {str(e)}")
+
+
+async def get_categories_by_test_group(db: AsyncSession, test_group_id: int) -> list[Category]:
+    """Получение категорий, которые используются в тестах конкретной группы тестов"""
+    try:
+        from app.models.test_group_test import TestGroupTest
+        from app.models.test import Test
+        
+        # Получаем категории через связь: TestGroup -> TestGroupTest -> Test -> Category
+        result = await db.execute(
+            select(Category)
+            .distinct()
+            .join(Test, Category.id == Test.category_id)
+            .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+            .where(TestGroupTest.test_group_id == test_group_id)
+        )
+        categories = result.scalars().all()
+        return categories
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении категорий по группе тестов: {str(e)}") 
