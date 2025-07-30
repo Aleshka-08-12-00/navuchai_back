@@ -79,7 +79,7 @@ async def get_test_by_id(db: AsyncSession, test_id: int):
 # Создание нового теста
 async def create_test(db: AsyncSession, test: TestCreate) -> Test:
     """
-    Создает новый тест
+    Создает новый тест и автоматически добавляет его в общую группу (ID: 25)
     """
     try:
         new_test = Test(
@@ -103,6 +103,21 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
         db.add(new_test)
         await db.commit()
         await db.refresh(new_test)
+        
+        # Автоматически добавляем тест в общую группу (ID: 25)
+        try:
+            from app.schemas.test_group_test import TestGroupTestCreate
+            from app.crud.test_group import add_test_to_group
+            
+            test_group_data = TestGroupTestCreate(
+                test_group_id=25,
+                test_id=new_test.id
+            )
+            await add_test_to_group(db, test_group_data)
+        except Exception as e:
+            # Если не удалось добавить в группу, логируем ошибку, но не прерываем создание теста
+            print(f"Предупреждение: не удалось добавить тест {new_test.id} в общую группу: {str(e)}")
+        
         return new_test
     except SQLAlchemyError as e:
         await db.rollback()
