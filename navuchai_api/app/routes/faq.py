@@ -8,6 +8,7 @@ from app.crud import (
     get_faqs,
     answer_faq,
     increment_faq_hits,
+    get_new_answers_count,
     admin_moderator_required,
     authorized_required,
     get_current_user,
@@ -85,6 +86,10 @@ async def get_faq_route(
         ):
             raise HTTPException(status_code=403, detail="Нет доступа к вопросу")
         await increment_faq_hits(db, faq_id)
+        if faq.owner_id == user.id and faq.has_new_answer:
+            faq.has_new_answer = False
+            await db.commit()
+            await db.refresh(faq)
         return faq
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении вопроса FAQ")
@@ -98,7 +103,18 @@ async def answer_faq_route(
     user: User = Depends(admin_moderator_required),
 ):
     try:
-        return await answer_faq(db, faq_id, data)
+        return await answer_faq(db, faq_id, data, user.id)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при обновлении вопроса FAQ")
+
+
+@router.get("/new-answers/count/", response_model=int)
+async def new_answers_count_route(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    try:
+        return await get_new_answers_count(db, user.id)
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении количества новых ответов")
 

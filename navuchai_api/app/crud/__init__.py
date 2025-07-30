@@ -46,6 +46,7 @@ from .faq import (
     get_faqs,
     answer_faq,
     increment_faq_hits,
+    get_new_answers_count,
 )
 from .user_group import (
     create_group,
