@@ -9,6 +9,9 @@ class FaqBase(BaseModel):
     question: str | None = None
     date: datetime
     answer: str | None = None
+    answered_at: datetime | None = None
+    answer_author_id: int | None = None
+    has_new_answer: bool
     hits: int
     active: bool
     owner_id: int

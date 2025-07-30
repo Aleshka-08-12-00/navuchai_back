@@ -3,6 +3,8 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import update as sql_update
 
+from datetime import datetime
+from sqlalchemy import func
 from app.models import Faq
 from app.schemas.faq import FaqCreate, FaqAnswerUpdate
 from app.exceptions import DatabaseException, NotFoundException
@@ -47,10 +49,13 @@ async def get_faqs(db: AsyncSession, category_id: int | None = None) -> list[Faq
         raise DatabaseException(f"Ошибка при получении вопросов FAQ: {str(e)}")
 
 
-async def answer_faq(db: AsyncSession, faq_id: int, data: FaqAnswerUpdate) -> Faq:
+async def answer_faq(db: AsyncSession, faq_id: int, data: FaqAnswerUpdate, author_id: int) -> Faq:
     obj = await get_faq(db, faq_id)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(obj, field, value)
+    obj.answered_at = datetime.utcnow()
+    obj.answer_author_id = author_id
+    obj.has_new_answer = True
     try:
         await db.commit()
         await db.refresh(obj)
@@ -66,4 +71,16 @@ async def increment_faq_hits(db: AsyncSession, faq_id: int) -> None:
         await db.commit()
     except SQLAlchemyError:
         await db.rollback()
+
+
+async def get_new_answers_count(db: AsyncSession, user_id: int) -> int:
+    try:
+        res = await db.execute(
+            select(func.count()).select_from(Faq).where(
+                Faq.owner_id == user_id, Faq.has_new_answer == True
+            )
+        )
+        return res.scalar_one()
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении количества новых ответов: {str(e)}")
 
