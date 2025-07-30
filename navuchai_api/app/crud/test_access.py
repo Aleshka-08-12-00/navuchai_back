@@ -213,7 +213,8 @@ async def get_all_test_accesses(db: AsyncSession):
                 "id": access.id,
                 "test_id": access.test_id,
                 "user_id": access.user_id,
-                "group_id": access.group_id,
+                "user_group_id": access.user_group_id,
+                "test_group_id": access.test_group_id,
                 "start_date": access.start_date,
                 "end_date": access.end_date,
                 "status_id": access.status_id,
@@ -421,7 +422,7 @@ async def get_all_test_users(db: AsyncSession, test_id: int):
             select(TestAccess)
             .options(selectinload(TestAccess.user).selectinload(User.role))
             .options(selectinload(TestAccess.status))
-            .options(selectinload(TestAccess.group))
+            .options(selectinload(TestAccess.user_group))
             .where(TestAccess.test_id == test_id)
         )
         test_accesses = result.scalars().all()
