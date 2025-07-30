@@ -59,9 +59,9 @@ async def update_group(db: AsyncSession, group_id: int, group_data: UserGroupUpd
 async def delete_group(db: AsyncSession, group_id: int) -> UserGroup:
     try:
         group = await get_group(db, group_id)
-        # Удаляем все доступы по group_id
+        # Удаляем все доступы по user_group_id
         await db.execute(
-            TestAccess.__table__.delete().where(TestAccess.group_id == group_id)
+            TestAccess.__table__.delete().where(TestAccess.user_group_id == group_id)
         )
         await db.delete(group)
         await db.commit()
@@ -107,10 +107,10 @@ async def remove_group_member(db: AsyncSession, group_id: int, user_id: int) -> 
         member = result.scalar_one_or_none()
         if not member:
             raise NotFoundException("Пользователь не найден в группе")
-        # Удаляем все доступы по group_id и user_id
+        # Удаляем все доступы по user_group_id и user_id
         await db.execute(
             TestAccess.__table__.delete().where(
-                (TestAccess.group_id == group_id) & (TestAccess.user_id == user_id)
+                (TestAccess.user_group_id == group_id) & (TestAccess.user_id == user_id)
             )
         )
         await db.delete(member)
