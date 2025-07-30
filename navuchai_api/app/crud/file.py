@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.future import select
 
 from app.models import File
 from app.schemas.file import FileCreate
-from app.exceptions import DatabaseException
+from app.exceptions import DatabaseException, NotFoundException
 
 
 async def create_file(db: AsyncSession, file_data: FileCreate) -> File:
@@ -28,4 +29,29 @@ async def create_file(db: AsyncSession, file_data: FileCreate) -> File:
         return db_file
     except SQLAlchemyError as e:
         await db.rollback()
-        raise DatabaseException(f"Ошибка при создании записи о файле: {str(e)}") 
+        raise DatabaseException(f"Ошибка при создании записи о файле: {str(e)}")
+
+
+async def get_file(db: AsyncSession, file_id: int) -> File:
+    """
+    Получение файла по ID
+    
+    Args:
+        db: Сессия базы данных
+        file_id: ID файла
+        
+    Returns:
+        File: Найденный файл
+        
+    Raises:
+        NotFoundException: Если файл не найден
+        DatabaseException: При ошибке получения файла
+    """
+    try:
+        result = await db.execute(select(File).where(File.id == file_id))
+        file = result.scalar_one_or_none()
+        if not file:
+            raise NotFoundException(f"Файл с ID {file_id} не найден")
+        return file
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении файла: {str(e)}") 

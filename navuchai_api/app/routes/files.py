@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.dependencies import get_db
 from app.models import User
 from app.crud import admin_moderator_required, update_course_images, authorized_required
-from app.exceptions import DatabaseException
+from app.exceptions import DatabaseException, NotFoundException
 from app.schemas.file import FileUploadResponse, FileCreate, FileUploadWithMobileResponse
 from app.crud import file as file_crud
 from app.config import (
@@ -303,7 +303,7 @@ async def upload_avatar(
         raise DatabaseException(f"Неожиданная ошибка при загрузке файла: {str(e)}")
 
 
-@router.delete("/delete-avatar/", status_code=204)
+@router.delete("/delete-avatar/", response_model=FileUploadWithMobileResponse)
 async def delete_avatar(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)
@@ -313,11 +313,49 @@ async def delete_avatar(
         user = user_result.scalar_one_or_none()
         if not user:
             raise DatabaseException("Пользователь не найден")
+        
+        # Устанавливаем дефолтные аватары
         user.img_id = 174
         user.thumbnail_id = 175
         await db.commit()
         await db.refresh(user)
-        return
+        
+        # Получаем информацию о дефолтных файлах
+        from app.crud.file import get_file
+        
+        original_file = await get_file(db, 174)
+        mobile_file = await get_file(db, 175)
+        
+        # Формируем ответ в том же формате, что и при загрузке аватара
+        original_response = FileUploadResponse(
+            success=True,
+            id=original_file.id,
+            filename=original_file.name,
+            content_type=original_file.type,
+            size=original_file.size,
+            url=original_file.path,
+            uploaded_at=original_file.created_at,
+            message="Дефолтный аватар установлен"
+        )
+        
+        mobile_response = FileUploadResponse(
+            success=True,
+            id=mobile_file.id,
+            filename=mobile_file.name,
+            content_type=mobile_file.type,
+            size=mobile_file.size,
+            url=mobile_file.path,
+            uploaded_at=mobile_file.created_at,
+            message="Дефолтная миниатюра установлена"
+        )
+        
+        return FileUploadWithMobileResponse(
+            original=original_response,
+            mobile=mobile_response
+        )
+    except (DatabaseException, NotFoundException) as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при удалении аватарки: {str(e)}")
