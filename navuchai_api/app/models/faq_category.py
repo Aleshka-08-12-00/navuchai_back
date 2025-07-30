@@ -10,5 +10,5 @@ class FaqCategory(Base):
     user_group_id = Column(Integer, ForeignKey('user_group.id'), nullable=True)
     express = Column(Boolean, nullable=True, default=False)
 
-    faqs = relationship('Faq', back_populates='category')
+    faqs = relationship('Faq', back_populates='category', cascade='all, delete-orphan')
     user_group = relationship('UserGroup')
