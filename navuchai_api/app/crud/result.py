@@ -38,6 +38,7 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         new_result = Result(
             test_id=result_data.test_id,
             user_id=result_data.user_id,
+            test_group_id=result_data.test_group_id,
             score=test_results['total_score'] if 'total_score' in test_results else None,
             result=test_results
         )
@@ -89,6 +90,7 @@ async def get_result(db: AsyncSession, result_id: int):
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
+                selectinload(Result.test_group),
                 selectinload(Result.user).selectinload(User.organization),
                 selectinload(Result.user).selectinload(User.position),
                 selectinload(Result.user).selectinload(User.department),
@@ -114,6 +116,7 @@ async def get_user_results(db: AsyncSession, user_id: int) -> List[Result]:
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
+                selectinload(Result.test_group),
                 selectinload(Result.user).selectinload(User.organization),
                 selectinload(Result.user).selectinload(User.position),
                 selectinload(Result.user).selectinload(User.department),
@@ -135,6 +138,7 @@ async def get_test_results(db: AsyncSession, test_id: int):
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
+                selectinload(Result.test_group),
                 selectinload(Result.user).selectinload(User.organization),
                 selectinload(Result.user).selectinload(User.position),
                 selectinload(Result.user).selectinload(User.department),
@@ -158,6 +162,7 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
             .options(
                 selectinload(Result.user_answers),
                 selectinload(Result.test),
+                selectinload(Result.test_group),
                 selectinload(Result.user).selectinload(User.organization),
                 selectinload(Result.user).selectinload(User.position),
                 selectinload(Result.user).selectinload(User.department),
@@ -171,6 +176,31 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при получении списка результатов: {str(e)}")
+
+
+async def get_test_group_results(db: AsyncSession, test_group_id: int):
+    """Получение всех результатов по группе тестов"""
+    try:
+        stmt = (
+            select(Result)
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.test_group),
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
+            )
+            .where(Result.test_group_id == test_group_id)
+            .order_by(Result.created_at.desc())
+        )
+        result = await db.execute(stmt)
+        results = result.scalars().all()
+        return results
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при получении результатов группы тестов: {str(e)}")
 
 
 async def get_analytics_user_performance(db: AsyncSession) -> List[dict]:

@@ -22,4 +22,5 @@ class TestGroup(Base):
     status = relationship('TestStatus', foreign_keys=[status_id], lazy='selectin')
     tests = relationship('TestGroupTest', back_populates='test_group', cascade='all, delete-orphan')
     test_group_accesses = relationship('TestGroupAccess', back_populates='test_group', cascade='all, delete-orphan')
-    test_accesses = relationship('TestAccess', back_populates='test_group', cascade='all, delete-orphan') 
+    test_accesses = relationship('TestAccess', back_populates='test_group', cascade='all, delete-orphan')
+    results = relationship('Result', back_populates='test_group', cascade='all, delete-orphan') 

@@ -239,10 +239,30 @@ async def convert_result(result: Result, current_user: Any = None, db: Any = Non
                     group_dict['image'] = group_obj.img.path if hasattr(group_obj, 'img') and group_obj.img else None
                     group_dict['thumbnail'] = group_obj.thumbnail.path if hasattr(group_obj, 'thumbnail') and group_obj.thumbnail else None
                     groups.append(group_dict)
+        # Подготавливаем данные test_group
+        test_group_data = None
+        if result.test_group:
+            test_group_data = {
+                'id': result.test_group.id,
+                'name': result.test_group.name,
+                'description': result.test_group.description,
+                'date_start': result.test_group.date_start,
+                'date_end': result.test_group.date_end,
+                'time_limit': result.test_group.time_limit,
+                'created_at': result.test_group.created_at,
+                'updated_at': result.test_group.updated_at,
+                'status_name': result.test_group.status.name if result.test_group.status else None,
+                'status_name_ru': result.test_group.status.name_ru if result.test_group.status else None,
+                'status_color': result.test_group.status.color if result.test_group.status else None,
+                'image': result.test_group.img.path if result.test_group.img else None,
+                'thumbnail': result.test_group.thumbnail.path if result.test_group.thumbnail else None
+            }
+        
         return ResultResponse(
             id=result.id,
             user_id=result.user_id,
             test_id=result.test_id,
+            test_group_id=result.test_group_id,
             score=result.score,
             result=result_data,
             time_start=time_start,
@@ -252,6 +272,7 @@ async def convert_result(result: Result, current_user: Any = None, db: Any = Non
             updated_at=result.updated_at,
             test=TestResponse.model_validate(result.test, from_attributes=True) if result.test else None,
             user=UserResponse.model_validate(user_to_response_dict(result.user)) if result.user else None,
+            test_group=test_group_data,
             groups=groups
         )
     except Exception as e:
