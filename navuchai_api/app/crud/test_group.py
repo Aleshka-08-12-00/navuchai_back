@@ -8,6 +8,7 @@ from app.schemas.test_group import TestGroupCreate, TestGroupUpdate
 from app.schemas.test_group_test import TestGroupTestCreate
 from app.exceptions import DatabaseException, NotFoundException
 from app.models import Test, Category, User, Locale, TestStatus
+from app.models.test_group_access import TestGroupAccess
 from app.utils import format_test_with_names
 
 
@@ -47,7 +48,6 @@ async def get_test_groups(db: AsyncSession):
 # Получение списка всех активных групп
 async def get_active_test_groups(db: AsyncSession):
     try:
-        from app.models.test_status import TestStatus
         
         stmt = (
             select(TestGroup)
@@ -92,8 +92,6 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
             return await get_test_groups(db)
         
         # Для обычных пользователей возвращаем только группы, к которым у них есть доступ И со статусом active
-        from app.models.test_group_access import TestGroupAccess
-        from app.models.test_status import TestStatus
         
         stmt = (
             select(TestGroup)
@@ -156,8 +154,6 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
             return await get_test_group(db, group_id)
         
         # Для обычных пользователей проверяем наличие доступа И статус active
-        from app.models.test_group_access import TestGroupAccess
-        from app.models.test_status import TestStatus
         
         stmt = (
             select(TestGroup)
@@ -289,3 +285,124 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
         return tests
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении тестов группы: {str(e)}")
+
+
+# Получение групп тестов с категориями и тестами в древовидной структуре
+async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_role_code: str):
+    try:
+        from sqlalchemy import func
+        
+        # Базовый запрос для получения групп с учетом доступа
+        if user_role_code in ['admin', 'moderator']:
+            # Для админа и модератора - все группы
+            group_stmt = (
+                select(TestGroup)
+                .options(
+                    selectinload(TestGroup.status),
+                    selectinload(TestGroup.img),
+                    selectinload(TestGroup.thumbnail)
+                )
+            )
+        else:
+            # Для обычных пользователей - только доступные группы со статусом active
+            
+            group_stmt = (
+                select(TestGroup)
+                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                .where(
+                    TestGroupAccess.user_id == user_id,
+                    TestStatus.code == 'active'
+                )
+                .options(
+                    selectinload(TestGroup.status),
+                    selectinload(TestGroup.img),
+                    selectinload(TestGroup.thumbnail)
+                )
+            )
+        
+        result = await db.execute(group_stmt)
+        groups = result.scalars().all()
+        
+        # Для каждой группы получаем тесты, сгруппированные по категориям
+        result_groups = []
+        
+        for group in groups:
+            # Получаем тесты для группы
+            tests_stmt = (
+                select(
+                    Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                    TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                    TestStatus.color.label('status_color')
+                )
+                .join(Category, Test.category_id == Category.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                .where(TestGroupTest.test_group_id == group.id)
+                .options(selectinload(Test.image), selectinload(Test.thumbnail))
+            )
+            
+            tests_result = await db.execute(tests_stmt)
+            tests_data = tests_result.all()
+            
+            # Группируем тесты по категориям
+            categories_dict = {}
+            total_tests_count = 0
+            
+            for test, category_id, category_name, status_name, status_name_ru, status_color in tests_data:
+                if category_id not in categories_dict:
+                    categories_dict[category_id] = {
+                        'id': category_id,
+                        'name': category_name,
+                        'tests': [],
+                        'tests_count': 0
+                    }
+                
+                # Формируем объект теста
+                test_dict = {
+                    'id': test.id,
+                    'title': test.title,
+                    'description': test.description,
+                    'time_limit': test.time_limit,
+                    'avg_percent': test.avg_percent,
+                    'completed_number': test.completed_number,
+                    'access_timestamp': test.access_timestamp,
+                    'frozen': test.frozen,
+                    'created_at': test.created_at,
+                    'updated_at': test.updated_at,
+                    'image': test.image.path if test.image else None,
+                    'thumbnail': test.thumbnail.path if test.thumbnail else None,
+                    'status_name': status_name,
+                    'status_name_ru': status_name_ru,
+                    'status_color': status_color
+                }
+                
+                categories_dict[category_id]['tests'].append(test_dict)
+                categories_dict[category_id]['tests_count'] += 1
+                total_tests_count += 1
+            
+            # Формируем объект группы
+            group_dict = {
+                'id': group.id,
+                'name': group.name,
+                'description': group.description,
+                'date_start': group.date_start,
+                'date_end': group.date_end,
+                'time_limit': group.time_limit,
+                'created_at': group.created_at,
+                'updated_at': group.updated_at,
+                'status_name': group.status.name if group.status else None,
+                'status_name_ru': group.status.name_ru if group.status else None,
+                'status_color': group.status.color if group.status else None,
+                'image': group.img.path if group.img else None,
+                'thumbnail': group.thumbnail.path if group.thumbnail else None,
+                'categories': list(categories_dict.values()),
+                'total_tests_count': total_tests_count
+            }
+            
+            result_groups.append(group_dict)
+        
+        return result_groups
+        
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении групп с категориями: {str(e)}")

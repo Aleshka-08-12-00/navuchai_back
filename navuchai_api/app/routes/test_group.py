@@ -6,10 +6,11 @@ from app.schemas.test_group_test import TestGroupTest, TestGroupTestCreate
 from app.crud import test_group as crud
 from app.dependencies import get_db
 from app.schemas.test import TestWithDetails
-from app.crud import admin_moderator_required, authorized_required
+from app.crud import admin_moderator_required, authorized_required, get_test_groups_with_categories
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions import NotFoundException, DatabaseException
 from pydantic import BaseModel
+from app.schemas.test_group import TestGroupWithCategories
 
 router = APIRouter(prefix="/api/test-groups", tags=["Test groups"])
 
@@ -37,6 +38,22 @@ async def list_test_groups(db: AsyncSession = Depends(get_db), user=Depends(auth
         return await crud.get_test_groups_by_user_access(db, user.id, user_role_code)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка групп")
+
+
+@router.get("/with-categories/", response_model=List[TestGroupWithCategories])
+async def get_test_groups_with_categories_route(
+        db: AsyncSession = Depends(get_db),
+        user=Depends(authorized_required)
+):
+    """
+    Получение всех доступных групп тестов с группировкой тестов по категориям.
+    Для админа и модератора - все группы, для пользователя - только доступные.
+    """
+    try:
+        user_role_code = user.role.code if user.role else None
+        return await get_test_groups_with_categories(db, user.id, user_role_code)
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении групп с категориями")
 
 
 @router.get("/{group_id}/", response_model=TestGroupEnriched)
