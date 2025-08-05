@@ -7,10 +7,11 @@ class FaqBase(BaseModel):
     category_id: int
     username: str | None = None
     question: str | None = None
+    question_file_url: str | None = None
     date: datetime
     answer: str | None = None
+    answer_file_url: str | None = None
     answered_at: datetime | None = None
-    answer_author_id: int | None = None
     has_new_answer: bool
     hits: int
     active: bool
@@ -21,6 +22,12 @@ class FaqBase(BaseModel):
     def answered(self) -> bool:
         return bool(self.answer)
 
+    @computed_field(return_type=str | None)
+    @property
+    def answer_author_name(self) -> str | None:
+        author = getattr(self, "answer_author", None)
+        return author.name if author else None
+
     class Config:
         from_attributes = True
 
@@ -28,11 +35,13 @@ class FaqBase(BaseModel):
 class FaqCreate(BaseModel):
     category_id: int
     question: str
+    question_file_url: str | None = None
 
 
 class FaqAnswerUpdate(BaseModel):
     answer: str
     active: bool | None = True
+    answer_file_url: str | None = None
 
 
 class FaqInDB(FaqBase):
