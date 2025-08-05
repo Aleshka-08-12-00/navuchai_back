@@ -49,3 +49,56 @@ class TestGroupEnriched(TestGroup):
     status_color: Optional[str] = None
     image: Optional[str] = None
     thumbnail: Optional[str] = None
+
+
+# Новые схемы для древовидной структуры
+class TestInCategory(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    time_limit: Optional[int] = None
+    avg_percent: Optional[int] = None
+    completed_number: Optional[int] = None
+    access_timestamp: datetime
+    frozen: bool
+    created_at: datetime
+    updated_at: datetime
+    image: Optional[str] = None
+    thumbnail: Optional[str] = None
+    status_name: Optional[str] = None
+    status_name_ru: Optional[str] = None
+    status_color: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryWithTests(BaseModel):
+    id: int
+    name: str
+    tests: List[TestInCategory]
+    tests_count: int
+
+    class Config:
+        from_attributes = True
+
+
+class TestGroupWithCategories(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
+    time_limit: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    status_name: Optional[str] = None
+    status_name_ru: Optional[str] = None
+    status_color: Optional[str] = None
+    image: Optional[str] = None
+    thumbnail: Optional[str] = None
+    categories: List[CategoryWithTests]
+    total_tests_count: int
+
+    class Config:
+        from_attributes = True

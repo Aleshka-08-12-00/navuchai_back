@@ -15,6 +15,7 @@ class UserAnswerCreate(BaseModel):
 class ResultCreate(BaseModel):
     test_id: int
     user_id: int
+    test_group_id: Optional[int] = None
     time_start: datetime
     time_end: datetime
     answers: List[UserAnswerCreate]
@@ -58,6 +59,7 @@ class ResultResponse(BaseModel):
     id: int
     test_id: int
     user_id: int
+    test_group_id: Optional[int] = None
     score: Optional[int] = None
     result: Optional[Dict[str, Any]] = None
     time_start: datetime
@@ -67,6 +69,7 @@ class ResultResponse(BaseModel):
     updated_at: datetime
     test: Optional[TestResponse] = None
     user: Optional[UserResponse] = None
+    test_group: Optional[Dict[str, Any]] = None
     groups: Optional[List[Dict[str, Any]]] = None
 
     model_config = ConfigDict(from_attributes=True) 

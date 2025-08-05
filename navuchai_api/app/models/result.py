@@ -12,6 +12,7 @@ class Result(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     test_id = Column(Integer, ForeignKey('test.id'), nullable=False)
+    test_group_id = Column(Integer, ForeignKey('test_group.id', ondelete='CASCADE'), nullable=True)
     score = Column(Integer, nullable=True)
     result = Column(MutableDict.as_mutable(JSONB), nullable=True)
     completed_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
@@ -20,6 +21,7 @@ class Result(Base):
 
     user = relationship("User", back_populates="results")
     test = relationship("Test", back_populates="results")
+    test_group = relationship("TestGroup", back_populates="results")
     user_answers = relationship(
         "UserAnswer",
         back_populates="result",

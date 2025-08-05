@@ -63,9 +63,11 @@ async def update_user_profile(db: AsyncSession, user_id: int, profile: UserProfi
         raise DatabaseException("Ошибка при обновлении профиля")
 
 
-async def change_password(db: AsyncSession, user_id: int, password_data: PasswordChange) -> User:
+async def change_password(db: AsyncSession, user_id: int, password_data: PasswordChange) -> dict:
     try:
-        existing_user = await get_user_profile(db, user_id)
+        # Получаем объект модели User, а не словарь
+        result = await db.execute(select(User).filter(User.id == user_id))
+        existing_user = result.scalar_one_or_none()
         if not existing_user:
             raise NotFoundException("Пользователь не найден")
 
@@ -75,7 +77,21 @@ async def change_password(db: AsyncSession, user_id: int, password_data: Passwor
         existing_user.password = get_password_hash(password_data.new_password)
         await db.commit()
         await db.refresh(existing_user)
-        return existing_user
+        
+        # Возвращаем профиль в нужном формате (как get_user_profile)
+        user_dict = existing_user.__dict__.copy()
+        user_dict['photo_url'] = existing_user.img.path if hasattr(existing_user, 'img') and existing_user.img else None
+        user_dict['organization'] = existing_user.organization.name if hasattr(existing_user, 'organization') and existing_user.organization else None
+        user_dict['position'] = existing_user.position.name if hasattr(existing_user, 'position') and existing_user.position else None
+        user_dict['department'] = existing_user.department.name if hasattr(existing_user, 'department') and existing_user.department else None
+        user_dict['phone_number'] = existing_user.phone_number
+        user_dict['thumbnail_url'] = existing_user.thumbnail.path if hasattr(existing_user, 'thumbnail') and existing_user.thumbnail else None
+        user_dict.pop('img', None)
+        user_dict.pop('img_id', None)
+        user_dict.pop('organization_id', None)
+        user_dict.pop('position_id', None)
+        user_dict.pop('department_id', None)
+        return user_dict
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при изменении пароля") 

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
 from app.crud import result as result_crud
 from app.crud.analytics import get_analytics_user_test_question_performance
-from app.crud.result import get_result, get_result_answers
+from app.crud.result import get_result, get_result_answers, get_test_group_results
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
 from app.models import User, UserAnswer
@@ -244,6 +244,19 @@ async def get_test_results(
         return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результатов теста")
+
+
+@router.get("/test-group/{test_group_id}/", response_model=List[ResultResponse])
+async def get_test_group_results(
+        test_group_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
+):
+    try:
+        results = await get_test_group_results(db, test_group_id)
+        return [await convert_result(result, current_user, db) for result in results]
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении результатов группы тестов")
 
 
 @router.get("/", response_model=List[ResultResponse])
