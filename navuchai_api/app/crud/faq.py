@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import update as sql_update
+from sqlalchemy.orm import selectinload
 
 from datetime import datetime
 from sqlalchemy import func
@@ -17,6 +18,7 @@ async def create_faq(db: AsyncSession, data: FaqCreate, owner_id: int, username:
             question=data.question,
             owner_id=owner_id,
             username=username,
+            question_file_url=data.question_file_url,
         )
         db.add(obj)
         await db.commit()
@@ -29,7 +31,11 @@ async def create_faq(db: AsyncSession, data: FaqCreate, owner_id: int, username:
 
 async def get_faq(db: AsyncSession, faq_id: int) -> Faq:
     try:
-        res = await db.execute(select(Faq).where(Faq.id == faq_id))
+        res = await db.execute(
+            select(Faq)
+            .options(selectinload(Faq.answer_author))
+            .where(Faq.id == faq_id)
+        )
         obj = res.scalar_one_or_none()
         if not obj:
             raise NotFoundException("Вопрос FAQ не найден")
@@ -40,7 +46,7 @@ async def get_faq(db: AsyncSession, faq_id: int) -> Faq:
 
 async def get_faqs(db: AsyncSession, category_id: int | None = None) -> list[Faq]:
     try:
-        stmt = select(Faq)
+        stmt = select(Faq).options(selectinload(Faq.answer_author))
         if category_id is not None:
             stmt = stmt.where(Faq.category_id == category_id)
         result = await db.execute(stmt)
