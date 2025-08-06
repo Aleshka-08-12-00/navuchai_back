@@ -76,6 +76,9 @@ async def list_courses(
             course_obj.lessons_count = await get_course_lessons_count(db, cid)
             course_obj.students_count = await get_course_students_count(db, cid)
             course_obj.rating = await get_course_avg_rating(db, cid)
+            course_obj.enrolled = (
+                True if user.role.code == "admin" else await user_enrolled(db, cid, user.id)
+            )
             current = CourseRead.model_validate(course_obj, from_attributes=True)
 
     return {"current": current, "courses": courses}
