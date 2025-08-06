@@ -19,7 +19,7 @@ async def get_test_groups(db: AsyncSession):
             selectinload(TestGroup.status),
             selectinload(TestGroup.img),
             selectinload(TestGroup.thumbnail)
-        )
+        ).order_by(TestGroup.id)
         result = await db.execute(stmt)
         groups = result.scalars().all()
         enriched = []
@@ -58,6 +58,7 @@ async def get_active_test_groups(db: AsyncSession):
                 selectinload(TestGroup.img),
                 selectinload(TestGroup.thumbnail)
             )
+            .order_by(TestGroup.id)
         )
         result = await db.execute(stmt)
         groups = result.scalars().all()
@@ -106,6 +107,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
                 selectinload(TestGroup.img),
                 selectinload(TestGroup.thumbnail)
             )
+            .order_by(TestGroup.id)
         )
         result = await db.execute(stmt)
         groups = result.scalars().all()
@@ -269,6 +271,7 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
             .where(TestGroupTest.test_group_id == group_id)
             .options(selectinload(Test.image))
             .options(selectinload(Test.thumbnail))
+            .order_by(Test.id)
         )
         result = await db.execute(stmt)
         rows = result.all()

@@ -46,6 +46,7 @@ async def get_groups(db: AsyncSession) -> list[UserGroup]:
     result = await db.execute(
         select(UserGroup)
         .options(selectinload(UserGroup.members))
+        .order_by(UserGroup.id)
     )
     return result.scalars().all()
 

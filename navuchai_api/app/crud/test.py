@@ -25,6 +25,7 @@ async def get_tests(db: AsyncSession):
             .join(TestStatus, Test.status_id == TestStatus.id)
             .options(selectinload(Test.image))
             .options(selectinload(Test.thumbnail))
+            .order_by(Test.id)
         )
         rows = result.all()
         return [format_test_with_names(
@@ -219,6 +220,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             .options(selectinload(Test.thumbnail))
             .where(TestAccess.user_id == user_id)
             .where(Test.status_id != 2)  # Исключаем тесты со статусом ID 2 (Setup in progress)
+            .order_by(Test.id)
         )
         rows = result.all()
         return [format_test_with_names(
