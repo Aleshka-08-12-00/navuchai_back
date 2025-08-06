@@ -297,7 +297,7 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
             return tests
         else:
             # Для обычных пользователей используем данные из TestAccess
-            from app.models.test_access import TestAccess, TestAccessStatus
+            from app.models import TestAccess, TestAccessStatus
             
             stmt = (
                 select(
