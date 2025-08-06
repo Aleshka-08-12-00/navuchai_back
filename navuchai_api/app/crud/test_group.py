@@ -277,14 +277,20 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int):
         rows = result.all()
         tests = []
         for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows:
-            test.category_name = category_name
-            test.creator_name = creator_name
-            test.locale_code = locale_code
-            test.status_name = status_name
-            test.status_name_ru = status_name_ru
-            test.status_color = status_color
-            test.group = group_obj
-            tests.append(test)
+            # Используем format_test_with_names для правильного маппинга полей
+            test_dict = format_test_with_names(
+                test, category_name, creator_name, locale_code, 
+                status_name, status_name_ru, status_color
+            )
+            
+            # Добавляем информацию о группе
+            test_dict['group'] = group_obj
+            
+            # Создаем объект TestWithDetails из словаря
+            from app.schemas.test import TestWithDetails
+            test_with_details = TestWithDetails(**test_dict)
+            tests.append(test_with_details)
+            
         return tests
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении тестов группы: {str(e)}")
