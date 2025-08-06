@@ -2,11 +2,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
+import csv
+import io
+import logging
+from typing import List, Dict, Any
 
 from app.models import UserGroup, UserGroupMember, User
 from app.schemas.user_group import UserGroupCreate, UserGroupUpdate
+from app.schemas.user_auth import UserImportResult, UserImportResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models.test_access import TestAccess
+from app.auth import get_password_hash
+
+logger = logging.getLogger(__name__)
 
 
 async def create_group(db: AsyncSession, group_data: UserGroupCreate, creator_id: int) -> UserGroup:
@@ -129,3 +137,168 @@ async def is_user_in_group(db: AsyncSession, group_id: int, user_id: int) -> boo
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+async def import_users_from_csv(
+    db: AsyncSession, 
+    csv_content: str, 
+    group_id: int, 
+    default_role_id: int = 3
+) -> UserImportResponse:
+    """
+    Импортирует пользователей из CSV файла и добавляет их в группу
+    
+    Args:
+        db: Сессия базы данных
+        csv_content: Содержимое CSV файла
+        group_id: ID группы для добавления пользователей
+        default_role_id: ID роли по умолчанию для новых пользователей (по умолчанию 3)
+        
+    Returns:
+        UserImportResponse: Результат импорта
+    """
+    try:
+        # Проверяем существование группы
+        await get_group(db, group_id)
+        
+        # Парсим CSV
+        csv_file = io.StringIO(csv_content)
+        reader = csv.DictReader(csv_file)
+        
+        # Проверяем обязательные колонки
+        required_columns = ['email', 'name']
+        if not all(col in reader.fieldnames for col in required_columns):
+            raise DatabaseException("CSV должен содержать колонки: email, name")
+        
+        results = []
+        created_count = 0
+        added_to_group_count = 0
+        already_in_group_count = 0
+        errors_count = 0
+        
+        for row in reader:
+            try:
+                email = row['email'].strip()
+                name = row['name'].strip()
+                
+                if not email or not name:
+                    results.append(UserImportResult(
+                        email=email or "N/A",
+                        name=name or "N/A",
+                        action="error",
+                        message="Отсутствует email или имя"
+                    ))
+                    errors_count += 1
+                    continue
+                
+                # Ищем пользователя по email
+                user_result = await db.execute(
+                    select(User).where(User.email == email)
+                )
+                user = user_result.scalar_one_or_none()
+                
+                if user:
+                    # Пользователь существует, проверяем членство в группе
+                    if await is_user_in_group(db, group_id, user.id):
+                        results.append(UserImportResult(
+                            email=email,
+                            name=name,
+                            action="already_in_group",
+                            message="Пользователь уже состоит в группе"
+                        ))
+                        already_in_group_count += 1
+                    else:
+                        # Добавляем в группу
+                        try:
+                            await add_group_member(db, group_id, user.id)
+                            results.append(UserImportResult(
+                                email=email,
+                                name=name,
+                                action="added_to_group",
+                                message="Пользователь добавлен в группу"
+                            ))
+                            added_to_group_count += 1
+                        except Exception as e:
+                            results.append(UserImportResult(
+                                email=email,
+                                name=name,
+                                action="error",
+                                message=f"Ошибка при добавлении в группу: {str(e)}"
+                            ))
+                            errors_count += 1
+                else:
+                    # Создаем нового пользователя
+                    try:
+                        # Генерируем username из email
+                        username = email.split('@')[0]
+                        
+                        # Проверяем уникальность username
+                        username_result = await db.execute(
+                            select(User).where(User.username == username)
+                        )
+                        if username_result.scalar_one_or_none():
+                            # Добавляем случайный суффикс
+                            import random
+                            username = f"{username}_{random.randint(1000, 9999)}"
+                        
+                        # Создаем пользователя с паролем "1234"
+                        hashed_password = get_password_hash("1234")
+                        new_user = User(
+                            name=name,
+                            email=email,
+                            password=hashed_password,
+                            username=username,
+                            role_id=default_role_id,
+                            img_id=174  # Значение по умолчанию для img_id
+                        )
+                        
+                        db.add(new_user)
+                        await db.commit()
+                        await db.refresh(new_user)
+                        
+                        # Добавляем в группу
+                        await add_group_member(db, group_id, new_user.id)
+                        
+                        results.append(UserImportResult(
+                            email=email,
+                            name=name,
+                            action="created",
+                            message="Пользователь создан и добавлен в группу"
+                        ))
+                        created_count += 1
+                        
+                    except Exception as e:
+                        await db.rollback()
+                        results.append(UserImportResult(
+                            email=email,
+                            name=name,
+                            action="error",
+                            message=f"Ошибка при создании пользователя: {str(e)}"
+                        ))
+                        errors_count += 1
+                        
+            except Exception as e:
+                results.append(UserImportResult(
+                    email=row.get('email', 'N/A'),
+                    name=row.get('name', 'N/A'),
+                    action="error",
+                    message=f"Ошибка обработки строки: {str(e)}"
+                ))
+                errors_count += 1
+        
+        total_processed = len(results)
+        success = errors_count == 0
+        
+        return UserImportResponse(
+            success=success,
+            total_processed=total_processed,
+            created=created_count,
+            added_to_group=added_to_group_count,
+            already_in_group=already_in_group_count,
+            errors=errors_count,
+            results=results
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при импорте пользователей: {str(e)}")
+        raise DatabaseException(f"Ошибка при импорте пользователей: {str(e)}")
