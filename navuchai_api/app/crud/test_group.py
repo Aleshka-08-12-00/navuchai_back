@@ -252,46 +252,96 @@ async def remove_test_from_group(db: AsyncSession, test_id: int, group_id: int):
 
 
 # Получение тестов по group_id с полной инфой (возврат ORM-объектов для TestWithDetails)
-async def get_tests_by_group_id(db: AsyncSession, group_id: int):
+async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = None, user_role_code: str = None):
     try:
         # Получаем саму группу
         group_stmt = select(TestGroup).where(TestGroup.id == group_id)
         group_result = await db.execute(group_stmt)
         group_obj = group_result.scalar_one_or_none()
-        stmt = (
-            select(
-                Test, Category.name, User.name, Locale.code,
-                TestStatus.name, TestStatus.name_ru, TestStatus.color
+        
+        # Для админов и модераторов используем данные из основной таблицы Test
+        if user_role_code in ['admin', 'moderator']:
+            stmt = (
+                select(
+                    Test, Category.name, User.name, Locale.code,
+                    TestStatus.name, TestStatus.name_ru, TestStatus.color
+                )
+                .join(Category, Test.category_id == Category.id)
+                .join(User, Test.creator_id == User.id)
+                .join(Locale, Test.locale_id == Locale.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                .where(TestGroupTest.test_group_id == group_id)
+                .options(selectinload(Test.image))
+                .options(selectinload(Test.thumbnail))
+                .order_by(Test.id)
             )
-            .join(Category, Test.category_id == Category.id)
-            .join(User, Test.creator_id == User.id)
-            .join(Locale, Test.locale_id == Locale.id)
-            .join(TestStatus, Test.status_id == TestStatus.id)
-            .join(TestGroupTest, Test.id == TestGroupTest.test_id)
-            .where(TestGroupTest.test_group_id == group_id)
-            .options(selectinload(Test.image))
-            .options(selectinload(Test.thumbnail))
-            .order_by(Test.id)
-        )
-        result = await db.execute(stmt)
-        rows = result.all()
-        tests = []
-        for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows:
-            # Используем format_test_with_names для правильного маппинга полей
-            test_dict = format_test_with_names(
-                test, category_name, creator_name, locale_code, 
-                status_name, status_name_ru, status_color
+            result = await db.execute(stmt)
+            rows = result.all()
+            tests = []
+            for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color in rows:
+                # Используем format_test_with_names для правильного маппинга полей
+                test_dict = format_test_with_names(
+                    test, category_name, creator_name, locale_code, 
+                    status_name, status_name_ru, status_color
+                )
+                
+                # Добавляем информацию о группе
+                test_dict['group'] = group_obj
+                
+                # Создаем объект TestWithDetails из словаря
+                from app.schemas.test import TestWithDetails
+                test_with_details = TestWithDetails(**test_dict)
+                tests.append(test_with_details)
+                
+            return tests
+        else:
+            # Для обычных пользователей используем данные из TestAccess
+            from app.models.test_access import TestAccess, TestAccessStatus
+            
+            stmt = (
+                select(
+                    Test, Category.name, User.name, Locale.code,
+                    TestStatus.name, TestStatus.name_ru, TestStatus.color,
+                    TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
+                    TestAccess.completed_number, TestAccess.avg_percent,
+                    TestAccess.access_code, TestAccess.is_completed
+                )
+                .join(Category, Test.category_id == Category.id)
+                .join(User, Test.creator_id == User.id)
+                .join(Locale, Test.locale_id == Locale.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                .join(TestAccess, Test.id == TestAccess.test_id)
+                .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
+                .where(TestGroupTest.test_group_id == group_id)
+                .where(TestAccess.user_id == user_id)
+                .options(selectinload(Test.image))
+                .options(selectinload(Test.thumbnail))
+                .order_by(Test.id)
             )
+            result = await db.execute(stmt)
+            rows = result.all()
+            tests = []
+            for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code, is_completed in rows:
+                # Используем format_test_with_names с данными из TestAccess
+                test_dict = format_test_with_names(
+                    test, category_name, creator_name, locale_code, 
+                    status_name, status_name_ru, status_color,
+                    access_status_name, access_status_code, access_status_color,
+                    user_completed, user_percent, access_code, is_completed
+                )
+                
+                # Добавляем информацию о группе
+                test_dict['group'] = group_obj
+                
+                # Создаем объект TestWithDetails из словаря
+                from app.schemas.test import TestWithDetails
+                test_with_details = TestWithDetails(**test_dict)
+                tests.append(test_with_details)
+                
+            return tests
             
-            # Добавляем информацию о группе
-            test_dict['group'] = group_obj
-            
-            # Создаем объект TestWithDetails из словаря
-            from app.schemas.test import TestWithDetails
-            test_with_details = TestWithDetails(**test_dict)
-            tests.append(test_with_details)
-            
-        return tests
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении тестов группы: {str(e)}")
 

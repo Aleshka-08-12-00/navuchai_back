@@ -134,8 +134,8 @@ async def get_tests_by_group_id(
         # Сначала проверяем доступ к группе
         user_role_code = user.role.code if user.role else None
         await crud.get_test_group_with_access_check(db, group_id, user.id, user_role_code)
-        # Если доступ есть, возвращаем тесты
-        return await crud.get_tests_by_group_id(db, group_id)
+        # Если доступ есть, возвращаем тесты с учетом роли пользователя
+        return await crud.get_tests_by_group_id(db, group_id, user.id, user_role_code)
     except NotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
