@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
@@ -20,7 +20,7 @@ class TestBase(BaseModel):
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
@@ -164,7 +164,7 @@ class TestResponse(BaseModel):
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
@@ -211,7 +211,7 @@ class TestListResponse(BaseModel):
     thumbnail_id: Optional[int] = None
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
