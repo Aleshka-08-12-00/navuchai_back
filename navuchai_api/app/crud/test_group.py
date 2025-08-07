@@ -461,6 +461,7 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
             # Сначала проверяем, есть ли у модератора доступ к группе
             access_stmt = (
                 select(TestGroupAccess)
+                .join(TestGroup, TestGroupAccess.test_group_id == TestGroup.id)
                 .join(TestStatus, TestGroup.status_id == TestStatus.id)
                 .where(
                     TestGroupAccess.test_group_id == group_id,
