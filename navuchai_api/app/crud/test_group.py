@@ -93,9 +93,45 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
         if user_role_code == 'root':
             return await get_test_groups(db)
         
-        # Для модератора возвращаем все группы
+        # Для модератора возвращаем только группы, к которым у него есть доступ (как обычные пользователи)
         if user_role_code == 'moderator':
-            return await get_test_groups(db)
+            stmt = (
+                select(TestGroup)
+                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                .where(
+                    TestGroupAccess.user_id == user_id,
+                    TestStatus.code == 'active'
+                )
+                .options(
+                    selectinload(TestGroup.status),
+                    selectinload(TestGroup.img),
+                    selectinload(TestGroup.thumbnail)
+                )
+                .order_by(TestGroup.id)
+            )
+            result = await db.execute(stmt)
+            groups = result.scalars().all()
+            
+            enriched = []
+            for group in groups:
+                group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                              for k, v in group.__dict__.items()
+                              if not k.startswith('_')
+                              and k not in {'status', 'img', 'thumbnail'}
+                              and not isinstance(v, (dict, list, set, tuple))}
+                if hasattr(group, 'status') and group.status:
+                    group_dict['status_name'] = group.status.name
+                    group_dict['status_name_ru'] = group.status.name_ru
+                    group_dict['status_color'] = group.status.color
+                else:
+                    group_dict['status_name'] = None
+                    group_dict['status_name_ru'] = None
+                    group_dict['status_color'] = None
+                group_dict['image'] = group.img.path if hasattr(group, 'img') and group.img else None
+                group_dict['thumbnail'] = group.thumbnail.path if hasattr(group, 'thumbnail') and group.thumbnail else None
+                enriched.append(group_dict)
+            return enriched
         
         # Для админа возвращаем только группы, к которым у него есть доступ
         if user_role_code == 'admin':
@@ -196,9 +232,25 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
         if user_role_code == 'root':
             return await get_test_group(db, group_id)
         
-        # Для модератора разрешаем доступ к любой группе
+        # Для модератора проверяем наличие доступа И статус active (как обычные пользователи)
         if user_role_code == 'moderator':
-            return await get_test_group(db, group_id)
+            stmt = (
+                select(TestGroup)
+                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                .where(
+                    TestGroup.id == group_id,
+                    TestGroupAccess.user_id == user_id,
+                    TestStatus.code == 'active'
+                )
+            )
+            result = await db.execute(stmt)
+            group = result.scalar_one_or_none()
+            
+            if not group:
+                raise NotFoundException("Группа не найдена, у вас нет доступа к ней или группа неактивна")
+            
+            return group
         
         # Для админа проверяем наличие доступа к группе
         if user_role_code == 'admin':
@@ -368,8 +420,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
         group_result = await db.execute(group_stmt)
         group_obj = group_result.scalar_one_or_none()
         
-        # Для root и модераторов используем данные из основной таблицы Test
-        if user_role_code in ['root', 'moderator']:
+        # Для root используем данные из основной таблицы Test
+        if user_role_code == 'root':
             stmt = (
                 select(
                     Test, Category.name, User.name, Locale.code,
@@ -393,6 +445,69 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                 test_dict = format_test_with_names(
                     test, category_name, creator_name, locale_code, 
                     status_name, status_name_ru, status_color
+                )
+                
+                # Добавляем информацию о группе
+                test_dict['group'] = group_obj
+                
+                # Создаем объект TestWithDetails из словаря
+                from app.schemas.test import TestWithDetails
+                test_with_details = TestWithDetails(**test_dict)
+                tests.append(test_with_details)
+                
+            return tests
+        elif user_role_code == 'moderator':
+            # Для модератора проверяем доступ к группе и используем данные из TestAccess (как обычные пользователи)
+            # Сначала проверяем, есть ли у модератора доступ к группе
+            access_stmt = (
+                select(TestGroupAccess)
+                .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                .where(
+                    TestGroupAccess.test_group_id == group_id,
+                    TestGroupAccess.user_id == user_id,
+                    TestStatus.code == 'active'
+                )
+            )
+            access_result = await db.execute(access_stmt)
+            access = access_result.scalar_one_or_none()
+            
+            if not access:
+                raise NotFoundException("У вас нет доступа к этой группе или группа неактивна")
+            
+            # Если доступ есть, получаем тесты как для обычных пользователей
+            from app.models import TestAccess, TestAccessStatus
+            
+            stmt = (
+                select(
+                    Test, Category.name, User.name, Locale.code,
+                    TestStatus.name, TestStatus.name_ru, TestStatus.color,
+                    TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
+                    TestAccess.completed_number, TestAccess.avg_percent,
+                    TestAccess.access_code, TestAccess.is_completed
+                )
+                .join(Category, Test.category_id == Category.id)
+                .join(User, Test.creator_id == User.id)
+                .join(Locale, Test.locale_id == Locale.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                .join(TestAccess, Test.id == TestAccess.test_id)
+                .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
+                .where(TestGroupTest.test_group_id == group_id)
+                .where(TestAccess.user_id == user_id)
+                .options(selectinload(Test.image))
+                .options(selectinload(Test.thumbnail))
+                .order_by(Test.id)
+            )
+            result = await db.execute(stmt)
+            rows = result.all()
+            tests = []
+            for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code, is_completed in rows:
+                # Используем format_test_with_names с данными из TestAccess
+                test_dict = format_test_with_names(
+                    test, category_name, creator_name, locale_code, 
+                    status_name, status_name_ru, status_color,
+                    access_status_name, access_status_code, access_status_color,
+                    user_completed, user_percent, access_code, is_completed
                 )
                 
                 # Добавляем информацию о группе
@@ -523,9 +638,15 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 )
             )
         elif user_role_code == 'moderator':
-            # Для модератора - все группы
+            # Для модератора - только доступные группы со статусом active (как обычные пользователи)
             group_stmt = (
                 select(TestGroup)
+                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                .where(
+                    TestGroupAccess.user_id == user_id,
+                    TestStatus.code == 'active'
+                )
                 .options(
                     selectinload(TestGroup.status),
                     selectinload(TestGroup.img),
