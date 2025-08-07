@@ -34,6 +34,7 @@ class UserRegisterWithGroup(UserRegister):
 class UserImportResult(BaseModel):
     email: str
     name: str
+    password: Optional[str] = None  # Пароль (если был указан в CSV)
     action: str  # "created", "added_to_group", "already_in_group", "error"
     message: str
 

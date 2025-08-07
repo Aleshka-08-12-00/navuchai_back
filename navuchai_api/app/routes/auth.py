@@ -271,6 +271,7 @@ async def import_users_from_csv_endpoint(
     Импортирует пользователей из CSV файла и добавляет их в группу
     
     CSV должен содержать колонки: email, name
+    Колонка password опциональна - если не указана, используется "1234"
     """
     try:
         logger.info(f"Начинаем импорт пользователей из CSV: {file.filename}, группа: {group_id}")
@@ -317,12 +318,12 @@ async def download_csv_template():
     """
     try:
         # Создаем содержимое CSV файла
-        csv_content = """email,name
-ivan.ivanov@example.com,Иван Иванов
-maria.petrova@example.com,Мария Петрова
-alex.sidorov@example.com,Алексей Сидоров
-elena.kuznetsova@example.com,Елена Кузнецова
-dmitry.volkov@example.com,Дмитрий Волков"""
+        csv_content = """email,name,password
+ivan.ivanov@example.com,Иван Иванов,password123
+maria.petrova@example.com,Мария Петрова,
+alex.sidorov@example.com,Алексей Сидоров,secret456
+elena.kuznetsova@example.com,Елена Кузнецова,
+dmitry.volkov@example.com,Дмитрий Волков,volkov789"""
         
         # Создаем поток для ответа
         def generate_csv():

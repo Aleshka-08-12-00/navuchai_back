@@ -171,6 +171,9 @@ async def import_users_from_csv(
         if not all(col in reader.fieldnames for col in required_columns):
             raise DatabaseException("CSV должен содержать колонки: email, name")
         
+        # Проверяем наличие колонки password (опционально)
+        has_password_column = 'password' in reader.fieldnames
+        
         results = []
         created_count = 0
         added_to_group_count = 0
@@ -181,11 +184,13 @@ async def import_users_from_csv(
             try:
                 email = row['email'].strip()
                 name = row['name'].strip()
+                password = row.get('password', '').strip() if has_password_column else None
                 
                 if not email or not name:
                     results.append(UserImportResult(
                         email=email or "N/A",
                         name=name or "N/A",
+                        password=password,
                         action="error",
                         message="Отсутствует email или имя"
                     ))
@@ -204,6 +209,7 @@ async def import_users_from_csv(
                         results.append(UserImportResult(
                             email=email,
                             name=name,
+                            password=password,
                             action="already_in_group",
                             message="Пользователь уже состоит в группе"
                         ))
@@ -215,6 +221,7 @@ async def import_users_from_csv(
                             results.append(UserImportResult(
                                 email=email,
                                 name=name,
+                                password=password,
                                 action="added_to_group",
                                 message="Пользователь добавлен в группу"
                             ))
@@ -223,6 +230,7 @@ async def import_users_from_csv(
                             results.append(UserImportResult(
                                 email=email,
                                 name=name,
+                                password=password,
                                 action="error",
                                 message=f"Ошибка при добавлении в группу: {str(e)}"
                             ))
@@ -242,15 +250,17 @@ async def import_users_from_csv(
                             import random
                             username = f"{username}_{random.randint(1000, 9999)}"
                         
-                        # Создаем пользователя с паролем "1234"
-                        hashed_password = get_password_hash("1234")
+                        # Используем пароль из CSV или "1234" по умолчанию
+                        user_password = password if password else "1234"
+                        hashed_password = get_password_hash(user_password)
                         new_user = User(
                             name=name,
                             email=email,
                             password=hashed_password,
                             username=username,
                             role_id=default_role_id,
-                            img_id=174  # Значение по умолчанию для img_id
+                            img_id=174,  # Значение по умолчанию для img_id
+                            thumbnail_id=175  # Значение по умолчанию для thumbnail_id
                         )
                         
                         db.add(new_user)
@@ -263,8 +273,9 @@ async def import_users_from_csv(
                         results.append(UserImportResult(
                             email=email,
                             name=name,
+                            password=password,
                             action="created",
-                            message="Пользователь создан и добавлен в группу"
+                            message=f"Пользователь создан и добавлен в группу (пароль: {user_password})"
                         ))
                         created_count += 1
                         
@@ -273,15 +284,18 @@ async def import_users_from_csv(
                         results.append(UserImportResult(
                             email=email,
                             name=name,
+                            password=password,
                             action="error",
                             message=f"Ошибка при создании пользователя: {str(e)}"
                         ))
                         errors_count += 1
                         
             except Exception as e:
+                password = row.get('password', '') if has_password_column else None
                 results.append(UserImportResult(
                     email=row.get('email', 'N/A'),
                     name=row.get('name', 'N/A'),
+                    password=password,
                     action="error",
                     message=f"Ошибка обработки строки: {str(e)}"
                 ))
