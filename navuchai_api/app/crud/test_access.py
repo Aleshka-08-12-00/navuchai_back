@@ -818,9 +818,9 @@ async def get_test_group_users(db: AsyncSession, test_group_id: int):
 
 async def get_test_group_groups(db: AsyncSession, test_group_id: int):
     """Получить список групп пользователей, у которых есть доступ к группе тестов"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             return []
         test_ids = [test.id for test in tests]
