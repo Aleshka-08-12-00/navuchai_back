@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.crud import admin_moderator_required
+from app.crud import root_admin_moderator_required
 from app.crud import test_access_status as crud
 from app.models.user import User
 from app.schemas.test_access_status import TestAccessStatusCreate, TestAccessStatusResponse
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/test-access-status", tags=["Test Access Status"]
 @router.get("/", response_model=List[TestAccessStatusResponse])
 async def get_test_access_statuses(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     """Получение всех статусов доступа к тесту"""
     try:
@@ -28,7 +28,7 @@ async def get_test_access_statuses(
 async def get_test_access_status(
     status_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     """Получение статуса доступа к тесту по ID"""
     try:
@@ -41,7 +41,7 @@ async def get_test_access_status(
 async def create_test_access_status(
     status: TestAccessStatusCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     """Создание нового статуса доступа к тесту"""
     try:
@@ -55,7 +55,7 @@ async def update_test_access_status(
     status_id: int,
     status: TestAccessStatusCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     """Обновление статуса доступа к тесту"""
     try:
@@ -68,7 +68,7 @@ async def update_test_access_status(
 async def delete_test_access_status(
     status_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     """Удаление статуса доступа к тесту"""
     try:

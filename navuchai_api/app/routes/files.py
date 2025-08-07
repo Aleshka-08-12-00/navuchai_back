@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.dependencies import get_db
 from app.models import User
-from app.crud import admin_moderator_required, update_course_images, authorized_required
+from app.crud import root_admin_moderator_required, update_course_images, authorized_required
 from app.exceptions import DatabaseException, NotFoundException
 from app.schemas.file import FileUploadResponse, FileCreate, FileUploadWithMobileResponse
 from app.crud import file as file_crud

@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from app.crud import (
     create_test_question, delete_test_question, get_questions,
-    get_question, create_question, update_question, delete_question, get_questions_by_test_id, admin_moderator_required, authorized_required
+    get_question, create_question, update_question, delete_question, get_questions_by_test_id, root_admin_moderator_required, authorized_required
 )
 from app.dependencies import get_db
 from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
@@ -112,7 +112,7 @@ async def list_questions_by_test_public(
 
 # Создание нового вопроса
 @router.post("/", response_model=QuestionResponse)
-async def create_new_question(question: QuestionCreate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def create_new_question(question: QuestionCreate, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
     try:
         return await create_question(db, question)
     except SQLAlchemyError:
@@ -121,7 +121,7 @@ async def create_new_question(question: QuestionCreate, db: AsyncSession = Depen
 
 # Обновление вопроса по ID
 @router.put("/{question_id}/", response_model=QuestionResponse)
-async def update_question_by_id(question_id: int, question: QuestionUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def update_question_by_id(question_id: int, question: QuestionUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
     try:
         updated_question = await update_question(db, question_id, question)
         if not updated_question:
@@ -133,7 +133,7 @@ async def update_question_by_id(question_id: int, question: QuestionUpdate, db: 
 
 # Удаление вопроса по ID
 @router.delete("/{question_id}/", response_model=QuestionResponse)
-async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
     try:
         question = await delete_question(db, question_id)
         if not question:
@@ -145,7 +145,7 @@ async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get
 
 # Создание связи между тестом и вопросом
 @router.post("/{question_id}/add-to-test/{test_id}/", status_code=status.HTTP_201_CREATED)
-async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
     try:
         return await create_test_question(db, test_id, question_id)
     except SQLAlchemyError:
@@ -154,7 +154,7 @@ async def link_test_question(test_id: int, question_id: int, db: AsyncSession = 
 
 # Удаление связи между тестом и вопросом
 @router.delete("/{question_id}/remove-from-test/{test_id}/", status_code=status.HTTP_200_OK)
-async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(admin_moderator_required)):
+async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
     try:
         result = await delete_test_question(db, test_id, question_id)
         if not result:
@@ -168,7 +168,7 @@ async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession 
 @router.post("/generate-from-text/", response_model=List[GeneratedQuestionResponse])
 async def generate_questions_from_text(
     request: TextGenerationRequest,
-    user: User = Depends(admin_moderator_required)
+    user: User = Depends(root_admin_moderator_required)
 ):
     """
     Генерирует тестовые вопросы на основе предоставленного текста с помощью Yandex Cloud ML

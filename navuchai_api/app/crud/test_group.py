@@ -89,8 +89,8 @@ async def get_active_test_groups(db: AsyncSession):
 # Получение списка групп тестов с учетом доступа пользователя
 async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_role_code: str):
     try:
-        # Для админа и модератора возвращаем все группы (без изменений)
-        if user_role_code in ['admin', 'moderator']:
+        # Для root, админа и модератора возвращаем все группы (без изменений)
+        if user_role_code in ['root', 'admin', 'moderator']:
             return await get_test_groups(db)
         
         # Для обычных пользователей возвращаем только группы, к которым у них есть доступ И со статусом active
@@ -152,8 +152,8 @@ async def get_test_group(db: AsyncSession, group_id: int):
 # Получение одной группы с проверкой доступа пользователя
 async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user_id: int, user_role_code: str):
     try:
-        # Для админа и модератора разрешаем доступ к любой группе (без изменений)
-        if user_role_code in ['admin', 'moderator']:
+        # Для root, админа и модератора разрешаем доступ к любой группе (без изменений)
+        if user_role_code in ['root', 'admin', 'moderator']:
             return await get_test_group(db, group_id)
         
         # Для обычных пользователей проверяем наличие доступа И статус active
@@ -306,8 +306,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
         group_result = await db.execute(group_stmt)
         group_obj = group_result.scalar_one_or_none()
         
-        # Для админов и модераторов используем данные из основной таблицы Test
-        if user_role_code in ['admin', 'moderator']:
+        # Для root, админов и модераторов используем данные из основной таблицы Test
+        if user_role_code in ['root', 'admin', 'moderator']:
             stmt = (
                 select(
                     Test, Category.name, User.name, Locale.code,
@@ -399,8 +399,8 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         from sqlalchemy import func
         
         # Базовый запрос для получения групп с учетом доступа
-        if user_role_code in ['admin', 'moderator']:
-            # Для админа и модератора - все группы
+        if user_role_code in ['root', 'admin', 'moderator']:
+            # Для root, админа и модератора - все группы
             group_stmt = (
                 select(TestGroup)
                 .options(

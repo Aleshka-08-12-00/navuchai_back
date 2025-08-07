@@ -6,7 +6,7 @@ from app.crud import (
     get_module,
     update_module,
     delete_module,
-    admin_moderator_required,
+    root_admin_moderator_required,
     get_lessons_by_module,
     create_lesson_for_module,
     get_module_progress,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/modules", tags=["Modules"])
     "/",
     response_model=ModuleWithLessons,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def create(data: ModuleCreate, db: AsyncSession = Depends(get_db)):
     return await create_module(db, data)
@@ -37,7 +37,7 @@ async def create(data: ModuleCreate, db: AsyncSession = Depends(get_db)):
 @router.put(
     "/{module_id}/",
     response_model=ModuleWithLessons,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def update(
     module_id: int, data: ModuleCreate, db: AsyncSession = Depends(get_db)
@@ -48,7 +48,7 @@ async def update(
 @router.delete(
     "/{module_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def remove(module_id: int, db: AsyncSession = Depends(get_db)):
     await delete_module(db, module_id)
@@ -78,7 +78,7 @@ async def read_lessons(
     "/{module_id}/lessons/",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def create_lesson_route(
     module_id: int, data: LessonCreate, db: AsyncSession = Depends(get_db)

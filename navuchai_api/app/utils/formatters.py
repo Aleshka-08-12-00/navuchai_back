@@ -34,14 +34,14 @@ def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str
     
     Args:
         result_data: Данные результата теста
-        user_role_code: Код роли пользователя ('admin', 'moderator', 'user')
+        user_role_code: Код роли пользователя ('root', 'admin', 'moderator', 'user')
         test_answer_view_mode: Режим показа ответов теста ('user_only', 'none', 'user_and_correct')
     
     Returns:
         Отфильтрованные данные результата
     """
-    # Админы и модераторы видят все ответы
-    if user_role_code in ["admin", "moderator"]:
+    # Root, админы и модераторы видят все ответы
+    if user_role_code in ["root", "admin", "moderator"]:
         return result_data
     
     # Для обычных пользователей применяем фильтрацию

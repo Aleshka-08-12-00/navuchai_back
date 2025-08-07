@@ -9,7 +9,7 @@ from app.crud import (
     update_course,
     delete_course,
     get_current_user,
-    admin_moderator_required,
+    root_admin_moderator_required,
     get_course_with_content,
     get_modules_by_course,
     get_lessons_by_module,
@@ -117,12 +117,12 @@ async def read_course(
 
 
 @router.post("/", response_model=CourseResponse, status_code=status.HTTP_201_CREATED,
-             dependencies=[Depends(admin_moderator_required)])
+             dependencies=[Depends(root_admin_moderator_required)])
 async def create(course: CourseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     return await create_course(db, course, user.id)
 
 
-@router.put("/{course_id}/", response_model=CourseResponse, dependencies=[Depends(admin_moderator_required)])
+@router.put("/{course_id}/", response_model=CourseResponse, dependencies=[Depends(root_admin_moderator_required)])
 async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(get_db)):
     return await update_course(db, course_id, data)
     resp = CourseRead.model_validate(course)
@@ -133,7 +133,7 @@ async def update(course_id: int, data: CourseCreate, db: AsyncSession = Depends(
     "",
     response_model=CourseResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def create(
     course: CourseCreate,
@@ -149,7 +149,7 @@ async def create(
 @router.put(
     "/{course_id}",
     response_model=CourseResponse,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def update(
     course_id: int,
@@ -164,7 +164,7 @@ async def update(
     return resp
 
 
-@router.delete("/{course_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
+@router.delete("/{course_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(root_admin_moderator_required)])
 async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
     await delete_course(db, course_id)
 
@@ -209,7 +209,7 @@ async def add_course_rating_route(
     await set_course_rating(db, course_id, user.id, data.rating)
 
 
-@router.post("/{course_id}/tests/", response_model=CourseTestBase, dependencies=[Depends(admin_moderator_required)])
+@router.post("/{course_id}/tests/", response_model=CourseTestBase, dependencies=[Depends(root_admin_moderator_required)])
 async def create_course_test_route(course_id: int, data: CourseTestCreate, db: AsyncSession = Depends(get_db)):
     data.course_id = course_id
     return await create_course_test(db, data)
@@ -245,7 +245,7 @@ async def get_course_test_route(
     return course_test.test
 
 
-@router.delete("/{course_id}/tests/{test_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(admin_moderator_required)])
+@router.delete("/{course_id}/tests/{test_id}/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(root_admin_moderator_required)])
 async def delete_course_test_route(course_id: int, test_id: int, db: AsyncSession = Depends(get_db)):
     course_test = await delete_course_test(db, course_id, test_id)
     if not course_test:

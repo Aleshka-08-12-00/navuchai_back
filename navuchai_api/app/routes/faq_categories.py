@@ -8,7 +8,7 @@ from app.crud import (
     get_faq_categories,
     update_faq_category,
     delete_faq_category,
-    admin_moderator_required,
+    root_admin_moderator_required,
     authorized_required,
     is_user_in_group,
 )
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/faq-categories", tags=["FAQ Categories"])
 async def create_category_route(
     data: FaqCategoryCreate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required),
+    user: User = Depends(root_admin_moderator_required),
 ):
     try:
         return await create_faq_category(db, data)
@@ -81,7 +81,7 @@ async def update_category_route(
     category_id: int,
     data: FaqCategoryUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required),
+    user: User = Depends(root_admin_moderator_required),
 ):
     try:
         return await update_faq_category(db, category_id, data)
@@ -93,7 +93,7 @@ async def update_category_route(
 async def delete_category_route(
     category_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required),
+    user: User = Depends(root_admin_moderator_required),
 ):
     try:
         await delete_faq_category(db, category_id)

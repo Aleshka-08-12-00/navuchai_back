@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.dependencies import get_db
-from app.crud import admin_moderator_required
+from app.crud import root_admin_moderator_required
 from app.crud import test_access as crud
 from app.models.user import User
 from app.schemas.test_access import TestAccessCreate, TestAccessResponse, TestAccessGroupCreate, GuestTestAccessCreate, GuestTestAccessResponse, GuestUserResponse, DeleteTestAccessByTestGroupRequest
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/test-access", tags=["Test Access"])
 async def create_user_test_access(
         test_access: TestAccessCreate,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> TestAccessResponse:
     try:
         # Проверяем, нет ли уже доступа у пользователя к этому тесту
@@ -40,7 +40,7 @@ async def create_user_test_access(
 async def create_group_test_access(
         data: TestAccessGroupCreate,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> List[TestAccessResponse]:
     try:
         return await crud.create_group_test_access(
@@ -58,7 +58,7 @@ async def update_test_access_type(
         test_id: int,
         access: str,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> TestResponse:
     """
     Изменение типа доступа к тесту (public/private)
@@ -73,7 +73,7 @@ async def update_test_access_type(
 async def get_test_access_code(
         test_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> dict:
     """
     Получение кода доступа к тесту:
@@ -89,7 +89,7 @@ async def get_test_access_code(
 @router.get("/", response_model=List[TestAccessResponse])
 async def get_all_test_accesses(
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> List[TestAccessResponse]:
     """Получить все доступы пользователей к тестам"""
     try:
@@ -104,7 +104,7 @@ async def delete_user_test_access(
         test_id: int,
         user_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Удалить доступ пользователя к тесту"""
     try:
@@ -117,7 +117,7 @@ async def delete_user_test_access(
 async def delete_user_test_access_by_test_group(
         data: DeleteTestAccessByTestGroupRequest,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Удаление доступа к тесту по user_id, test_id и test_group_id"""
     try:
@@ -131,7 +131,7 @@ async def delete_group_test_access_route(
         test_id: int,
         group_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> dict:
     """Удаление доступа к тесту для всей группы"""
     try:
@@ -144,7 +144,7 @@ async def delete_group_test_access_route(
 async def get_test_users_route(
         test_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Получить список пользователей, назначенных на тест"""
     try:
@@ -157,7 +157,7 @@ async def get_test_users_route(
 async def get_all_test_users_route(
         test_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Получить список всех пользователей, назначенных на тест (включая пользователей в группах)"""
     try:
@@ -170,7 +170,7 @@ async def get_all_test_users_route(
 async def get_test_groups_route(
         test_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Получить список групп, назначенных на тест"""
     try:
@@ -189,7 +189,7 @@ async def update_test_access_status_by_user_route(
         user_id: int,
         body: UpdateTestAccessStatusRequest,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ):
     """Обновить статус доступа к тесту по test_id и user_id"""
     try:
@@ -202,7 +202,7 @@ async def update_test_access_status_by_user_route(
 async def create_guest_test_access_route(
         guest_data: GuestTestAccessCreate,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> GuestTestAccessResponse:
     """Создание гостевого пользователя и доступа к тесту"""
     try:
@@ -222,7 +222,7 @@ async def create_guest_test_access_route(
 async def get_guest_users_by_test_route(
         test_id: int,
         db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(admin_moderator_required)
+        current_user: User = Depends(root_admin_moderator_required)
 ) -> List[GuestUserResponse]:
     """Получение списка гостевых пользователей по test_id"""
     try:
@@ -246,7 +246,7 @@ class UserTestGroupAccessBody(BaseModel):
 async def add_group_test_group_access(
     data: GroupTestGroupAccessBody,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.create_group_test_group_access(db, data.test_group_id, data.group_id, data.status_id)
@@ -255,7 +255,7 @@ async def add_group_test_group_access(
 async def add_user_test_group_access(
     data: UserTestGroupAccessBody,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.create_user_test_group_access(db, data.test_group_id, data.user_id, data.status_id)
@@ -264,7 +264,7 @@ async def add_user_test_group_access(
 async def delete_group_test_group_access(
     data: GroupTestGroupAccessBody,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.delete_group_test_group_access(db, data.test_group_id, data.group_id)
@@ -273,7 +273,7 @@ async def delete_group_test_group_access(
 async def delete_user_test_group_access(
     data: UserTestGroupAccessBody,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.delete_user_test_group_access(db, data.test_group_id, data.user_id)
@@ -282,7 +282,7 @@ async def delete_user_test_group_access(
 async def get_test_group_users(
     test_group_id: int,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.get_test_group_users(db, test_group_id)
@@ -291,7 +291,7 @@ async def get_test_group_users(
 async def get_test_group_groups(
     test_group_id: int,
     db: AsyncSession = Depends(get_db),
-    user=Depends(admin_moderator_required)
+    user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_access as crud
     return await crud.get_test_group_groups(db, test_group_id)
