@@ -9,6 +9,7 @@ from app.schemas.test_group_test import TestGroupTestCreate
 from app.exceptions import DatabaseException, NotFoundException
 from app.models import Test, Category, User, Locale, TestStatus
 from app.models.test_group_access import TestGroupAccess
+from app.models.test_access import TestAccess
 from app.utils import format_test_with_names
 
 
@@ -438,11 +439,12 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 select(
                     Test, Category.id.label('category_id'), Category.name.label('category_name'),
                     TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
-                    TestStatus.color.label('status_color')
+                    TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
                 )
                 .join(Category, Test.category_id == Category.id)
                 .join(TestStatus, Test.status_id == TestStatus.id)
                 .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
                 .where(TestGroupTest.test_group_id == group.id)
                 .options(selectinload(Test.image), selectinload(Test.thumbnail))
             )
@@ -454,7 +456,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
             categories_dict = {}
             total_tests_count = 0
             
-            for test, category_id, category_name, status_name, status_name_ru, status_color in tests_data:
+            for test, category_id, category_name, status_name, status_name_ru, status_color, is_completed in tests_data:
                 if category_id not in categories_dict:
                     categories_dict[category_id] = {
                         'id': category_id,
@@ -479,7 +481,8 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     'thumbnail': test.thumbnail.path if test.thumbnail else None,
                     'status_name': status_name,
                     'status_name_ru': status_name_ru,
-                    'status_color': status_color
+                    'status_color': status_color,
+                    'is_completed': is_completed
                 }
                 
                 categories_dict[category_id]['tests'].append(test_dict)
