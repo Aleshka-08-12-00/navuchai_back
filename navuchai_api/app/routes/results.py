@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import authorized_required, get_analytics_data_by_view, get_column_mapping, get_sheet_name, get_filename
 from app.crud import result as result_crud
+from app.crud.result import get_moderator_results
 from app.crud.analytics import get_analytics_user_test_question_performance
 from app.crud.result import get_result, get_result_answers, get_test_group_results
 from app.dependencies import get_db
@@ -211,8 +212,29 @@ async def get_result_by_id(
 ):
     try:
         result = await result_crud.get_result(db, result_id)
-        if current_user.role.code not in ["admin", "moderator"] and result.user_id != current_user.id:
+        
+        # Root и админы видят все результаты
+        if current_user.role.code in ["root", "admin"]:
+            pass
+        # Модераторы видят только результаты тестов, к которым у них есть доступ
+        elif current_user.role.code == "moderator":
+            from app.models import TestAccess
+            from sqlalchemy.future import select
+            
+            # Проверяем доступ модератора к тесту
+            access_stmt = select(TestAccess).where(
+                TestAccess.test_id == result.test_id,
+                TestAccess.user_id == current_user.id
+            )
+            access_result = await db.execute(access_stmt)
+            access = access_result.scalar_one_or_none()
+            
+            if not access:
+                raise ForbiddenException("Нет доступа к этому результату")
+        # Обычные пользователи видят только свои результаты
+        elif result.user_id != current_user.id:
             raise ForbiddenException("Нет доступа к этому результату")
+            
         return await convert_result(result, current_user, db)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении результата")
@@ -225,8 +247,35 @@ async def get_user_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        if current_user.role.code not in ["admin", "moderator"] and user_id != current_user.id:
+        # Root и админы видят результаты всех пользователей
+        if current_user.role.code in ["root", "admin"]:
+            pass
+        # Модераторы видят только результаты пользователей по тестам, к которым у них есть доступ
+        elif current_user.role.code == "moderator":
+            # Получаем все результаты пользователя
+            all_user_results = await result_crud.get_user_results(db, user_id)
+            
+            # Фильтруем только те результаты, к которым у модератора есть доступ
+            from app.models import TestAccess
+            from sqlalchemy.future import select
+            
+            filtered_results = []
+            for result in all_user_results:
+                access_stmt = select(TestAccess).where(
+                    TestAccess.test_id == result.test_id,
+                    TestAccess.user_id == current_user.id
+                )
+                access_result = await db.execute(access_stmt)
+                access = access_result.scalar_one_or_none()
+                
+                if access:
+                    filtered_results.append(result)
+            
+            return [await convert_result(result, current_user, db) for result in filtered_results]
+        # Обычные пользователи видят только свои результаты
+        elif user_id != current_user.id:
             raise ForbiddenException("Нет доступа к результатам другого пользователя")
+        
         results = await result_crud.get_user_results(db, user_id)
         return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
@@ -240,6 +289,25 @@ async def get_test_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
+        # Root и админы видят все результаты тестов
+        if current_user.role.code in ["root", "admin"]:
+            pass
+        # Модераторы видят только результаты тестов, к которым у них есть доступ
+        elif current_user.role.code == "moderator":
+            from app.models import TestAccess
+            from sqlalchemy.future import select
+            
+            # Проверяем доступ модератора к тесту
+            access_stmt = select(TestAccess).where(
+                TestAccess.test_id == test_id,
+                TestAccess.user_id == current_user.id
+            )
+            access_result = await db.execute(access_stmt)
+            access = access_result.scalar_one_or_none()
+            
+            if not access:
+                raise ForbiddenException("У вас нет доступа к результатам этого теста")
+        
         results = await result_crud.get_test_results(db, test_id)
         return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
@@ -265,9 +333,14 @@ async def get_all_results(
         current_user: User = Depends(authorized_required)
 ):
     try:
-        if current_user.role.code in ["admin", "moderator"]:
+        if current_user.role.code in ["root", "admin"]:
+            # Root и админы видят все результаты
             results = await result_crud.get_all_results(db)
+        elif current_user.role.code == "moderator":
+            # Модераторы видят только результаты тестов, к которым у них есть доступ
+            results = await result_crud.get_moderator_results(db, current_user.id)
         else:
+            # Обычные пользователи видят только свои результаты
             results = await result_crud.get_user_results(db, current_user.id)
         return [await convert_result(result, current_user, db) for result in results]
     except SQLAlchemyError:
@@ -283,8 +356,26 @@ async def export_result(
     """Экспорт результата теста только в Excel формате (без параметра format)"""
     try:
         result = await get_result(db, result_id)
-        # Проверяем права доступа
-        if current_user.role.code != "admin" and result.user_id != current_user.id:
+        # Root и админы могут экспортировать любые результаты
+        if current_user.role.code in ["root", "admin"]:
+            pass
+        # Модераторы могут экспортировать только результаты тестов, к которым у них есть доступ
+        elif current_user.role.code == "moderator":
+            from app.models import TestAccess
+            from sqlalchemy.future import select
+            
+            # Проверяем доступ модератора к тесту
+            access_stmt = select(TestAccess).where(
+                TestAccess.test_id == result.test_id,
+                TestAccess.user_id == current_user.id
+            )
+            access_result = await db.execute(access_stmt)
+            access = access_result.scalar_one_or_none()
+            
+            if not access:
+                raise HTTPException(status_code=403, detail="Нет доступа к этому результату")
+        # Обычные пользователи могут экспортировать только свои результаты
+        elif result.user_id != current_user.id:
             raise HTTPException(status_code=403, detail="Нет доступа к этому результату")
         answers = await get_result_answers(db, result_id)
         safe_name = transliterate_cyrillic(result.user.name or 'unknown')
@@ -311,8 +402,26 @@ async def finalize_result_after_manual_check(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
 ):
-    if current_user.role.code not in ["admin", "moderator"]:
+    if current_user.role.code not in ["root", "admin", "moderator"]:
         raise ForbiddenException("Нет прав для финализации результата после ручной проверки")
+    
+    # Для модераторов проверяем доступ к тесту
+    if current_user.role.code == "moderator":
+        from app.crud.result import get_result
+        from app.models import TestAccess
+        from sqlalchemy.future import select
+        
+        result_obj = await get_result(db, body.result_id)
+        access_stmt = select(TestAccess).where(
+            TestAccess.test_id == result_obj.test_id,
+            TestAccess.user_id == current_user.id
+        )
+        access_result = await db.execute(access_stmt)
+        access = access_result.scalar_one_or_none()
+        
+        if not access:
+            raise ForbiddenException("Нет доступа к этому результату для финализации")
+    
     from app.crud.result import finalize_manual_check_result
     result = await finalize_manual_check_result(db, body.result_id)
     return await convert_result(result, current_user, db)
@@ -331,8 +440,25 @@ async def manual_check_answer(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(authorized_required)
 ):
-    if current_user.role.code not in ["admin", "moderator"]:
+    if current_user.role.code not in ["root", "admin", "moderator"]:
         raise ForbiddenException("Нет прав для ручной проверки ответа")
+    
+    # Для модераторов проверяем доступ к тесту
+    if current_user.role.code == "moderator":
+        from app.crud.result import get_result
+        from app.models import TestAccess
+        from sqlalchemy.future import select
+        
+        result_obj = await get_result(db, body.result_id)
+        access_stmt = select(TestAccess).where(
+            TestAccess.test_id == result_obj.test_id,
+            TestAccess.user_id == current_user.id
+        )
+        access_result = await db.execute(access_stmt)
+        access = access_result.scalar_one_or_none()
+        
+        if not access:
+            raise ForbiddenException("Нет доступа к этому результату для ручной проверки")
     from app.crud.result import get_result
     result_obj = await get_result(db, body.result_id)
     checked_answers = result_obj.result.get("checked_answers", [])

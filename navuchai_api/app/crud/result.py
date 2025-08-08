@@ -178,6 +178,34 @@ async def get_all_results(db: AsyncSession) -> List[Result]:
         raise DatabaseException(f"Ошибка при получении списка результатов: {str(e)}")
 
 
+async def get_moderator_results(db: AsyncSession, moderator_id: int) -> List[Result]:
+    """Получение результатов тестов, к которым у модератора есть доступ"""
+    try:
+        from app.models import TestAccess
+        
+        stmt = (
+            select(Result)
+            .join(TestAccess, Result.test_id == TestAccess.test_id)
+            .options(
+                selectinload(Result.user_answers),
+                selectinload(Result.test),
+                selectinload(Result.test_group),
+                selectinload(Result.user).selectinload(User.organization),
+                selectinload(Result.user).selectinload(User.position),
+                selectinload(Result.user).selectinload(User.department),
+                selectinload(Result.user).selectinload(User.role)
+            )
+            .where(TestAccess.user_id == moderator_id)
+            .order_by(Result.created_at.desc())
+        )
+        result = await db.execute(stmt)
+        results = result.scalars().all()
+        return results
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при получении результатов модератора: {str(e)}")
+
+
 async def get_test_group_results(db: AsyncSession, test_group_id: int):
     """Получение всех результатов по группе тестов"""
     try:
