@@ -93,15 +93,17 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
         if user_role_code == 'root':
             return await get_test_groups(db)
         
-        # Для модератора возвращаем только группы, к которым у него есть доступ (как обычные пользователи)
+        # Для модератора возвращаем группы, к которым у него есть доступ + группу "Все тесты" (ID: 25)
         if user_role_code == 'moderator':
             stmt = (
                 select(TestGroup)
-                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
                 .join(TestStatus, TestGroup.status_id == TestStatus.id)
                 .where(
-                    TestGroupAccess.user_id == user_id,
-                    TestStatus.code == 'active'
+                    (
+                        (TestGroupAccess.user_id == user_id) |  # Группы, к которым есть доступ
+                        (TestGroup.id == 25)  # Группа "Все тесты" всегда доступна модератору
+                    )
                 )
                 .options(
                     selectinload(TestGroup.status),
@@ -112,6 +114,11 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
             )
             result = await db.execute(stmt)
             groups = result.scalars().all()
+            
+            # Добавляем отладочную информацию
+            print(f"DEBUG: Модератор {user_id} - найдено групп: {len(groups)}")
+            for group in groups:
+                print(f"DEBUG: Группа ID {group.id}, название: {group.name}")
             
             enriched = []
             for group in groups:
@@ -232,16 +239,18 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
         if user_role_code == 'root':
             return await get_test_group(db, group_id)
         
-        # Для модератора проверяем наличие доступа И статус active (как обычные пользователи)
+        # Для модератора проверяем наличие доступа + доступ к группе "Все тесты" (ID: 25)
         if user_role_code == 'moderator':
             stmt = (
                 select(TestGroup)
-                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
                 .join(TestStatus, TestGroup.status_id == TestStatus.id)
                 .where(
                     TestGroup.id == group_id,
-                    TestGroupAccess.user_id == user_id,
-                    TestStatus.code == 'active'
+                    (
+                        (TestGroupAccess.user_id == user_id) |  # Группы, к которым есть доступ
+                        (TestGroup.id == 25)  # Группа "Все тесты" всегда доступна модератору
+                    )
                 )
             )
             result = await db.execute(stmt)
@@ -663,14 +672,16 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 .order_by(TestGroup.id)
             )
         elif user_role_code == 'moderator':
-            # Для модератора - только доступные группы со статусом active (как обычные пользователи)
+            # Для модератора - доступные группы + группа "Все тесты" (ID: 25)
             group_stmt = (
                 select(TestGroup)
-                .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
                 .join(TestStatus, TestGroup.status_id == TestStatus.id)
                 .where(
-                    TestGroupAccess.user_id == user_id,
-                    TestStatus.code == 'active'
+                    (
+                        (TestGroupAccess.user_id == user_id) |  # Группы, к которым есть доступ
+                        (TestGroup.id == 25)  # Группа "Все тесты" всегда доступна модератору
+                    )
                 )
                 .options(
                     selectinload(TestGroup.status),
@@ -714,25 +725,49 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         result = await db.execute(group_stmt)
         groups = result.scalars().all()
         
+        # Добавляем отладочную информацию для модераторов
+        if user_role_code == 'moderator':
+            print(f"DEBUG: get_test_groups_with_categories - Модератор {user_id} - найдено групп: {len(groups)}")
+            for group in groups:
+                print(f"DEBUG: get_test_groups_with_categories - Группа ID {group.id}, название: {group.name}")
+        
         # Для каждой группы получаем тесты, сгруппированные по категориям
         result_groups = []
         
         for group in groups:
             # Получаем тесты для группы
-            tests_stmt = (
-                select(
-                    Test, Category.id.label('category_id'), Category.name.label('category_name'),
-                    TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
-                    TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+            if user_role_code == 'moderator' and group.id == 25:
+                # Для модератора в группе "Все тесты" показываем только тесты, к которым у него есть доступ
+                tests_stmt = (
+                    select(
+                        Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                        TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                        TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                    )
+                    .join(Category, Test.category_id == Category.id)
+                    .join(TestStatus, Test.status_id == TestStatus.id)
+                    .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                    .join(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                    .where(TestGroupTest.test_group_id == group.id)
+                    .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                    .order_by(Category.id, Test.id)
                 )
-                .join(Category, Test.category_id == Category.id)
-                .join(TestStatus, Test.status_id == TestStatus.id)
-                .join(TestGroupTest, Test.id == TestGroupTest.test_id)
-                .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
-                .where(TestGroupTest.test_group_id == group.id)
-                .options(selectinload(Test.image), selectinload(Test.thumbnail))
-                .order_by(Category.id, Test.id)
-            )
+            else:
+                # Для остальных случаев - обычная логика
+                tests_stmt = (
+                    select(
+                        Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                        TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                        TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                    )
+                    .join(Category, Test.category_id == Category.id)
+                    .join(TestStatus, Test.status_id == TestStatus.id)
+                    .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                    .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                    .where(TestGroupTest.test_group_id == group.id)
+                    .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                    .order_by(Category.id, Test.id)
+                )
             
             tests_result = await db.execute(tests_stmt)
             tests_data = tests_result.all()
