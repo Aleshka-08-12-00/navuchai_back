@@ -6,6 +6,9 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
 import logging
+import csv
+import io
+from datetime import datetime
 
 from app.auth import verify_password, create_access_token, get_password_hash, create_refresh_token, decode_token
 from app.crud import authorized_required
@@ -20,6 +23,30 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+def create_user_from_data(user_data):
+    """Вспомогательная функция для создания пользователя с правильной обработкой img_id"""
+    hashed_password = get_password_hash(user_data.password)
+    
+    # Подготавливаем данные пользователя, исключая None значения для img_id
+    user_data_dict = {
+        'name': user_data.name,
+        'email': user_data.email,
+        'password': hashed_password,
+        'username': user_data.username,
+        'role_id': user_data.role_id,
+        'organization_id': user_data.organization_id,
+        'position_id': user_data.position_id,
+        'department_id': user_data.department_id,
+        'phone_number': user_data.phone_number
+    }
+    
+    # Добавляем img_id только если оно не None
+    if user_data.img_id is not None:
+        user_data_dict['img_id'] = user_data.img_id
+    
+    return User(**user_data_dict)
 
 
 @router.post("/login/", response_model=Token)
@@ -77,19 +104,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
             logger.warning(f"Пользователь уже существует: {user_data.username}")
             raise BadRequestException("Пользователь с таким именем пользователя уже зарегистрирован")
 
-        hashed_password = get_password_hash(user_data.password)
-        new_user = User(
-            name=user_data.name,
-            email=user_data.email,
-            password=hashed_password,
-            username=user_data.username,
-            role_id=user_data.role_id,
-            img_id=user_data.img_id,
-            organization_id=user_data.organization_id,
-            position_id=user_data.position_id,
-            department_id=user_data.department_id,
-            phone_number=user_data.phone_number
-        )
+        new_user = create_user_from_data(user_data)
 
         db.add(new_user)
         await db.commit()
@@ -149,19 +164,7 @@ async def register_with_group(user_data: UserRegisterWithGroup, db: AsyncSession
             logger.warning(f"Пользователь уже существует: {user_data.username}")
             raise BadRequestException("Пользователь с таким именем пользователя уже зарегистрирован")
 
-        hashed_password = get_password_hash(user_data.password)
-        new_user = User(
-            name=user_data.name,
-            email=user_data.email,
-            password=hashed_password,
-            username=user_data.username,
-            role_id=user_data.role_id,
-            img_id=user_data.img_id,
-            organization_id=user_data.organization_id,
-            position_id=user_data.position_id,
-            department_id=user_data.department_id,
-            phone_number=user_data.phone_number
-        )
+        new_user = create_user_from_data(user_data)
 
         db.add(new_user)
         await db.commit()

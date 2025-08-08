@@ -15,7 +15,7 @@ class User(Base):
     password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
+    img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=False, default=174)
     thumbnail_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=False, default=175)
     organization_id = Column(Integer, ForeignKey('organization.id', ondelete='SET NULL'), nullable=True)
     position_id = Column(Integer, ForeignKey('position.id', ondelete='SET NULL'), nullable=True)
