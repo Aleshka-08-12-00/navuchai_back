@@ -300,6 +300,29 @@ async def create_test_group(db: AsyncSession, group: TestGroupCreate):
         db.add(db_group)
         await db.commit()
         await db.refresh(db_group)
+        
+        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
+        try:
+            from app.crud.test_access import create_group_test_group_access
+            
+            # Назначаем доступ группе "Администраторы"
+            try:
+                await create_group_test_group_access(db, db_group.id, 76, status_id=1)
+                print(f"Доступ к группе тестов {db_group.id} назначен группе 'Администраторы'")
+            except Exception as e:
+                print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группе 'Администраторы': {str(e)}")
+            
+            # Назначаем доступ группе "Модераторы"
+            try:
+                await create_group_test_group_access(db, db_group.id, 78, status_id=1)
+                print(f"Доступ к группе тестов {db_group.id} назначен группе 'Модераторы'")
+            except Exception as e:
+                print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группе 'Модераторы': {str(e)}")
+            
+        except Exception as e:
+            # Если не удалось назначить доступ, логируем ошибку, но не прерываем создание группы
+            print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группам Администраторы/Модераторы: {str(e)}")
+        
         return db_group
     except SQLAlchemyError as e:
         await db.rollback()
