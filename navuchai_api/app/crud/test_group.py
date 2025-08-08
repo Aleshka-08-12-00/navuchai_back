@@ -115,11 +115,6 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
             result = await db.execute(stmt)
             groups = result.scalars().all()
             
-            # Добавляем отладочную информацию
-            print(f"DEBUG: Модератор {user_id} - найдено групп: {len(groups)}")
-            for group in groups:
-                print(f"DEBUG: Группа ID {group.id}, название: {group.name}")
-            
             enriched = []
             for group in groups:
                 group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
@@ -241,18 +236,25 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
         
         # Для модератора проверяем наличие доступа + доступ к группе "Все тесты" (ID: 25)
         if user_role_code == 'moderator':
-            stmt = (
-                select(TestGroup)
-                .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
-                .join(TestStatus, TestGroup.status_id == TestStatus.id)
-                .where(
-                    TestGroup.id == group_id,
-                    (
-                        (TestGroupAccess.user_id == user_id) |  # Группы, к которым есть доступ
-                        (TestGroup.id == 25)  # Группа "Все тесты" всегда доступна модератору
+            # Специальная логика для группы "Все тесты" (ID: 25)
+            if group_id == 25:
+                stmt = (
+                    select(TestGroup)
+                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .where(TestGroup.id == group_id)
+                )
+            else:
+                # Для остальных групп проверяем наличие доступа
+                stmt = (
+                    select(TestGroup)
+                    .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .where(
+                        TestGroup.id == group_id,
+                        TestGroupAccess.user_id == user_id
                     )
                 )
-            )
+            
             result = await db.execute(stmt)
             group = result.scalar_one_or_none()
             
@@ -490,22 +492,27 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
             return tests
         elif user_role_code == 'moderator':
             # Для модератора проверяем доступ к группе и используем данные из TestAccess (как обычные пользователи)
-            # Сначала проверяем, есть ли у модератора доступ к группе
-            access_stmt = (
-                select(TestGroupAccess)
-                .join(TestGroup, TestGroupAccess.test_group_id == TestGroup.id)
-                .join(TestStatus, TestGroup.status_id == TestStatus.id)
-                .where(
-                    TestGroupAccess.test_group_id == group_id,
-                    TestGroupAccess.user_id == user_id,
-                    TestStatus.code == 'active'
+            # Специальная логика для группы "Все тесты" (ID: 25)
+            if group_id == 25:
+                # Для группы "Все тесты" не проверяем TestGroupAccess, сразу получаем тесты
+                pass
+            else:
+                # Для остальных групп проверяем доступ к группе
+                access_stmt = (
+                    select(TestGroupAccess)
+                    .join(TestGroup, TestGroupAccess.test_group_id == TestGroup.id)
+                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .where(
+                        TestGroupAccess.test_group_id == group_id,
+                        TestGroupAccess.user_id == user_id,
+                        TestStatus.code == 'active'
+                    )
                 )
-            )
-            access_result = await db.execute(access_stmt)
-            access = access_result.scalar_one_or_none()
-            
-            if not access:
-                raise NotFoundException("У вас нет доступа к этой группе или группа неактивна")
+                access_result = await db.execute(access_stmt)
+                access = access_result.scalar_one_or_none()
+                
+                if not access:
+                    raise NotFoundException("У вас нет доступа к этой группе или группа неактивна")
             
             # Если доступ есть, получаем тесты как для обычных пользователей
             from app.models import TestAccess, TestAccessStatus
