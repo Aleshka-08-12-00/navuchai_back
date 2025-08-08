@@ -57,6 +57,8 @@ from .user_group import (
     add_group_member,
     remove_group_member,
     is_user_in_group,
+    assign_user_to_test_groups_and_tests,
+    remove_user_from_test_groups_and_tests,
 )
 from .test_group_access import (
     create_test_group_access,

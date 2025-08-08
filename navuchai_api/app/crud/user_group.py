@@ -7,14 +7,23 @@ import io
 import logging
 from typing import List, Dict, Any
 
-from app.models import UserGroup, UserGroupMember, User
+from app.models import UserGroup, UserGroupMember, User, TestGroupAccess, TestAccess
+from app.models.test_group_test import TestGroupTest
 from app.schemas.user_group import UserGroupCreate, UserGroupUpdate
 from app.schemas.user_auth import UserImportResult, UserImportResponse
 from app.exceptions import NotFoundException, DatabaseException
 from app.models.test_access import TestAccess
 from app.auth import get_password_hash
+import secrets
 
 logger = logging.getLogger(__name__)
+
+OPAQUE_TOKEN_NUM_BYTES = 16
+
+
+def _generate_access_code() -> str:
+    """Генерация уникального кода доступа"""
+    return secrets.token_urlsafe(OPAQUE_TOKEN_NUM_BYTES)
 
 
 async def create_group(db: AsyncSession, group_data: UserGroupCreate, creator_id: int) -> UserGroup:
@@ -80,6 +89,113 @@ async def delete_group(db: AsyncSession, group_id: int) -> UserGroup:
         raise DatabaseException(f"Ошибка при удалении группы: {str(e)}")
 
 
+async def assign_user_to_test_groups_and_tests(db: AsyncSession, user_id: int, group_id: int) -> None:
+    """Автоматически назначает пользователя на все группы тестов и тесты группы"""
+    try:
+        # Получаем все группы тестов, к которым имеет доступ группа пользователей
+        test_group_access_stmt = (
+            select(TestGroupAccess)
+            .where(TestGroupAccess.user_group_id == group_id)
+            .distinct(TestGroupAccess.test_group_id)
+        )
+        test_group_access_result = await db.execute(test_group_access_stmt)
+        test_group_accesses = test_group_access_result.scalars().all()
+        
+        if not test_group_accesses:
+            return
+        
+        # Для каждой группы тестов создаем доступ для пользователя
+        for group_access in test_group_accesses:
+            try:
+                # Проверяем существующий доступ к группе тестов
+                existing_user_access = await db.execute(
+                    select(TestGroupAccess).where(
+                        TestGroupAccess.test_group_id == group_access.test_group_id,
+                        TestGroupAccess.user_id == user_id
+                    )
+                )
+                
+                if not existing_user_access.scalar_one_or_none():
+                    # Создаем доступ пользователя к группе тестов
+                    user_test_group_access = TestGroupAccess(
+                        test_group_id=group_access.test_group_id,
+                        user_id=user_id,
+                        user_group_id=group_id,
+                        start_date=group_access.start_date,
+                        end_date=group_access.end_date,
+                        status_id=group_access.status_id
+                    )
+                    db.add(user_test_group_access)
+                
+                # Получаем все тесты в этой группе тестов
+                test_group_tests_stmt = (
+                    select(TestGroupTest)
+                    .where(TestGroupTest.test_group_id == group_access.test_group_id)
+                )
+                test_group_tests_result = await db.execute(test_group_tests_stmt)
+                test_group_tests = test_group_tests_result.scalars().all()
+                
+                # Для каждого теста создаем доступ для пользователя
+                for test_group_test in test_group_tests:
+                    try:
+                        # Проверяем существующий доступ к тесту
+                        existing_test_access = await db.execute(
+                            select(TestAccess).where(
+                                TestAccess.test_id == test_group_test.test_id,
+                                TestAccess.user_id == user_id
+                            )
+                        )
+                        
+                        if not existing_test_access.scalar_one_or_none():
+                            # Создаем доступ пользователя к тесту
+                            user_test_access = TestAccess(
+                                test_id=test_group_test.test_id,
+                                user_id=user_id,
+                                user_group_id=group_id,
+                                test_group_id=group_access.test_group_id,
+                                status_id=group_access.status_id if group_access.status_id else 1,
+                                completed_number=0,
+                                avg_percent=0,
+                                is_completed=False,
+                                access_code=_generate_access_code()
+                            )
+                            db.add(user_test_access)
+                                
+                    except Exception as e:
+                        logger.error(f"Ошибка при создании доступа к тесту {test_group_test.test_id}: {str(e)}")
+                        continue
+                    
+            except Exception as e:
+                logger.error(f"Ошибка при обработке группы тестов {group_access.test_group_id}: {str(e)}")
+                continue
+        
+    except Exception as e:
+        logger.error(f"Ошибка при автоматическом назначении пользователя {user_id}: {str(e)}")
+
+
+async def remove_user_from_test_groups_and_tests(db: AsyncSession, user_id: int, group_id: int) -> None:
+    """Удаляет доступы пользователя к группам тестов и тестам группы"""
+    try:
+        # Удаляем доступы к группам тестов
+        await db.execute(
+            TestGroupAccess.__table__.delete().where(
+                (TestGroupAccess.user_id == user_id) & 
+                (TestGroupAccess.user_group_id == group_id)
+            )
+        )
+        
+        # Удаляем доступы к тестам
+        await db.execute(
+            TestAccess.__table__.delete().where(
+                (TestAccess.user_id == user_id) & 
+                (TestAccess.user_group_id == group_id)
+            )
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при удалении доступов пользователя {user_id}: {str(e)}")
+
+
 async def add_group_member(db: AsyncSession, group_id: int, user_id: int) -> UserGroupMember:
     try:
         # Проверяем существование группы
@@ -90,10 +206,28 @@ async def add_group_member(db: AsyncSession, group_id: int, user_id: int) -> Use
         if not user_result.scalar_one_or_none():
             raise NotFoundException(f"Пользователь с ID {user_id} не найден")
 
+        # Проверяем, не состоит ли уже пользователь в группе
+        existing_member = await db.execute(
+            select(UserGroupMember).where(
+                UserGroupMember.user_id == user_id,
+                UserGroupMember.group_id == group_id
+            )
+        )
+        if existing_member.scalar_one_or_none():
+            raise DatabaseException("Пользователь уже состоит в этой группе")
+
         member = UserGroupMember(user_id=user_id, group_id=group_id)
         db.add(member)
+        
+        # Автоматически назначаем пользователя на группы тестов и тесты
+        try:
+            await assign_user_to_test_groups_and_tests(db, user_id, group_id)
+        except Exception as e:
+            logger.error(f"Не удалось автоматически назначить пользователя {user_id} на группы тестов: {str(e)}")
+        
         await db.commit()
         await db.refresh(member)
+        
         return member
     except IntegrityError:
         await db.rollback()
@@ -116,15 +250,24 @@ async def remove_group_member(db: AsyncSession, group_id: int, user_id: int) -> 
         member = result.scalar_one_or_none()
         if not member:
             raise NotFoundException("Пользователь не найден в группе")
-        # Удаляем все доступы по user_group_id и user_id
-        await db.execute(
-            TestAccess.__table__.delete().where(
-                (TestAccess.user_group_id == group_id) & (TestAccess.user_id == user_id)
-            )
-        )
+        
+        # Удаляем все доступы к группам тестов и тестам
+        try:
+            await remove_user_from_test_groups_and_tests(db, user_id, group_id)
+        except Exception as e:
+            logger.error(f"Не удалось удалить доступы пользователя {user_id} к группам тестов: {str(e)}")
+        
         await db.delete(member)
         await db.commit()
-        return member
+        
+        # Создаем копию объекта для возврата
+        return UserGroupMember(
+            id=member.id,
+            user_id=member.user_id,
+            group_id=member.group_id,
+            created_at=member.created_at,
+            updated_at=member.updated_at
+        )
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при удалении пользователя из группы: {str(e)}")
