@@ -637,6 +637,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     selectinload(TestGroup.img),
                     selectinload(TestGroup.thumbnail)
                 )
+                .order_by(TestGroup.id)
             )
         elif user_role_code == 'moderator':
             # Для модератора - только доступные группы со статусом active (как обычные пользователи)
@@ -653,6 +654,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     selectinload(TestGroup.img),
                     selectinload(TestGroup.thumbnail)
                 )
+                .order_by(TestGroup.id)
             )
         elif user_role_code == 'admin':
             # Для админа - только группы, к которым у него есть доступ
@@ -665,6 +667,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     selectinload(TestGroup.img),
                     selectinload(TestGroup.thumbnail)
                 )
+                .order_by(TestGroup.id)
             )
         else:
             # Для обычных пользователей - только доступные группы со статусом active
@@ -682,6 +685,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     selectinload(TestGroup.img),
                     selectinload(TestGroup.thumbnail)
                 )
+                .order_by(TestGroup.id)
             )
         
         result = await db.execute(group_stmt)
@@ -704,6 +708,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
                 .where(TestGroupTest.test_group_id == group.id)
                 .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                .order_by(Category.id, Test.id)
             )
             
             tests_result = await db.execute(tests_stmt)
@@ -746,6 +751,14 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 categories_dict[category_id]['tests_count'] += 1
                 total_tests_count += 1
             
+            # Сортируем категории по ID и тесты внутри каждой категории по ID
+            sorted_categories = []
+            for category_id in sorted(categories_dict.keys()):
+                category = categories_dict[category_id]
+                # Сортируем тесты внутри категории по ID
+                category['tests'] = sorted(category['tests'], key=lambda x: x['id'])
+                sorted_categories.append(category)
+            
             # Формируем объект группы
             group_dict = {
                 'id': group.id,
@@ -761,7 +774,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 'status_color': group.status.color if group.status else None,
                 'image': group.img.path if group.img else None,
                 'thumbnail': group.thumbnail.path if group.thumbnail else None,
-                'categories': list(categories_dict.values()),
+                'categories': sorted_categories,
                 'total_tests_count': total_tests_count
             }
             
