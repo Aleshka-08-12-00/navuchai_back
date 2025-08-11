@@ -25,6 +25,7 @@ async def get_tests(db: AsyncSession):
             .join(TestStatus, Test.status_id == TestStatus.id)
             .options(selectinload(Test.image))
             .options(selectinload(Test.thumbnail))
+            .order_by(Test.id)
         )
         rows = result.all()
         return [format_test_with_names(
@@ -117,6 +118,28 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
         except Exception as e:
             # Если не удалось добавить в группу, логируем ошибку, но не прерываем создание теста
             print(f"Предупреждение: не удалось добавить тест {new_test.id} в общую группу: {str(e)}")
+        
+        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
+        try:
+            from app.crud.test_access import create_group_test_access
+            
+            # Назначаем доступ группе "Администраторы"
+            try:
+                await create_group_test_access(db, new_test.id, 76, status_id=1)
+                print(f"Доступ к тесту {new_test.id} назначен группе 'Администраторы'")
+            except Exception as e:
+                print(f"Предупреждение: не удалось назначить доступ к тесту {new_test.id} группе 'Администраторы': {str(e)}")
+            
+            # Назначаем доступ группе "Модераторы"
+            try:
+                await create_group_test_access(db, new_test.id, 78, status_id=1)
+                print(f"Доступ к тесту {new_test.id} назначен группе 'Модераторы'")
+            except Exception as e:
+                print(f"Предупреждение: не удалось назначить доступ к тесту {new_test.id} группе 'Модераторы': {str(e)}")
+            
+        except Exception as e:
+            # Если не удалось назначить доступ, логируем ошибку, но не прерываем создание теста
+            print(f"Предупреждение: не удалось назначить доступ к тесту {new_test.id} группам Администраторы/Модераторы: {str(e)}")
         
         return new_test
     except SQLAlchemyError as e:
@@ -219,6 +242,7 @@ async def get_user_tests(db: AsyncSession, user_id: int):
             .options(selectinload(Test.thumbnail))
             .where(TestAccess.user_id == user_id)
             .where(Test.status_id != 2)  # Исключаем тесты со статусом ID 2 (Setup in progress)
+            .order_by(Test.id)
         )
         rows = result.all()
         return [format_test_with_names(

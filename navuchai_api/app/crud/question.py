@@ -16,6 +16,7 @@ async def get_questions(db: AsyncSession):
         result = await db.execute(
             select(Question)
             .options(selectinload(Question.type))
+            .order_by(Question.id)
         )
         return result.scalars().all()
     except SQLAlchemyError:
@@ -46,6 +47,7 @@ async def get_questions_by_test_id(db: AsyncSession, test_id: int):
             .options(selectinload(Question.type))
             .options(selectinload(Question.test_questions))
             .where(TestQuestion.test_id == test_id)
+            .order_by(TestQuestion.position)
         )
         test_question_pairs = result.all()
 

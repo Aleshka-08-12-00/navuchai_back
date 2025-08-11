@@ -34,14 +34,14 @@ def filter_answers_by_view_mode(result_data: Dict[str, Any], user_role_code: str
     
     Args:
         result_data: Данные результата теста
-        user_role_code: Код роли пользователя ('admin', 'moderator', 'user')
+        user_role_code: Код роли пользователя ('root', 'admin', 'moderator', 'user')
         test_answer_view_mode: Режим показа ответов теста ('user_only', 'none', 'user_and_correct')
     
     Returns:
         Отфильтрованные данные результата
     """
-    # Админы и модераторы видят все ответы
-    if user_role_code in ["admin", "moderator"]:
+    # Root, админы и модераторы видят все ответы
+    if user_role_code in ["root", "admin", "moderator"]:
         return result_data
     
     # Для обычных пользователей применяем фильтрацию
@@ -119,8 +119,6 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "thumbnail_id": test.thumbnail_id,
         "image": test.image,
         "thumbnail": test.thumbnail,
-        "percent": test.avg_percent,
-        "completed": test.completed_number,
         "welcome_message": test.welcome_message,
         "goodbye_message": test.goodbye_message,
         "created_at": test.created_at,
@@ -133,18 +131,29 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "grade_options": test.grade_options,
     }
     
+    # Определяем поля percent и completed в зависимости от наличия данных пользователя
+    if user_percent is not None:
+        # Для студентов используем данные из TestAccess
+        result["percent"] = user_percent
+        result["user_percent"] = user_percent
+    else:
+        # Для админов используем данные из основной таблицы Test
+        result["percent"] = test.avg_percent
+    
+    if user_completed is not None:
+        # Для студентов используем данные из TestAccess
+        result["completed"] = user_completed
+        result["user_completed"] = user_completed
+    else:
+        # Для админов используем данные из основной таблицы Test
+        result["completed"] = test.completed_number
+    
     if access_status_name is not None:
         result.update({
             "access_status_name": access_status_name,
             "access_status_code": access_status_code,
             "access_status_color": access_status_color
         })
-    
-    if user_percent is not None:
-        result["user_percent"] = user_percent
-    
-    if user_completed is not None:
-        result["user_completed"] = user_completed
     
     # Если is_completed не установлено (None), то done = false, иначе используем значение is_completed
     result["done"] = is_completed if is_completed is not None else False

@@ -29,7 +29,7 @@ async def get_category(db: AsyncSession, category_id: int) -> Category:
 
 async def get_categories(db: AsyncSession) -> list[Category]:
     try:
-        result = await db.execute(select(Category))
+        result = await db.execute(select(Category).order_by(Category.id))
         return result.scalars().all()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка категорий: {str(e)}")
@@ -69,6 +69,7 @@ async def get_categories_by_test_group(db: AsyncSession, test_group_id: int) -> 
             .join(Test, Category.id == Test.category_id)
             .join(TestGroupTest, Test.id == TestGroupTest.test_id)
             .where(TestGroupTest.test_group_id == test_group_id)
+            .order_by(Category.id)
         )
         categories = result.scalars().all()
         return categories

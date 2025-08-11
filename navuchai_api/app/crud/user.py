@@ -24,6 +24,7 @@ async def get_users(db: AsyncSession):
                 selectinload(User.department),
                 selectinload(User.img)
             )
+            .order_by(User.id)
         )
         users = result.scalars().unique().all()
         # Формируем нужный формат
@@ -234,21 +235,21 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User:
 
 async def get_organizations(db: AsyncSession):
     try:
-        result = await db.execute(select(Organization))
+        result = await db.execute(select(Organization).order_by(Organization.id))
         return result.scalars().all()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка организаций")
 
 async def get_positions(db: AsyncSession):
     try:
-        result = await db.execute(select(Position))
+        result = await db.execute(select(Position).order_by(Position.id))
         return result.scalars().all()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка позиций")
 
 async def get_departments(db: AsyncSession):
     try:
-        result = await db.execute(select(Department))
+        result = await db.execute(select(Department).order_by(Department.id))
         return result.scalars().all()
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении списка департаментов")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.crud import get_users, get_user, update_user, delete_user, admin_moderator_required, admin_required, update_user_role, authorized_required, reset_user_password
+from app.crud import get_users, get_user, update_user, delete_user, root_admin_moderator_required, root_admin_required, update_user_role, authorized_required, reset_user_password
 from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException, ForbiddenException
 from app.schemas.user import UserResponse, UserUpdate, UserRoleUpdate, PasswordResetRequest, PasswordResetResponse, OrganizationBase, PositionBase, DepartmentBase
@@ -13,7 +13,7 @@ from app.crud.user import get_organizations, get_positions, get_departments
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 
-@router.get("/", response_model=list[UserResponse], dependencies=[Depends(admin_moderator_required)])
+@router.get("/", response_model=list[UserResponse], dependencies=[Depends(root_admin_moderator_required)])
 async def list_users(db: AsyncSession = Depends(get_db)):
     return await get_users(db)
 
@@ -50,7 +50,7 @@ async def get_user_by_id(
         raise DatabaseException("Ошибка при получении данных пользователя")
 
 
-@router.put("/{user_id}/", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
+@router.put("/{user_id}/", response_model=UserResponse, dependencies=[Depends(root_admin_moderator_required)])
 async def update_user_by_id(user_id: int, update_data: UserUpdate, db: AsyncSession = Depends(get_db)):
     try:
         updated = await update_user(db, user_id, update_data)
@@ -61,7 +61,7 @@ async def update_user_by_id(user_id: int, update_data: UserUpdate, db: AsyncSess
         raise DatabaseException("Ошибка при обновлении данных пользователя")
 
 
-@router.delete("/{user_id}/", response_model=UserResponse, dependencies=[Depends(admin_moderator_required)])
+@router.delete("/{user_id}/", response_model=UserResponse, dependencies=[Depends(root_admin_moderator_required)])
 async def delete_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
     try:
         deleted = await delete_user(db, user_id)
@@ -72,7 +72,7 @@ async def delete_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
         raise DatabaseException("Ошибка при удалении пользователя")
 
 
-@router.put("/{user_id}/role/", dependencies=[Depends(admin_required)])
+@router.put("/{user_id}/role/", dependencies=[Depends(root_admin_required)])
 async def change_user_role(
     user_id: int,
     update_role: UserRoleUpdate,  # <-- вот здесь
@@ -111,7 +111,7 @@ async def reset_password(
         raise HTTPException(status_code=500, detail=f"Неожиданная ошибка: {str(e)}")
 
 
-@router.post("/test-email/", dependencies=[Depends(admin_required)])
+@router.post("/test-email/", dependencies=[Depends(root_admin_required)])
 async def test_email_settings(
     reset_request: PasswordResetRequest
 ):

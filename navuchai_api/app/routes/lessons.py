@@ -6,7 +6,7 @@ from app.crud import (
     get_lesson,
     update_lesson,
     delete_lesson,
-    admin_moderator_required,
+    root_admin_moderator_required,
     complete_lesson,
     user_enrolled,
 )
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/lessons", tags=["Lessons"])
     "/",
     response_model=LessonResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def create(data: LessonCreate, db: AsyncSession = Depends(get_db)):
     return await create_lesson(db, data)
@@ -30,7 +30,7 @@ async def create(data: LessonCreate, db: AsyncSession = Depends(get_db)):
 @router.put(
     "/{lesson_id}/",
     response_model=LessonResponse,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def update(
     lesson_id: int, data: LessonCreate, db: AsyncSession = Depends(get_db)
@@ -41,7 +41,7 @@ async def update(
 @router.delete(
     "/{lesson_id}/",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(admin_moderator_required)],
+    dependencies=[Depends(root_admin_moderator_required)],
 )
 async def remove(lesson_id: int, db: AsyncSession = Depends(get_db)):
     await delete_lesson(db, lesson_id)

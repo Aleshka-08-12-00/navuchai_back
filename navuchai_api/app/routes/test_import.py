@@ -11,7 +11,7 @@ from app.crud import test_import as crud
 from app.dependencies import get_db
 from app.exceptions import DatabaseException, BadRequestException, NotFoundException
 from app.schemas.test_import import TestImportResponse
-from app.crud import admin_moderator_required
+from app.crud import root_admin_moderator_required
 from app.models import User
 from app.utils.excel_parser import create_excel_template, create_full_friendly_excel_template
 
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/test-import", tags=["Test Import"])
 async def import_test_from_excel(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     temp_file_path = None
     try:
@@ -74,7 +74,7 @@ async def import_test_from_excel(
 
 @router.get("/template/")
 async def download_excel_template(
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     try:
         logger.info(f"Создание Excel шаблона для пользователя {current_user.id}")

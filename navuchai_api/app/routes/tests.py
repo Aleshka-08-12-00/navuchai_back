@@ -12,7 +12,7 @@ from app.crud import (
     get_test_by_code,
     get_test_by_access_code,
     get_test_universal,
-    admin_moderator_required,
+    root_admin_moderator_required,
     authorized_required,
     get_current_user_optional
 )
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/tests", tags=["Tests"])
 @router.get("/", response_model=list[TestWithDetails])
 async def get_all_tests(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required)
+    user: User = Depends(root_admin_moderator_required)
 ):
     try:
         return await get_tests(db)
@@ -79,7 +79,7 @@ async def get_test_by_id(
 async def create_new_test(
     test: TestCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     try:
         return await create_test(db, test)
@@ -92,7 +92,7 @@ async def update_test_by_id(
     test_id: int,
     test: TestUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     try:
         return await update_test(db, test_id, test)
@@ -106,7 +106,7 @@ async def update_test_by_id(
 async def delete_test_by_id(
     test_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(admin_moderator_required)
+    current_user: User = Depends(root_admin_moderator_required)
 ):
     try:
         return await delete_test(db, test_id)

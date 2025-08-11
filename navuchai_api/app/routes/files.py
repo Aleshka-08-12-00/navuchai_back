@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from app.dependencies import get_db
 from app.models import User
-from app.crud import admin_moderator_required, update_course_images, authorized_required
+from app.crud import root_admin_moderator_required, update_course_images, authorized_required
 from app.exceptions import DatabaseException, NotFoundException
 from app.schemas.file import FileUploadResponse, FileCreate, FileUploadWithMobileResponse
 from app.crud import file as file_crud
@@ -124,13 +124,38 @@ async def upload_image(
         new_height = int(image.height * scale)
         image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         thumb_io = BytesIO()
-        image_format = image.format if image.format else 'JPEG'
-        # Если сохраняем как JPEG, конвертируем в RGB
+        
+        # Определяем формат для сохранения
+        original_format = image.format
+        if original_format:
+            image_format = original_format
+        else:
+            # Если формат не определен, определяем по расширению файла
+            ext_lower = ext.lower()
+            if ext_lower in ['.png', '.gif', '.webp']:
+                image_format = ext_lower[1:].upper()  # Убираем точку и делаем заглавными
+            else:
+                image_format = 'JPEG'
+        
+        # Конвертируем в RGB только если действительно сохраняем как JPEG
         if image_format.upper() == 'JPEG' and image.mode in ('RGBA', 'LA'):
-            image = image.convert('RGB')
+            # Создаем белый фон для прозрачных областей
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = background
+        
         image.save(thumb_io, format=image_format)
         thumb_content = thumb_io.getvalue()
-        thumb_ext = ext if ext else '.jpg'
+        # Определяем правильное расширение для thumbnail'а
+        if image_format.upper() == 'PNG':
+            thumb_ext = '.png'
+        elif image_format.upper() == 'GIF':
+            thumb_ext = '.gif'
+        elif image_format.upper() == 'WEBP':
+            thumb_ext = '.webp'
+        else:
+            thumb_ext = '.jpg'
+        
         thumb_filename = f"{uuid.uuid4().hex}{thumb_ext}"
         s3.put_object(
             Bucket=MINIO_BUCKET_NAME,
@@ -152,9 +177,19 @@ async def upload_image(
         )
         db_file = await file_crud.create_file(db, file_data)
 
+        # Определяем правильный content_type для thumbnail'а
+        if image_format.upper() == 'PNG':
+            thumb_content_type = 'image/png'
+        elif image_format.upper() == 'GIF':
+            thumb_content_type = 'image/gif'
+        elif image_format.upper() == 'WEBP':
+            thumb_content_type = 'image/webp'
+        else:
+            thumb_content_type = 'image/jpeg'
+        
         # Сохраняем уменьшенную копию в БД
         mobile_file_data = FileCreate(
-            type=file.content_type,
+            type=thumb_content_type,
             name=thumb_filename,
             size=len(thumb_content),
             path=thumb_url,
@@ -227,12 +262,38 @@ async def upload_avatar(
         new_height = int(image.height * scale)
         image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         thumb_io = BytesIO()
-        image_format = image.format if image.format else 'JPEG'
+        
+        # Определяем формат для сохранения
+        original_format = image.format
+        if original_format:
+            image_format = original_format
+        else:
+            # Если формат не определен, определяем по расширению файла
+            ext_lower = ext.lower()
+            if ext_lower in ['.png', '.gif', '.webp']:
+                image_format = ext_lower[1:].upper()  # Убираем точку и делаем заглавными
+            else:
+                image_format = 'JPEG'
+        
+        # Конвертируем в RGB только если действительно сохраняем как JPEG
         if image_format.upper() == 'JPEG' and image.mode in ('RGBA', 'LA'):
-            image = image.convert('RGB')
+            # Создаем белый фон для прозрачных областей
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = background
+        
         image.save(thumb_io, format=image_format)
         thumb_content = thumb_io.getvalue()
-        thumb_ext = ext if ext else '.jpg'
+        # Определяем правильное расширение для thumbnail'а
+        if image_format.upper() == 'PNG':
+            thumb_ext = '.png'
+        elif image_format.upper() == 'GIF':
+            thumb_ext = '.gif'
+        elif image_format.upper() == 'WEBP':
+            thumb_ext = '.webp'
+        else:
+            thumb_ext = '.jpg'
+        
         thumb_filename = f"{uuid.uuid4().hex}{thumb_ext}"
         s3.put_object(
             Bucket=MINIO_BUCKET_NAME,
@@ -254,9 +315,19 @@ async def upload_avatar(
         )
         db_file = await file_crud.create_file(db, file_data)
 
+        # Определяем правильный content_type для thumbnail'а
+        if image_format.upper() == 'PNG':
+            thumb_content_type = 'image/png'
+        elif image_format.upper() == 'GIF':
+            thumb_content_type = 'image/gif'
+        elif image_format.upper() == 'WEBP':
+            thumb_content_type = 'image/webp'
+        else:
+            thumb_content_type = 'image/jpeg'
+        
         # Сохраняем уменьшенную копию в БД
         mobile_file_data = FileCreate(
-            type=file.content_type,
+            type=thumb_content_type,
             name=thumb_filename,
             size=len(thumb_content),
             path=thumb_url,

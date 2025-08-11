@@ -9,7 +9,7 @@ from app.crud import (
     answer_faq,
     increment_faq_hits,
     get_new_answers_count,
-    admin_moderator_required,
+    root_admin_moderator_required,
     authorized_required,
     get_current_user,
     get_faq_category,
@@ -100,7 +100,7 @@ async def answer_faq_route(
     faq_id: int,
     data: FaqAnswerUpdate,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(admin_moderator_required),
+    user: User = Depends(root_admin_moderator_required),
 ):
     try:
         return await answer_faq(db, faq_id, data, user.id)

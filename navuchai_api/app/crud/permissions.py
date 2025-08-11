@@ -13,9 +13,11 @@ def role_required(*allowed_roles: RoleCode):
     return checker
 
 
+root_required = role_required(RoleCode.ROOT)
 admin_required = role_required(RoleCode.ADMIN)
 moderator_required = role_required(RoleCode.MODERATOR)
+root_admin_required = role_required(RoleCode.ROOT, RoleCode.ADMIN)
+root_admin_moderator_required = role_required(RoleCode.ROOT, RoleCode.ADMIN, RoleCode.MODERATOR)
 admin_moderator_required = role_required(RoleCode.ADMIN, RoleCode.MODERATOR)
 user_required = role_required(RoleCode.USER)
-authorized_required = role_required(RoleCode.ADMIN, RoleCode.MODERATOR, RoleCode.USER, RoleCode.GUEST)
-root_required = role_required(RoleCode.ROOT)
+authorized_required = role_required(RoleCode.ROOT, RoleCode.ADMIN, RoleCode.MODERATOR, RoleCode.USER, RoleCode.GUEST)

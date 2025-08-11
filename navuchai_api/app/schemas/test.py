@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 from pydantic import BaseModel
 from app.schemas.file import FileInDB
@@ -20,7 +20,7 @@ class TestBase(BaseModel):
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
@@ -44,6 +44,33 @@ class TestBase(BaseModel):
 
     class Config:
         from_attributes = True
+        
+    @classmethod
+    def from_orm(cls, obj):
+        # Кастомный маппинг для полей avg_percent и completed_number
+        data = {
+            'id': obj.id,
+            'title': obj.title,
+            'description': obj.description,
+            'category_id': obj.category_id,
+            'creator_id': obj.creator_id,
+            'access_timestamp': obj.access_timestamp,
+            'status_id': obj.status_id,
+            'frozen': obj.frozen,
+            'locale_id': obj.locale_id,
+            'time_limit': obj.time_limit,
+            'img_id': obj.img_id,
+            'thumbnail_id': obj.thumbnail_id,
+            'percent': obj.avg_percent,  # Маппинг из avg_percent в percent
+            'completed': obj.completed_number,  # Маппинг из completed_number в completed
+            'welcome_message': obj.welcome_message,
+            'goodbye_message': obj.goodbye_message,
+            'access': obj.access,
+            'answer_view_mode': obj.answer_view_mode,
+            'code': obj.code,
+            'grade_options': obj.grade_options,
+        }
+        return cls(**data)
 
 
 class TestWithDetails(TestBase):
@@ -137,7 +164,7 @@ class TestResponse(BaseModel):
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
@@ -184,7 +211,7 @@ class TestListResponse(BaseModel):
     thumbnail_id: Optional[int] = None
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
-    percent: Optional[int] = None
+    percent: Optional[float] = None
     completed: Optional[int] = None
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum

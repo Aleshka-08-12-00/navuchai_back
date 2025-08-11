@@ -608,12 +608,12 @@ async def get_guest_users_by_test(db: AsyncSession, test_id: int) -> list[dict]:
 
 async def create_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int, status_id: int = None):
     """Создание доступа ко всем тестам группы тестов для группы пользователей"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     from app.crud.test_group_access import create_test_group_access
     from app.schemas.test_group_access import TestGroupAccessCreate
     from app.models import UserGroupMember
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
         query = select(UserGroupMember).where(UserGroupMember.group_id == group_id)
@@ -661,11 +661,11 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
 
 async def create_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int, status_id: int = None):
     """Создание доступа ко всем тестам группы тестов для одного пользователя"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     from app.crud.test_group_access import create_test_group_access
     from app.schemas.test_group_access import TestGroupAccessCreate
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
         
@@ -704,11 +704,11 @@ async def create_user_test_group_access(db: AsyncSession, test_group_id: int, us
 
 async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, group_id: int):
     """Удаление доступа ко всем тестам группы тестов для группы пользователей"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     from app.crud.test_group_access import delete_test_group_access
     from app.models import UserGroupMember
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
         query = select(UserGroupMember).where(UserGroupMember.group_id == group_id)
@@ -742,10 +742,10 @@ async def delete_group_test_group_access(db: AsyncSession, test_group_id: int, g
 
 async def delete_user_test_group_access(db: AsyncSession, test_group_id: int, user_id: int):
     """Удаление доступа ко всем тестам группы тестов для одного пользователя"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     from app.crud.test_group_access import delete_test_group_access
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             raise NotFoundException(f"В группе тестов {test_group_id} нет тестов")
         
@@ -772,9 +772,9 @@ async def delete_user_test_group_access(db: AsyncSession, test_group_id: int, us
 
 async def get_test_group_users(db: AsyncSession, test_group_id: int):
     """Получить список пользователей, у которых есть доступ к группе тестов"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             return []
         test_ids = [test.id for test in tests]
@@ -818,9 +818,9 @@ async def get_test_group_users(db: AsyncSession, test_group_id: int):
 
 async def get_test_group_groups(db: AsyncSession, test_group_id: int):
     """Получить список групп пользователей, у которых есть доступ к группе тестов"""
-    from app.crud.test_group import get_tests_by_group_id
+    from app.crud.test_group import get_all_tests_by_group_id
     try:
-        tests = await get_tests_by_group_id(db, test_group_id)
+        tests = await get_all_tests_by_group_id(db, test_group_id)
         if not tests:
             return []
         test_ids = [test.id for test in tests]

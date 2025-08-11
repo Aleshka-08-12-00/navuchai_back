@@ -16,6 +16,7 @@ async def get_courses(db: AsyncSession, user_id: int | None = None):
         .join(User, Course.author_id == User.id)
         .options(selectinload(Course.image))
         .options(selectinload(Course.thumbnail))
+        .order_by(Course.id)
     )
     if user_id is not None:
         stmt = (

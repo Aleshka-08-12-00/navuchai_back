@@ -13,5 +13,5 @@ async def get_roles(db: AsyncSession) -> list[Role]:
     Returns:
         list[Role]: Список ролей
     """
-    result = await db.execute(select(Role))
+    result = await db.execute(select(Role).order_by(Role.id))
     return result.scalars().all() 

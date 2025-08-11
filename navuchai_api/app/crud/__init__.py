@@ -1,4 +1,4 @@
-from .permissions import role_required, admin_required, moderator_required, user_required, admin_moderator_required, \
+from .permissions import role_required, root_required, admin_required, moderator_required, user_required, root_admin_required, root_admin_moderator_required, admin_moderator_required, \
     authorized_required
 from .question import get_questions, get_question, create_question, update_question, delete_question, \
     get_questions_by_test_id
@@ -57,6 +57,8 @@ from .user_group import (
     add_group_member,
     remove_group_member,
     is_user_in_group,
+    assign_user_to_test_groups_and_tests,
+    remove_user_from_test_groups_and_tests,
 )
 from .test_group_access import (
     create_test_group_access,
@@ -104,6 +106,7 @@ from .test_group import (
     add_test_to_group,
     remove_test_from_group,
     get_tests_by_group_id,
+    get_all_tests_by_group_id,
     get_test_groups_with_categories,
 )
 from .category import (

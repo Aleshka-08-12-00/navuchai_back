@@ -6,7 +6,7 @@ from app.schemas.test_group_test import TestGroupTest, TestGroupTestCreate
 from app.crud import test_group as crud
 from app.dependencies import get_db
 from app.schemas.test import TestWithDetails
-from app.crud import admin_moderator_required, authorized_required, get_test_groups_with_categories
+from app.crud import root_admin_moderator_required, authorized_required, get_test_groups_with_categories
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions import NotFoundException, DatabaseException
 from pydantic import BaseModel
@@ -24,7 +24,7 @@ class RemoveTestFromGroupBody(BaseModel):
 async def remove_test_from_group(
         data: RemoveTestFromGroupBody,
         db: AsyncSession = Depends(get_db),
-        user=Depends(admin_moderator_required)
+        user=Depends(root_admin_moderator_required)
 ):
     from app.crud import test_group as crud
     return await crud.remove_test_from_group(db, data.test_id, data.test_group_id)
@@ -87,7 +87,7 @@ async def get_test_group(group_id: int, db: AsyncSession = Depends(get_db), user
 
 @router.post("/", response_model=TestGroup)
 async def create_test_group(data: TestGroupCreate, db: AsyncSession = Depends(get_db),
-                            user=Depends(admin_moderator_required)):
+                            user=Depends(root_admin_moderator_required)):
     try:
         return await crud.create_test_group(db, data)
     except SQLAlchemyError:
@@ -96,7 +96,7 @@ async def create_test_group(data: TestGroupCreate, db: AsyncSession = Depends(ge
 
 @router.put("/{group_id}/", response_model=TestGroup)
 async def update_test_group(group_id: int, data: TestGroupUpdate, db: AsyncSession = Depends(get_db),
-                            user=Depends(admin_moderator_required)):
+                            user=Depends(root_admin_moderator_required)):
     try:
         return await crud.update_test_group(db, group_id, data)
     except NotFoundException as e:
@@ -106,7 +106,7 @@ async def update_test_group(group_id: int, data: TestGroupUpdate, db: AsyncSessi
 
 
 @router.delete("/{group_id}/", response_model=TestGroup)
-async def delete_test_group(group_id: int, db: AsyncSession = Depends(get_db), user=Depends(admin_moderator_required)):
+async def delete_test_group(group_id: int, db: AsyncSession = Depends(get_db), user=Depends(root_admin_moderator_required)):
     try:
         return await crud.delete_test_group(db, group_id)
     except NotFoundException as e:
@@ -117,7 +117,7 @@ async def delete_test_group(group_id: int, db: AsyncSession = Depends(get_db), u
 
 @router.post("/add-test/", response_model=TestGroupTest)
 async def add_test_to_group(data: TestGroupTestCreate, db: AsyncSession = Depends(get_db),
-                            user=Depends(admin_moderator_required)):
+                            user=Depends(root_admin_moderator_required)):
     try:
         return await crud.add_test_to_group(db, data)
     except SQLAlchemyError:
@@ -134,8 +134,8 @@ async def get_tests_by_group_id(
         # Сначала проверяем доступ к группе
         user_role_code = user.role.code if user.role else None
         await crud.get_test_group_with_access_check(db, group_id, user.id, user_role_code)
-        # Если доступ есть, возвращаем тесты
-        return await crud.get_tests_by_group_id(db, group_id)
+        # Если доступ есть, возвращаем тесты с учетом роли пользователя
+        return await crud.get_tests_by_group_id(db, group_id, user.id, user_role_code)
     except NotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:

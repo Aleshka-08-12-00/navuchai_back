@@ -68,6 +68,7 @@ class TestInCategory(BaseModel):
     status_name: Optional[str] = None
     status_name_ru: Optional[str] = None
     status_color: Optional[str] = None
+    is_completed: Optional[bool] = None
 
     class Config:
         from_attributes = True

@@ -16,7 +16,7 @@ async def create_course_test(db: AsyncSession, data: CourseTestCreate) -> Course
 
 async def get_course_tests(db: AsyncSession, course_id: int) -> list[CourseTest]:
     result = await db.execute(
-        select(CourseTest).where(CourseTest.course_id == course_id).options(selectinload(CourseTest.test))
+        select(CourseTest).where(CourseTest.course_id == course_id).options(selectinload(CourseTest.test)).order_by(CourseTest.id)
     )
     return result.scalars().all()
 

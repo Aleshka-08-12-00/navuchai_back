@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from typing import Optional
+from typing import Optional, List
 
 
 class Token(BaseModel):
@@ -25,6 +25,28 @@ class UserRegister(BaseModel):
     position_id: Optional[int] = None
     department_id: Optional[int] = None
     phone_number: Optional[str] = None
+
+
+class UserRegisterWithGroup(UserRegister):
+    group_id: int
+
+
+class UserImportResult(BaseModel):
+    email: str
+    name: str
+    password: Optional[str] = None  # Пароль (если был указан в CSV)
+    action: str  # "created", "added_to_group", "already_in_group", "error"
+    message: str
+
+
+class UserImportResponse(BaseModel):
+    success: bool
+    total_processed: int
+    created: int
+    added_to_group: int
+    already_in_group: int
+    errors: int
+    results: List[UserImportResult]
 
 
 class UserOut(BaseModel):
