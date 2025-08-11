@@ -216,7 +216,7 @@ async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), us
     return {"percent": percent}
 
 
-@router.post("/{course_id}/rating/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(authorized_required), Depends(root_required)])
+@router.post("/{course_id}/rating/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(authorized_required), Depends(root_admin_moderator_required)])
 async def add_course_rating_route(
     course_id: int,
     data: CourseRatingCreate,
