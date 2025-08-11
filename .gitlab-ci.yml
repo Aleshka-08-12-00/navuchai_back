@@ -2,13 +2,14 @@ stages:
   - deploy
 
 before_script:
-  - 'which ssh-agent || ( apt-get update -y && apt-get install -y openssh-client )'
+  - which ssh-agent || ( apt-get update -y && apt-get install -y openssh-client )
   - eval $(ssh-agent -s)
   - mkdir -p ~/.ssh
-  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+  - printf '%b\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
   - chmod 600 ~/.ssh/id_rsa
+  - cat ~/.ssh/id_rsa  # DEBUG - посмотреть содержимое файла ключа
   - ssh-add ~/.ssh/id_rsa
-  - ssh-keyscan -H 172.16.0.97 >> ~/.ssh/known_hosts
+  - ssh-keyscan -H your.gitlab.server >> ~/.ssh/known_hosts
 
 
 
