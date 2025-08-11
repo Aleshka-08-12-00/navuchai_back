@@ -32,7 +32,7 @@ async def get_faq_category(db: AsyncSession, category_id: int) -> FaqCategory:
 
 async def get_faq_categories(db: AsyncSession) -> list[FaqCategory]:
     try:
-        result = await db.execute(select(FaqCategory))
+        result = await db.execute(select(FaqCategory).order_by(FaqCategory.id))
         return result.scalars().all()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении категорий FAQ: {str(e)}")
