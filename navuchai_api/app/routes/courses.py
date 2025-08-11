@@ -59,10 +59,22 @@ async def list_courses(
             course.progress = progress
             course.done = progress == 100
             course.enrolled = (
-                True if user.role.code == "admin" else await user_enrolled(db, cid, user.id)
+                True if user.role.code == "admin" or user.role.code == "root" else await user_enrolled(db, cid, user.id)
             )
 
         courses.append(course)
+
+    if user:
+        available_courses = sorted(
+            [c for c in courses if c.enrolled], key=lambda c: c.id
+        )
+        unavailable_courses = sorted(
+            [c for c in courses if not c.enrolled], key=lambda c: c.id
+        )
+        courses_sorted = available_courses + unavailable_courses
+    else:
+        courses_sorted = sorted(courses, key=lambda c: c.id)
+        available_courses = courses_sorted
 
     current: CourseRead | None = None
     if user:
@@ -77,11 +89,16 @@ async def list_courses(
             course_obj.students_count = await get_course_students_count(db, cid)
             course_obj.rating = await get_course_avg_rating(db, cid)
             course_obj.enrolled = (
-                True if user.role.code == "admin" else await user_enrolled(db, cid, user.id)
+                True if user.role.code == "admin" or user.role.code == "root" else await user_enrolled(db, cid, user.id)
             )
             current = CourseRead.model_validate(course_obj, from_attributes=True)
+        if current and not current.enrolled:
+            if available_courses:
+                current = min(available_courses, key=lambda c: abs(c.id - current.id))
+            else:
+                current = None
 
-    return {"current": current, "courses": courses}
+    return {"current": current, "courses": courses_sorted}
 
 
 @router.get(
@@ -102,7 +119,7 @@ async def read_course(
     rating = await get_course_avg_rating(db, id)
     progress = await get_course_progress(db, id, user.id)
     done = progress == 100
-    if user.role.code == "admin":
+    if user.role.code == "admin" or user.role.code == "root":
         enrolled = True
     else:
         enrolled = await user_enrolled(db, id, user.id)
@@ -199,7 +216,7 @@ async def course_progress(course_id: int, db: AsyncSession = Depends(get_db), us
     return {"percent": percent}
 
 
-@router.post("/{course_id}/rating/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(authorized_required)])
+@router.post("/{course_id}/rating/", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(authorized_required), Depends(root_admin_moderator_required)])
 async def add_course_rating_route(
     course_id: int,
     data: CourseRatingCreate,
@@ -234,10 +251,10 @@ async def get_course_test_route(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
+    if user.role.code not in ["admin", "moderator", "root"] and not await user_enrolled(db, course_id, user.id):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     progress = await get_course_progress(db, course_id, user.id)
-    if user.role.code not in ["admin", "moderator"] and progress < 100:
+    if user.role.code not in ["admin", "moderator", "root"] and progress < 100:
         raise HTTPException(status_code=403, detail="Курс не завершен")
     course_test = await get_course_test(db, course_id, test_id)
     if not course_test:
