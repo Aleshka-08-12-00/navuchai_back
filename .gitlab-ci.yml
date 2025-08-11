@@ -14,11 +14,11 @@ deploy_dev:
   only:
     - develop
   script:
-    - ssh geo@172.16.0.97 "bash -lc 'cd /home/geo/navuchai_back/navuchai_api && git pull origin develop && docker-compose -p navuchai_dev -f docker-compose.dev.yml up -d --build'"
+    - ssh geo@172.16.0.97 "bash -lc 'mkdir -p ~/.ssh && echo \"$SSH_PRIVATE_KEY\" | tr -d \"\\r\" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa && ssh-keyscan gitlab.sellwin.by >> ~/.ssh/known_hosts && cd /home/geo/navuchai_back/navuchai_api && git remote set-url origin git@gitlab.sellwin.by:navuchai/navuchai_back.git && git pull origin develop && docker-compose -p navuchai_dev -f docker-compose.dev.yml up -d --build'"
 
 deploy_prod:
   stage: deploy
   only:
     - main
   script:
-    - ssh geo@172.16.0.97 "bash -lc 'cd /home/geo/navuchai_back/navuchai_api && git pull origin main && docker-compose -p navuchai_prod -f docker-compose.prod.yml up -d --build'"
+    - ssh geo@172.16.0.97 "bash -lc 'mkdir -p ~/.ssh && echo \"$SSH_PRIVATE_KEY\" | tr -d \"\\r\" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa && ssh-keyscan gitlab.sellwin.by >> ~/.ssh/known_hosts && cd /home/geo/navuchai_back/navuchai_api && git remote set-url origin git@gitlab.sellwin.by:navuchai/navuchai_back.git && git pull origin main && docker-compose -p navuchai_prod -f docker-compose.prod.yml up -d --build'"
