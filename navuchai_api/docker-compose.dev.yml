@@ -8,7 +8,7 @@ services:
     container_name: navuchai_app_dev
     restart: always
     env_file:
-      - .env
+      - .env.dev
     ports:
       - "8013:8012"  # внешний порт 8013, чтобы не конфликтовать с продом
     volumes:
