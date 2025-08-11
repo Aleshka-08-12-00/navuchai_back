@@ -5,11 +5,9 @@ before_script:
   - which ssh-agent || ( apt-get update -y && apt-get install -y openssh-client )
   - eval $(ssh-agent -s)
   - mkdir -p ~/.ssh
-  - printf '%b\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+  - cat "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
   - chmod 600 ~/.ssh/id_rsa
-  - cat ~/.ssh/id_rsa  # DEBUG - посмотреть содержимое файла ключа
   - ssh-add ~/.ssh/id_rsa
-  - ssh-keyscan -H your.gitlab.server >> ~/.ssh/known_hosts
 
 
 
