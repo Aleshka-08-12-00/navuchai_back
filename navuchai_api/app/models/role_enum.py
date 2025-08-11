@@ -6,3 +6,4 @@ class RoleCode(str, Enum):
     MODERATOR = "moderator"
     USER = "user"
     GUEST = "guest"
+    ROOT = "root"
