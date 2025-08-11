@@ -64,6 +64,18 @@ async def list_courses(
 
         courses.append(course)
 
+    if user:
+        available_courses = sorted(
+            [c for c in courses if c.enrolled], key=lambda c: c.id
+        )
+        unavailable_courses = sorted(
+            [c for c in courses if not c.enrolled], key=lambda c: c.id
+        )
+        courses_sorted = available_courses + unavailable_courses
+    else:
+        courses_sorted = sorted(courses, key=lambda c: c.id)
+        available_courses = courses_sorted
+
     current: CourseRead | None = None
     if user:
         course_obj, _ = await get_last_course_and_lesson(db, user.id)
@@ -77,8 +89,13 @@ async def list_courses(
             course_obj.students_count = await get_course_students_count(db, cid)
             course_obj.rating = await get_course_avg_rating(db, cid)
             current = CourseRead.model_validate(course_obj, from_attributes=True)
+        if current and not current.enrolled:
+            if available_courses:
+                current = min(available_courses, key=lambda c: abs(c.id - current.id))
+            else:
+                current = None
 
-    return {"current": current, "courses": courses}
+    return {"current": current, "courses": courses_sorted}
 
 
 @router.get(
