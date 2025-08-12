@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, defer
 from app.models import Lesson, LessonProgress, Module, File
 from app.schemas.lesson import LessonCreate
 from app.exceptions import NotFoundException
@@ -73,14 +73,23 @@ async def delete_lesson(db: AsyncSession, lesson_id: int):
 
 
 async def get_lessons_by_module(
-    db: AsyncSession, module_id: int, user_id: int | None = None
+    db: AsyncSession,
+    module_id: int,
+    user_id: int | None = None,
+    load_content: bool = True,
 ) -> list[Lesson]:
+    options = [
+        selectinload(Lesson.image),
+        selectinload(Lesson.thumbnail),
+        selectinload(Lesson.files),
+    ]
+    if not load_content:
+        options.append(defer(Lesson.content))
+
     if user_id is None:
         stmt = (
             select(Lesson)
-            .options(selectinload(Lesson.image))
-            .options(selectinload(Lesson.thumbnail))
-            .options(selectinload(Lesson.files))
+            .options(*options)
             .where(Lesson.module_id == module_id)
             .order_by(Lesson.order)
         )
@@ -94,9 +103,7 @@ async def get_lessons_by_module(
             (Lesson.id == LessonProgress.lesson_id)
             & (LessonProgress.user_id == user_id),
         )
-        .options(selectinload(Lesson.image))
-        .options(selectinload(Lesson.thumbnail))
-        .options(selectinload(Lesson.files))
+        .options(*options)
         .where(Lesson.module_id == module_id)
         .order_by(Lesson.order)
     )

@@ -31,6 +31,7 @@ from .test_group import TestGroup
 from .test_group_test import TestGroupTest
 from .test_group_access import TestGroupAccess
 from .faq_category import FaqCategory
+from .faq_category_access import FaqCategoryAccess
 from .faq import Faq
 
 __all__ = [
@@ -66,6 +67,7 @@ __all__ = [
     "TestGroupTest",
     "TestGroupAccess",
     "FaqCategory",
+    "FaqCategoryAccess",
     "Faq"
 ]
 

@@ -6,7 +6,7 @@ from .user_auth import Token, UserLogin, UserOut
 from .role import RoleBase
 from .course_test import CourseTestBase, CourseTestCreate
 from .module_test import ModuleTestBase, ModuleTestCreate
-from .faq import FaqCreate, FaqAnswerUpdate, FaqInDB
+from .faq import FaqCreate, FaqAnswerUpdate, FaqInDB, NewAnswersCount
 from .faq_category import FaqCategoryCreate, FaqCategoryUpdate, FaqCategoryInDB
 from .test_group_access import TestGroupAccessCreate, TestGroupAccessUpdate, TestGroupAccessResponse
 from .test_access import DeleteTestAccessByTestGroupRequest
