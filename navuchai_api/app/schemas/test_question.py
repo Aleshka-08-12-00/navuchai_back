@@ -1,5 +1,11 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
+
+
+class TestQuestionCreate(BaseModel):
+    position: Optional[int] = 1
+    required: Optional[bool] = True
 
 
 class TestQuestionResponse(BaseModel):
