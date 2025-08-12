@@ -31,7 +31,11 @@ from app.schemas.course import CourseCreate, CourseResponse, CourseWithDetails, 
 from app.schemas.course_rating import CourseRatingCreate
 from app.schemas.course_test import CourseTestBase, CourseTestCreate
 from app.schemas.test import TestResponse
-from app.schemas.module import ModuleWithLessons, ModuleCreate, ModuleResponse
+from app.schemas.module import (
+    ModuleCreate,
+    ModuleResponse,
+    ModuleWithLessonsWithoutContent,
+)
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
 from app.crud import authorized_required
@@ -166,16 +170,23 @@ async def remove(course_id: int, db: AsyncSession = Depends(get_db)):
     await delete_course(db, course_id)
 
 
-@router.get("/{course_id}/modules/", response_model=list[ModuleWithLessons], dependencies=[Depends(authorized_required)])
-async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db),
-                              user: User = Depends(get_current_user)):
+@router.get(
+    "/{course_id}/modules/",
+    response_model=list[ModuleWithLessonsWithoutContent],
+    dependencies=[Depends(authorized_required)],
+)
+async def list_course_modules(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     if user.role.code not in ["admin", "moderator"] and not await user_enrolled(db, course_id, user.id):
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
     for module in modules:
-        module.lessons = await get_lessons_by_module(db, module.id, user.id)
-        for lesson in module.lessons:
-            lesson.content = None
+        module.lessons = await get_lessons_by_module(
+            db, module.id, user.id, load_content=False
+        )
     if modules:
         return modules
     try:

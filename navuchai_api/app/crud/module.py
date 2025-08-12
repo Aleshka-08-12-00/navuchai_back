@@ -66,7 +66,6 @@ async def get_modules_by_course(db: AsyncSession, course_id: int) -> list[Module
     stmt = (
         select(Module)
         .where(Module.course_id == course_id)
-        .options(selectinload(Module.lessons))
         .order_by(Module.order)
     )
     result = await db.execute(stmt)
