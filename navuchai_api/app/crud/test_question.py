@@ -9,7 +9,7 @@ from app.exceptions import NotFoundException, DatabaseException
 
 
 # Создание связи между тестом и вопросом (test_question)
-async def create_test_question(db: AsyncSession, test_id: int, question_id: int) -> TestQuestion:
+async def create_test_question(db: AsyncSession, test_id: int, question_id: int, position: int = 1, required: bool = True) -> TestQuestion:
     """
     Создает связь между тестом и вопросом.
     max_score берется из answers.settings.correctScore вопроса.
@@ -32,8 +32,8 @@ async def create_test_question(db: AsyncSession, test_id: int, question_id: int)
     test_question = TestQuestion(
         test_id=test_id,
         question_id=question_id,
-        position=1,
-        required=True,
+        position=position,
+        required=required,
         max_score=correct_score
     )
     db.add(test_question)
