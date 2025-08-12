@@ -174,6 +174,8 @@ async def list_course_modules(course_id: int, db: AsyncSession = Depends(get_db)
     modules = await get_modules_by_course(db, course_id)
     for module in modules:
         module.lessons = await get_lessons_by_module(db, module.id, user.id)
+        for lesson in module.lessons:
+            lesson.content = None
     if modules:
         return modules
     try:
