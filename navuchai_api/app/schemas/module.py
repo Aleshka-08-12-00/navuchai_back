@@ -1,6 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel
-from app.schemas.lesson import LessonBase
+from app.schemas.lesson import LessonBase, LessonWithoutContent
 from .lesson import LessonRead
 
 class ModuleBase(BaseModel):
@@ -41,3 +41,13 @@ class ModuleResponse(BaseModel):
         orm_mode = True
 
 ModuleWithLessons.model_rebuild()
+
+
+class ModuleWithLessonsWithoutContent(ModuleBase):
+    lessons: List['LessonWithoutContent'] = []
+
+    class Config:
+        from_attributes = True
+
+
+ModuleWithLessonsWithoutContent.model_rebuild()
