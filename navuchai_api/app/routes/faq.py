@@ -31,12 +31,14 @@ async def create_faq_route(
 ):
     try:
         category = await get_faq_category(db, data.category_id)
-        if (
-            category.user_group_id is not None
-            and user.role.code not in ["admin", "moderator"]
-            and not await is_user_in_group(db, category.user_group_id, user.id)
-        ):
-            raise HTTPException(status_code=403, detail="Нет доступа к категории")
+        if category.user_group_ids and user.role.code not in ["admin", "moderator"]:
+            has_access = False
+            for gid in category.user_group_ids:
+                if await is_user_in_group(db, gid, user.id):
+                    has_access = True
+                    break
+            if not has_access:
+                raise HTTPException(status_code=403, detail="Нет доступа к категории")
         return await create_faq(db, data, user.id, user.name)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при создании вопроса FAQ")
@@ -51,19 +53,26 @@ async def list_faq_route(
     try:
         if category_id is not None:
             category = await get_faq_category(db, category_id)
-            if (
-                category.user_group_id is not None
-                and user.role.code not in ["admin", "moderator"]
-                and not await is_user_in_group(db, category.user_group_id, user.id)
-            ):
-                raise HTTPException(status_code=403, detail="Нет доступа к категории")
+            if category.user_group_ids and user.role.code not in ["admin", "moderator"]:
+                has_access = False
+                for gid in category.user_group_ids:
+                    if await is_user_in_group(db, gid, user.id):
+                        has_access = True
+                        break
+                if not has_access:
+                    raise HTTPException(status_code=403, detail="Нет доступа к категории")
         faqs = await get_faqs(db, category_id)
         if user.role.code not in ["admin", "moderator"]:
             filtered = []
             for f in faqs:
                 cat = await get_faq_category(db, f.category_id)
-                if cat.user_group_id is None or await is_user_in_group(db, cat.user_group_id, user.id):
+                if not cat.user_group_ids:
                     filtered.append(f)
+                else:
+                    for gid in cat.user_group_ids:
+                        if await is_user_in_group(db, gid, user.id):
+                            filtered.append(f)
+                            break
             faqs = filtered
         return faqs
     except SQLAlchemyError:
@@ -79,12 +88,14 @@ async def get_faq_route(
     try:
         faq = await get_faq(db, faq_id)
         category = await get_faq_category(db, faq.category_id)
-        if (
-            category.user_group_id is not None
-            and user.role.code not in ["admin", "moderator"]
-            and not await is_user_in_group(db, category.user_group_id, user.id)
-        ):
-            raise HTTPException(status_code=403, detail="Нет доступа к вопросу")
+        if category.user_group_ids and user.role.code not in ["admin", "moderator"]:
+            has_access = False
+            for gid in category.user_group_ids:
+                if await is_user_in_group(db, gid, user.id):
+                    has_access = True
+                    break
+            if not has_access:
+                raise HTTPException(status_code=403, detail="Нет доступа к вопросу")
         await increment_faq_hits(db, faq_id)
         if faq.owner_id == user.id and faq.has_new_answer:
             faq.has_new_answer = False
