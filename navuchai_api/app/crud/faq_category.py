@@ -1,18 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
-from app.models import FaqCategory
+from app.models import FaqCategory, FaqCategoryAccess
 from app.schemas.faq_category import FaqCategoryCreate, FaqCategoryUpdate
 from app.exceptions import DatabaseException, NotFoundException
 
 
 async def create_faq_category(db: AsyncSession, data: FaqCategoryCreate) -> FaqCategory:
     try:
-        obj = FaqCategory(**data.model_dump())
+        obj = FaqCategory(**data.model_dump(exclude={"user_group_ids"}))
         db.add(obj)
         await db.commit()
         await db.refresh(obj)
+        if data.user_group_ids:
+            obj.accesses = [FaqCategoryAccess(user_group_id=g) for g in data.user_group_ids]
+            db.add_all(obj.accesses)
+            await db.commit()
+            await db.refresh(obj)
         return obj
     except SQLAlchemyError as e:
         await db.rollback()
@@ -21,7 +27,9 @@ async def create_faq_category(db: AsyncSession, data: FaqCategoryCreate) -> FaqC
 
 async def get_faq_category(db: AsyncSession, category_id: int) -> FaqCategory:
     try:
-        result = await db.execute(select(FaqCategory).where(FaqCategory.id == category_id))
+        result = await db.execute(
+            select(FaqCategory).options(selectinload(FaqCategory.accesses)).where(FaqCategory.id == category_id)
+        )
         obj = result.scalar_one_or_none()
         if not obj:
             raise NotFoundException("Категория FAQ не найдена")
@@ -32,7 +40,7 @@ async def get_faq_category(db: AsyncSession, category_id: int) -> FaqCategory:
 
 async def get_faq_categories(db: AsyncSession) -> list[FaqCategory]:
     try:
-        result = await db.execute(select(FaqCategory))
+        result = await db.execute(select(FaqCategory).options(selectinload(FaqCategory.accesses)))
         return result.scalars().all()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении категорий FAQ: {str(e)}")
@@ -41,8 +49,11 @@ async def get_faq_categories(db: AsyncSession) -> list[FaqCategory]:
 async def update_faq_category(db: AsyncSession, category_id: int, data: FaqCategoryUpdate) -> FaqCategory:
     try:
         obj = await get_faq_category(db, category_id)
-        for field, value in data.model_dump(exclude_unset=True).items():
+        data_dict = data.model_dump(exclude_unset=True, exclude={"user_group_ids"})
+        for field, value in data_dict.items():
             setattr(obj, field, value)
+        if data.user_group_ids is not None:
+            obj.accesses = [FaqCategoryAccess(user_group_id=g) for g in data.user_group_ids]
         await db.commit()
         await db.refresh(obj)
         return obj
