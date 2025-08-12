@@ -45,6 +45,25 @@ class LessonResponse(LessonBase):
     pass
 
 
+class LessonWithoutContent(BaseModel):
+    id: int
+    module_id: int
+    title: str
+    description: Optional[str] = None
+    video: Optional[str] = None
+    order: Optional[int] = None
+    img_id: Optional[int] = Field(default=None, alias="imgId")
+    thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
+    image: Optional[FileInDB] = None
+    thumbnail: Optional[FileInDB] = None
+    files: List[FileInDB] = []
+    completed: Optional[bool] = None
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
 class LessonWithTests(LessonBase):
     tests: List["LessonTestBase"] = []
 
