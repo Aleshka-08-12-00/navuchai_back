@@ -1,9 +1,17 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
-from app.crud import enroll_user, unenroll_user, get_user_courses, authorized_required, get_current_user, \
-    admin_moderator_required
+from app.crud import (
+    enroll_user,
+    unenroll_user,
+    get_user_courses,
+    get_all_user_courses,
+    authorized_required,
+    get_current_user,
+    admin_moderator_required,
+)
 from app.models import User
+from app.schemas.course_enrollment import CourseEnrollmentBase
 
 router = APIRouter(prefix="/api/courses", tags=["Enrollment"])
 
@@ -28,3 +36,12 @@ async def unenroll(course_id: int, user_id: int, db: AsyncSession = Depends(get_
 @router.get("/users/{user_id}/courses/")
 async def user_courses(user_id: int, db: AsyncSession = Depends(get_db)):
     return await get_user_courses(db, user_id)
+
+
+@router.get(
+    "/users/courses/",
+    response_model=list[CourseEnrollmentBase],
+    dependencies=[Depends(admin_moderator_required)],
+)
+async def all_user_courses(db: AsyncSession = Depends(get_db)):
+    return await get_all_user_courses(db)

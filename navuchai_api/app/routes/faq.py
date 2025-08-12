@@ -9,6 +9,7 @@ from app.crud import (
     answer_faq,
     increment_faq_hits,
     get_new_answers_count,
+    get_new_answers_counts,
     admin_moderator_required,
     authorized_required,
     get_current_user,
@@ -16,7 +17,7 @@ from app.crud import (
     is_user_in_group,
 )
 from app.dependencies import get_db
-from app.schemas import FaqCreate, FaqAnswerUpdate, FaqInDB
+from app.schemas import FaqCreate, FaqAnswerUpdate, FaqInDB, NewAnswersCount
 from app.exceptions import DatabaseException
 from app.models import User
 
@@ -128,4 +129,17 @@ async def new_answers_count_route(
         return await get_new_answers_count(db, user.id)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении количества новых ответов")
+
+
+@router.get("/new-answers/count/all/", response_model=list[NewAnswersCount])
+async def new_answers_count_all_route(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(admin_moderator_required),
+):
+    try:
+        return await get_new_answers_counts(db)
+    except SQLAlchemyError:
+        raise DatabaseException(
+            "Ошибка при получении количества новых ответов для пользователей"
+        )
 
