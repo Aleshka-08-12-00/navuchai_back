@@ -184,7 +184,8 @@ async def list_course_modules(
         raise HTTPException(status_code=403, detail="Нет доступа к курсу")
     modules = await get_modules_by_course(db, course_id)
     for module in modules:
-        module.lessons = await get_lessons_by_module(
+        # Bypass SQLAlchemy relationship assignment to avoid async lazy-loading
+        module.__dict__["lessons"] = await get_lessons_by_module(
             db, module.id, user.id, load_content=False
         )
     if modules:

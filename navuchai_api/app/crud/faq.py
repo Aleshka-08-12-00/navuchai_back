@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import update as sql_update
@@ -83,4 +84,21 @@ async def get_new_answers_count(db: AsyncSession, user_id: int) -> int:
         return res.scalar_one()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении количества новых ответов: {str(e)}")
+
+
+async def get_new_answers_counts(db: AsyncSession) -> list[dict[str, int]]:
+    try:
+        res = await db.execute(
+            select(Faq.owner_id, func.count())
+            .where(Faq.has_new_answer == True)
+            .group_by(Faq.owner_id)
+        )
+        return [
+            {"user_id": row[0], "count": row[1]}
+            for row in res.all()
+        ]
+    except SQLAlchemyError as e:
+        raise DatabaseException(
+            f"Ошибка при получении количества новых ответов для пользователей: {str(e)}"
+        )
 

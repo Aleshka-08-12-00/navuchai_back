@@ -27,6 +27,11 @@ async def get_user_courses(db: AsyncSession, user_id: int):
     return result.scalars().all()
 
 
+async def get_all_user_courses(db: AsyncSession):
+    result = await db.execute(select(CourseEnrollment))
+    return result.scalars().all()
+
+
 async def user_enrolled(db: AsyncSession, course_id: int, user_id: int) -> bool:
     result = await db.execute(
         select(CourseEnrollment).where(
