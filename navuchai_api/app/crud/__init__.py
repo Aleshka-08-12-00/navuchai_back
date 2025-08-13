@@ -29,6 +29,7 @@ from .enrollment import (
     unenroll_user,
     get_user_courses,
     get_all_user_courses,
+    get_users_courses_grouped,
     user_enrolled,
 )
 from .course_test import (
