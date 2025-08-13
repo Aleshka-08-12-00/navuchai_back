@@ -52,23 +52,29 @@ async def get_faq_categories(db: AsyncSession) -> list[FaqCategory]:
 async def update_faq_category(db: AsyncSession, category_id: int, data: FaqCategoryUpdate) -> FaqCategory:
     try:
         obj = await get_faq_category(db, category_id)
-        data_dict = data.model_dump(exclude_unset=True, exclude={"user_group_id"})
+        data_dict = data.model_dump(exclude_unset=True, exclude={"user_group_ids"})
         for field, value in data_dict.items():
             setattr(obj, field, value)
         
         # Обрабатываем user_group_ids только если они явно переданы в запросе
         # Проверяем, было ли поле user_group_ids в исходных данных
         # Поле было передано, только если клиент явно прислал его в теле запроса
-        if 'user_group_id' in getattr(data, 'model_fields_set', set()):
-            # Если передан один ID: добавляем его, если ещё нет; если None — очищаем все
-            if data.user_group_id is not None:
-                existing_group_ids = {a.user_group_id for a in obj.accesses}
-                if data.user_group_id not in existing_group_ids:
-                    new_access = FaqCategoryAccess(user_group_id=data.user_group_id, faq_category_id=category_id)
-                    db.add(new_access)
-                    # Добавляем новую запись в связь объекта
-                    obj.accesses.append(new_access)
+        if 'user_group_ids' in getattr(data, 'model_fields_set', set()):
+            # Если передан массив ID: заменяем все существующие на новые; если пустой массив — очищаем все
+            if data.user_group_ids is not None:
+                # Удаляем все существующие записи доступа
+                for access in obj.accesses:
+                    await db.delete(access)
+                obj.accesses.clear()
+                
+                # Создаем новые записи доступа
+                if data.user_group_ids:
+                    new_accesses = [FaqCategoryAccess(user_group_id=g, faq_category_id=category_id) for g in data.user_group_ids]
+                    db.add_all(new_accesses)
+                    # Добавляем новые записи в связь объекта
+                    obj.accesses.extend(new_accesses)
             else:
+                # Если None, очищаем все
                 for access in obj.accesses:
                     await db.delete(access)
                 obj.accesses.clear()
