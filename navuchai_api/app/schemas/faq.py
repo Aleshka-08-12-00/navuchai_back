@@ -46,3 +46,8 @@ class FaqAnswerUpdate(BaseModel):
 
 class FaqInDB(FaqBase):
     pass
+
+
+class NewAnswersCount(BaseModel):
+    user_id: int
+    count: int

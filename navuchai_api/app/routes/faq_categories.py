@@ -46,11 +46,13 @@ async def list_categories_route(
         if user.role.code not in ["admin", "moderator"]:
             filtered = []
             for cat in categories:
-                if cat.user_group_id is None:
+                if not cat.user_group_ids:
                     filtered.append(cat)
                 else:
-                    if await is_user_in_group(db, cat.user_group_id, user.id):
-                        filtered.append(cat)
+                    for gid in cat.user_group_ids:
+                        if await is_user_in_group(db, gid, user.id):
+                            filtered.append(cat)
+                            break
             categories = filtered
         return categories
     except SQLAlchemyError:
@@ -65,12 +67,14 @@ async def get_category_route(
 ):
     try:
         category = await get_faq_category(db, category_id)
-        if (
-            category.user_group_id is not None
-            and user.role.code not in ["admin", "moderator"]
-            and not await is_user_in_group(db, category.user_group_id, user.id)
-        ):
-            raise HTTPException(status_code=403, detail="Нет доступа к категории")
+        if category.user_group_ids and user.role.code not in ["admin", "moderator"]:
+            has_access = False
+            for gid in category.user_group_ids:
+                if await is_user_in_group(db, gid, user.id):
+                    has_access = True
+                    break
+            if not has_access:
+                raise HTTPException(status_code=403, detail="Нет доступа к категории")
         return category
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении категории FAQ")

@@ -10,6 +10,7 @@ from app.crud import (
 )
 from app.dependencies import get_db
 from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
+from app.schemas.test_question import TestQuestionCreate
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
 from app.utils.test_generator import generate_test_questions
@@ -145,9 +146,21 @@ async def delete_question_by_id(question_id: int, db: AsyncSession = Depends(get
 
 # Создание связи между тестом и вопросом
 @router.post("/{question_id}/add-to-test/{test_id}/", status_code=status.HTTP_201_CREATED)
-async def link_test_question(test_id: int, question_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(root_admin_moderator_required)):
+async def link_test_question(
+    test_id: int, 
+    question_id: int, 
+    test_question_data: TestQuestionCreate = TestQuestionCreate(),
+    db: AsyncSession = Depends(get_db), 
+    user: User = Depends(root_admin_moderator_required)
+):
     try:
-        return await create_test_question(db, test_id, question_id)
+        return await create_test_question(
+            db, 
+            test_id, 
+            question_id, 
+            position=test_question_data.position,
+            required=test_question_data.required
+        )
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при связывании теста и вопроса")
 
