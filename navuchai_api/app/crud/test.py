@@ -119,9 +119,30 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             # Если не удалось добавить в группу, логируем ошибку, но не прерываем создание теста
             print(f"Предупреждение: не удалось добавить тест {new_test.id} в общую группу: {str(e)}")
         
-        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
+        # Автоматически выдаем персональный доступ создателю и назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
         try:
-            from app.crud.test_access import create_group_test_access
+            from app.crud.test_access import create_group_test_access, get_test_access
+            from app.schemas.test_access import TestAccessCreate
+            from app.models import TestAccess
+            from app.crud.test_access import _generate_access_code
+            
+            # Персональный доступ создателю
+            try:
+                existing_creator = await get_test_access(db, new_test.id, new_test.creator_id)
+                if not existing_creator:
+                    creator_payload = TestAccessCreate(test_id=new_test.id, user_id=new_test.creator_id, status_id=1)
+                    access_code = _generate_access_code() if new_test.creator_id else None
+                    db_creator_access = TestAccess(
+                        **creator_payload.model_dump(exclude_none=True),
+                        completed_number=0,
+                        avg_percent=0,
+                        access_code=access_code
+                    )
+                    db.add(db_creator_access)
+                    await db.commit()
+                    await db.refresh(db_creator_access)
+            except Exception as e:
+                print(f"Предупреждение: не удалось выдать доступ создателю теста {new_test.id}: {str(e)}")
             
             # Назначаем доступ группе "Администраторы"
             try:
@@ -139,7 +160,7 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             
         except Exception as e:
             # Если не удалось назначить доступ, логируем ошибку, но не прерываем создание теста
-            print(f"Предупреждение: не удалось назначить доступ к тесту {new_test.id} группам Администраторы/Модераторы: {str(e)}")
+            print(f"Предупреждение: не удалось назначить доступы к тесту {new_test.id}: {str(e)}")
         
         return new_test
     except SQLAlchemyError as e:
