@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
@@ -12,6 +12,7 @@ class TestGroupBase(BaseModel):
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
     status_id: Optional[int] = None
+    options: Optional[Dict[str, Any]] = None
 
 
 class TestGroupCreate(TestGroupBase):
@@ -98,6 +99,7 @@ class TestGroupWithCategories(BaseModel):
     status_color: Optional[str] = None
     image: Optional[str] = None
     thumbnail: Optional[str] = None
+    options: Optional[Dict[str, Any]] = None
     categories: List[CategoryWithTests]
     total_tests_count: int
 

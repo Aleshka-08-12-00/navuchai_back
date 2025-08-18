@@ -28,8 +28,7 @@ async def get_test_groups(db: AsyncSession):
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -68,8 +67,7 @@ async def get_active_test_groups(db: AsyncSession):
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -120,8 +118,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
                 group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                               for k, v in group.__dict__.items()
                               if not k.startswith('_')
-                              and k not in {'status', 'img', 'thumbnail'}
-                              and not isinstance(v, (dict, list, set, tuple))}
+                              and k not in {'status', 'img', 'thumbnail'}}
                 if hasattr(group, 'status') and group.status:
                     group_dict['status_name'] = group.status.name
                     group_dict['status_name_ru'] = group.status.name_ru
@@ -156,8 +153,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
                 group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                               for k, v in group.__dict__.items()
                               if not k.startswith('_')
-                              and k not in {'status', 'img', 'thumbnail'}
-                              and not isinstance(v, (dict, list, set, tuple))}
+                              and k not in {'status', 'img', 'thumbnail'}}
                 if hasattr(group, 'status') and group.status:
                     group_dict['status_name'] = group.status.name
                     group_dict['status_name_ru'] = group.status.name_ru
@@ -196,8 +192,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -877,8 +872,9 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 'status_color': group.status.color if group.status else None,
                 'image': group.img.path if group.img else None,
                 'thumbnail': group.thumbnail.path if group.thumbnail else None,
-                'categories': sorted_categories,
-                'total_tests_count': total_tests_count
+				'options': group.options if hasattr(group, 'options') else None,
+				'categories': sorted_categories,
+				'total_tests_count': total_tests_count
             }
             
             result_groups.append(group_dict)
