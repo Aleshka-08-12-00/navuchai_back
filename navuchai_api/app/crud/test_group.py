@@ -541,12 +541,9 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                 # Для остальных групп проверяем доступ к группе
                 access_stmt = (
                     select(TestGroupAccess)
-                    .join(TestGroup, TestGroupAccess.test_group_id == TestGroup.id)
-                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
                     .where(
                         TestGroupAccess.test_group_id == group_id,
-                        TestGroupAccess.user_id == user_id,
-                        TestStatus.code == 'active'
+                        TestGroupAccess.user_id == user_id
                     )
                 )
                 access_result = await db.execute(access_stmt)

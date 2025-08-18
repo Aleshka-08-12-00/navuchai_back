@@ -244,6 +244,36 @@ async def get_user_tests(db: AsyncSession, user_id: int):
         if user.role and user.role.code in ('admin', 'root'):
             return await get_tests(db)
         
+        # Модераторы видят все тесты, к которым у них есть TestAccess, включая неактивные
+        if user.role and user.role.code == 'moderator':
+            result = await db.execute(
+                select(
+                    Test, Category.name, User.name, Locale.code, 
+                    TestStatus.name, TestStatus.name_ru, TestStatus.color,
+                    TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
+                    TestAccess.completed_number, TestAccess.avg_percent,
+                    TestAccess.access_code, TestAccess.is_completed
+                )
+                .join(TestAccess, Test.id == TestAccess.test_id)
+                .join(Category, Test.category_id == Category.id)
+                .join(User, Test.creator_id == User.id)
+                .join(Locale, Test.locale_id == Locale.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
+                .options(selectinload(Test.image))
+                .options(selectinload(Test.thumbnail))
+                .where(TestAccess.user_id == user_id)
+                .order_by(Test.id)
+            )
+            rows = result.all()
+            return [format_test_with_names(
+                test, category_name, creator_name, locale_code, 
+                status_name, status_name_ru, status_color,
+                access_status_name, access_status_code, access_status_color,
+                user_completed, user_percent,
+                access_code, is_completed
+            ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code, is_completed in rows]
+        
         # Обычные пользователи видят только тесты, доступные им, исключая тесты со статусом ID 2 (Setup in progress)
         result = await db.execute(
             select(
