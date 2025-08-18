@@ -89,7 +89,7 @@ async def get_test_group(group_id: int, db: AsyncSession = Depends(get_db), user
 async def create_test_group(data: TestGroupCreate, db: AsyncSession = Depends(get_db),
                             user=Depends(root_admin_moderator_required)):
     try:
-        return await crud.create_test_group(db, data)
+        return await crud.create_test_group(db, data, creator_user_id=user.id)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при создании группы")
 
