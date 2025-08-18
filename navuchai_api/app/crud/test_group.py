@@ -28,8 +28,7 @@ async def get_test_groups(db: AsyncSession):
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -68,8 +67,7 @@ async def get_active_test_groups(db: AsyncSession):
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -120,8 +118,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
                 group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                               for k, v in group.__dict__.items()
                               if not k.startswith('_')
-                              and k not in {'status', 'img', 'thumbnail'}
-                              and not isinstance(v, (dict, list, set, tuple))}
+                              and k not in {'status', 'img', 'thumbnail'}}
                 if hasattr(group, 'status') and group.status:
                     group_dict['status_name'] = group.status.name
                     group_dict['status_name_ru'] = group.status.name_ru
@@ -156,8 +153,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
                 group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                               for k, v in group.__dict__.items()
                               if not k.startswith('_')
-                              and k not in {'status', 'img', 'thumbnail'}
-                              and not isinstance(v, (dict, list, set, tuple))}
+                              and k not in {'status', 'img', 'thumbnail'}}
                 if hasattr(group, 'status') and group.status:
                     group_dict['status_name'] = group.status.name
                     group_dict['status_name_ru'] = group.status.name_ru
@@ -196,8 +192,7 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
             group_dict = {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
                           for k, v in group.__dict__.items()
                           if not k.startswith('_')
-                          and k not in {'status', 'img', 'thumbnail'}
-                          and not isinstance(v, (dict, list, set, tuple))}
+                          and k not in {'status', 'img', 'thumbnail'}}
             if hasattr(group, 'status') and group.status:
                 group_dict['status_name'] = group.status.name
                 group_dict['status_name_ru'] = group.status.name_ru
@@ -305,34 +300,50 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
 
 
 # Создание группы
-async def create_test_group(db: AsyncSession, group: TestGroupCreate):
+async def create_test_group(db: AsyncSession, group: TestGroupCreate, creator_user_id: int | None = None):
     try:
         db_group = TestGroup(**group.dict())
         db.add(db_group)
         await db.commit()
         await db.refresh(db_group)
         
-        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
+        # Назначаем доступ создателю группы (если передан)
+        if creator_user_id is not None:
+            try:
+                from app.crud.test_group_access import create_test_group_access
+                from app.schemas.test_group_access import TestGroupAccessCreate
+                await create_test_group_access(
+                    db,
+                    TestGroupAccessCreate(test_group_id=db_group.id, user_id=creator_user_id, status_id=1)
+                )
+            except Exception as e:
+                print(f"Предупреждение: не удалось назначить доступ создателю {creator_user_id} для группы {db_group.id}: {str(e)}")
+        
+        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78) без требования наличия тестов
         try:
-            from app.crud.test_access import create_group_test_group_access
+            from sqlalchemy import select
+            from app.models import UserGroupMember
+            from app.crud.test_group_access import create_test_group_access
+            from app.schemas.test_group_access import TestGroupAccessCreate
             
-            # Назначаем доступ группе "Администраторы"
-            try:
-                await create_group_test_group_access(db, db_group.id, 76, status_id=1)
-                print(f"Доступ к группе тестов {db_group.id} назначен группе 'Администраторы'")
-            except Exception as e:
-                print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группе 'Администраторы': {str(e)}")
-            
-            # Назначаем доступ группе "Модераторы"
-            try:
-                await create_group_test_group_access(db, db_group.id, 78, status_id=1)
-                print(f"Доступ к группе тестов {db_group.id} назначен группе 'Модераторы'")
-            except Exception as e:
-                print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группе 'Модераторы': {str(e)}")
-            
+            for system_group_id in (76, 78):
+                try:
+                    members_result = await db.execute(select(UserGroupMember).where(UserGroupMember.group_id == system_group_id))
+                    members = members_result.scalars().all()
+                    for member in members:
+                        try:
+                            await create_test_group_access(
+                                db,
+                                TestGroupAccessCreate(test_group_id=db_group.id, user_id=member.user_id, user_group_id=system_group_id, status_id=1)
+                            )
+                        except Exception as e:
+                            # Пропускаем, если у пользователя уже есть доступ
+                            pass
+                except Exception as e:
+                    print(f"Предупреждение: не удалось назначить доступ группе пользователей {system_group_id} для группы {db_group.id}: {str(e)}")
         except Exception as e:
             # Если не удалось назначить доступ, логируем ошибку, но не прерываем создание группы
-            print(f"Предупреждение: не удалось назначить доступ к группе тестов {db_group.id} группам Администраторы/Модераторы: {str(e)}")
+            print(f"Предупреждение: не удалось назначить системные доступы для группы {db_group.id}: {str(e)}")
         
         return db_group
     except SQLAlchemyError as e:
@@ -373,6 +384,31 @@ async def add_test_to_group(db: AsyncSession, data: TestGroupTestCreate):
         db.add(db_link)
         await db.commit()
         await db.refresh(db_link)
+
+        # Для всех уже назначенных на группу пользователей создаём TestAccess на этот тест
+        from app.crud.test_group_access import get_test_group_accesses_by_test_group
+        accesses = await get_test_group_accesses_by_test_group(db, data.test_group_id)
+        from app.crud.test_access import get_test_access, TestAccessCreate, _generate_access_code
+        from app.models import TestAccess
+        created = []
+        for acc in accesses:
+            existing = await get_test_access(db, data.test_id, acc.user_id)
+            if not existing:
+                payload = TestAccessCreate(test_id=data.test_id, user_id=acc.user_id, status_id=acc.status_id or 1)
+                access_code = _generate_access_code() if acc.user_id else None
+                db_access = TestAccess(
+                    **payload.model_dump(exclude_none=True),
+                    user_group_id=acc.user_group_id,
+                    test_group_id=data.test_group_id,
+                    completed_number=0,
+                    avg_percent=0,
+                    access_code=access_code,
+                )
+                db.add(db_access)
+                await db.commit()
+                await db.refresh(db_access)
+                created.append(db_access)
+
         return db_link
     except SQLAlchemyError as e:
         await db.rollback()
@@ -500,12 +536,9 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                 # Для остальных групп проверяем доступ к группе
                 access_stmt = (
                     select(TestGroupAccess)
-                    .join(TestGroup, TestGroupAccess.test_group_id == TestGroup.id)
-                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
                     .where(
                         TestGroupAccess.test_group_id == group_id,
-                        TestGroupAccess.user_id == user_id,
-                        TestStatus.code == 'active'
+                        TestGroupAccess.user_id == user_id
                     )
                 )
                 access_result = await db.execute(access_stmt)
@@ -839,8 +872,9 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                 'status_color': group.status.color if group.status else None,
                 'image': group.img.path if group.img else None,
                 'thumbnail': group.thumbnail.path if group.thumbnail else None,
-                'categories': sorted_categories,
-                'total_tests_count': total_tests_count
+				'options': group.options if hasattr(group, 'options') else None,
+				'categories': sorted_categories,
+				'total_tests_count': total_tests_count
             }
             
             result_groups.append(group_dict)

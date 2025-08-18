@@ -119,9 +119,30 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             # Если не удалось добавить в группу, логируем ошибку, но не прерываем создание теста
             print(f"Предупреждение: не удалось добавить тест {new_test.id} в общую группу: {str(e)}")
         
-        # Автоматически назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
+        # Автоматически выдаем персональный доступ создателю и назначаем доступ группам "Администраторы" (ID: 76) и "Модераторы" (ID: 78)
         try:
-            from app.crud.test_access import create_group_test_access
+            from app.crud.test_access import create_group_test_access, get_test_access
+            from app.schemas.test_access import TestAccessCreate
+            from app.models import TestAccess
+            from app.crud.test_access import _generate_access_code
+            
+            # Персональный доступ создателю
+            try:
+                existing_creator = await get_test_access(db, new_test.id, new_test.creator_id)
+                if not existing_creator:
+                    creator_payload = TestAccessCreate(test_id=new_test.id, user_id=new_test.creator_id, status_id=1)
+                    access_code = _generate_access_code() if new_test.creator_id else None
+                    db_creator_access = TestAccess(
+                        **creator_payload.model_dump(exclude_none=True),
+                        completed_number=0,
+                        avg_percent=0,
+                        access_code=access_code
+                    )
+                    db.add(db_creator_access)
+                    await db.commit()
+                    await db.refresh(db_creator_access)
+            except Exception as e:
+                print(f"Предупреждение: не удалось выдать доступ создателю теста {new_test.id}: {str(e)}")
             
             # Назначаем доступ группе "Администраторы"
             try:
@@ -139,7 +160,7 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             
         except Exception as e:
             # Если не удалось назначить доступ, логируем ошибку, но не прерываем создание теста
-            print(f"Предупреждение: не удалось назначить доступ к тесту {new_test.id} группам Администраторы/Модераторы: {str(e)}")
+            print(f"Предупреждение: не удалось назначить доступы к тесту {new_test.id}: {str(e)}")
         
         return new_test
     except SQLAlchemyError as e:
@@ -219,9 +240,39 @@ async def get_user_tests(db: AsyncSession, user_id: int):
         if not user:
             raise NotFoundException(f"Пользователь с ID {user_id} не найден")
         
-        # Админы видят все тесты
-        if user.role and user.role.code == 'admin':
+        # Root и админы видят все тесты
+        if user.role and user.role.code in ('admin', 'root'):
             return await get_tests(db)
+        
+        # Модераторы видят все тесты, к которым у них есть TestAccess, включая неактивные
+        if user.role and user.role.code == 'moderator':
+            result = await db.execute(
+                select(
+                    Test, Category.name, User.name, Locale.code, 
+                    TestStatus.name, TestStatus.name_ru, TestStatus.color,
+                    TestAccessStatus.name, TestAccessStatus.code, TestAccessStatus.color,
+                    TestAccess.completed_number, TestAccess.avg_percent,
+                    TestAccess.access_code, TestAccess.is_completed
+                )
+                .join(TestAccess, Test.id == TestAccess.test_id)
+                .join(Category, Test.category_id == Category.id)
+                .join(User, Test.creator_id == User.id)
+                .join(Locale, Test.locale_id == Locale.id)
+                .join(TestStatus, Test.status_id == TestStatus.id)
+                .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
+                .options(selectinload(Test.image))
+                .options(selectinload(Test.thumbnail))
+                .where(TestAccess.user_id == user_id)
+                .order_by(Test.id)
+            )
+            rows = result.all()
+            return [format_test_with_names(
+                test, category_name, creator_name, locale_code, 
+                status_name, status_name_ru, status_color,
+                access_status_name, access_status_code, access_status_color,
+                user_completed, user_percent,
+                access_code, is_completed
+            ) for test, category_name, creator_name, locale_code, status_name, status_name_ru, status_color, access_status_name, access_status_code, access_status_color, user_completed, user_percent, access_code, is_completed in rows]
         
         # Обычные пользователи видят только тесты, доступные им, исключая тесты со статусом ID 2 (Setup in progress)
         result = await db.execute(
