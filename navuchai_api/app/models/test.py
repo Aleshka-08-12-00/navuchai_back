@@ -39,6 +39,10 @@ class Test(Base):
     answer_view_mode = Column(Enum(AnswerViewModeEnum, name='answer_view_mode_enum', create_type=False, values_callable=lambda obj: [e.value for e in obj]), nullable=False, default=AnswerViewModeEnum.USER_ONLY)
     code = Column(String, nullable=True, server_default=text("encode(gen_random_bytes(16), 'base64')"))
     grade_options = Column(JSONB, nullable=False)
+    # Новые поля для логики доступности без групп
+    attempts = Column(Integer, nullable=True)
+    date_start = Column(PG_TIMESTAMP(timezone=True), nullable=True)
+    date_end = Column(PG_TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

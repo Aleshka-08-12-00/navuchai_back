@@ -399,3 +399,17 @@ async def count_user_attempts_in_group(db: AsyncSession, user_id: int, test_id: 
         return result.scalar_one() or 0
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при подсчёте попыток: {str(e)}")
+
+
+async def count_user_attempts_without_group(db: AsyncSession, user_id: int, test_id: int) -> int:
+    """Возвращает количество попыток пользователя пройти тест без привязки к группе (test_group_id is NULL)."""
+    try:
+        stmt = select(func.count()).select_from(Result).where(
+            Result.user_id == user_id,
+            Result.test_id == test_id,
+            Result.test_group_id.is_(None)
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one() or 0
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при подсчёте попыток (без группы): {str(e)}")

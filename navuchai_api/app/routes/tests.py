@@ -20,6 +20,21 @@ from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
 from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate, TestWithAccessDetails
+from pydantic import BaseModel
+
+
+class CheckTestAvailabilityNoGroupBody(BaseModel):
+    user_id: int
+    test_id: int
+
+
+class CheckTestAvailabilityResponse(BaseModel):
+    is_available: bool
+    message: str
+    attempts_left: int | None = None
+    attempts_used: int | None = None
+    attempts_total: int | None = None
+
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
 
@@ -143,3 +158,96 @@ async def get_private_test_by_access_code(
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении теста")
+
+
+@router.post("/check-availability/", response_model=CheckTestAvailabilityResponse)
+async def check_test_availability_no_group(
+    data: CheckTestAvailabilityNoGroupBody,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    from datetime import datetime, timezone
+    from app.crud.test import get_test_by_id
+    from app.crud.result import count_user_attempts_without_group
+
+    # Получаем тест (SQLAlchemy модель)
+    test = await get_test_by_id(db, data.test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Тест не найден")
+
+    # Даты доступа берём из теста (если есть)
+    test_date_start = getattr(test, 'date_start', None)
+    test_date_end = getattr(test, 'date_end', None)
+
+    def now_for(dt: datetime | None) -> datetime:
+        if dt is None:
+            return datetime.utcnow()
+        return datetime.now(timezone.utc) if dt.tzinfo else datetime.utcnow()
+
+    def fmt(dt: datetime | None) -> str | None:
+        if not dt:
+            return None
+        return dt.strftime("%d.%m.%Y %H:%M")
+
+    # Проверка доступности по датам
+    if test_date_start is not None and now_for(test_date_start) < test_date_start:
+        start_str = fmt(test_date_start)
+        end_str = fmt(test_date_end)
+        msg = (
+            f"Тест недоступен: доступ откроется {start_str}."
+            if not end_str
+            else f"Тест недоступен: доступ откроется {start_str} и будет доступен до {end_str}."
+        )
+        return CheckTestAvailabilityResponse(
+            is_available=False,
+            message=msg,
+            attempts_left=None,
+            attempts_used=None,
+            attempts_total=None
+        )
+
+    if test_date_end is not None and now_for(test_date_end) > test_date_end:
+        end_str = fmt(test_date_end)
+        return CheckTestAvailabilityResponse(
+            is_available=False,
+            message=f"Тест недоступен: период доступа завершился {end_str}.",
+            attempts_left=None,
+            attempts_used=None,
+            attempts_total=None
+        )
+
+    # Подсчёт попыток без группы
+    attempts_total = getattr(test, 'attempts', None)
+    try:
+        attempts_total = int(attempts_total) if attempts_total is not None else None
+    except Exception:
+        attempts_total = None
+
+    attempts_used = await count_user_attempts_without_group(db, data.user_id, data.test_id)
+
+    if attempts_total is not None:
+        attempts_left = max(attempts_total - attempts_used, 0)
+        if attempts_left <= 0:
+            return CheckTestAvailabilityResponse(
+                is_available=False,
+                message="Все попытки израсходованы",
+                attempts_left=0,
+                attempts_used=attempts_used,
+                attempts_total=attempts_total
+            )
+        return CheckTestAvailabilityResponse(
+            is_available=True,
+            message=f"Тест доступен. Осталось попыток: {attempts_left}",
+            attempts_left=attempts_left,
+            attempts_used=attempts_used,
+            attempts_total=attempts_total
+        )
+
+    # attempts не задан — считаем попытки неограниченными
+    return CheckTestAvailabilityResponse(
+        is_available=True,
+        message="Тест доступен",
+        attempts_left=None,
+        attempts_used=attempts_used,
+        attempts_total=None
+    )
