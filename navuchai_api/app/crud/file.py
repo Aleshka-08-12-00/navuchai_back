@@ -54,4 +54,31 @@ async def get_file(db: AsyncSession, file_id: int) -> File:
             raise NotFoundException(f"Файл с ID {file_id} не найден")
         return file
     except SQLAlchemyError as e:
-        raise DatabaseException(f"Ошибка при получении файла: {str(e)}") 
+        raise DatabaseException(f"Ошибка при получении файла: {str(e)}")
+
+
+async def delete_file(db: AsyncSession, file_id: int) -> bool:
+    """
+    Удаление записи о файле из БД
+    
+    Args:
+        db: Сессия базы данных
+        file_id: ID файла
+        
+    Returns:
+        bool: True если файл был удален
+        
+    Raises:
+        NotFoundException: Если файл не найден
+        DatabaseException: При ошибке удаления файла
+    """
+    try:
+        result = await db.execute(select(File).where(File.id == file_id))
+        file = result.scalar_one_or_none()
+        if not file:
+            raise NotFoundException(f"Файл с ID {file_id} не найден")
+        
+        await db.delete(file)
+        return True
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при удалении файла: {str(e)}") 

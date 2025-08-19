@@ -16,6 +16,7 @@ from app.crud import root_admin_moderator_required, update_course_images, author
 from app.exceptions import DatabaseException, NotFoundException
 from app.schemas.file import FileUploadResponse, FileCreate, FileUploadWithMobileResponse
 from app.crud import file as file_crud
+from app.crud.file import get_file, delete_file
 from app.config import (
     MINIO_URL,
     MINIO_ACCESS_KEY,
@@ -385,15 +386,56 @@ async def delete_avatar(
         if not user:
             raise DatabaseException("Пользователь не найден")
         
-        # Устанавливаем дефолтные аватары
+        # Сохраняем ID текущих файлов аватара
+        current_img_id = user.img_id
+        current_thumbnail_id = user.thumbnail_id
+        
+        # Проверяем, что это не дефолтные аватары (174 и 175)
+        files_to_delete = []
+        if current_img_id not in [174, 175]:
+            files_to_delete.append(current_img_id)
+        if current_thumbnail_id not in [174, 175]:
+            files_to_delete.append(current_thumbnail_id)
+        
+        # Сначала устанавливаем дефолтные аватары, чтобы избежать нарушения ограничений
         user.img_id = 174
         user.thumbnail_id = 175
         await db.commit()
         await db.refresh(user)
         
-        # Получаем информацию о дефолтных файлах
-        from app.crud.file import get_file
+        # Теперь удаляем старые файлы из MinIO и записи из БД
         
+        for file_id in files_to_delete:
+            try:
+                file_record = await get_file(db, file_id)
+                
+                # Извлекаем ключ файла из URL
+                # URL имеет формат: https://minio.example.com/bucket-name/user_123/avatars/filename.ext
+                file_url = file_record.path
+                if MINIO_BUCKET_NAME in file_url:
+                    # Извлекаем путь после bucket name
+                    bucket_prefix = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/"
+                    if file_url.startswith(bucket_prefix):
+                        file_key = file_url[len(bucket_prefix):]
+                        
+                        # Удаляем файл из MinIO
+                        try:
+                            s3.delete_object(Bucket=MINIO_BUCKET_NAME, Key=file_key)
+                        except ClientError as e:
+                            # Логируем ошибку, но продолжаем выполнение
+                            print(f"Ошибка при удалении файла из MinIO: {str(e)}")
+                
+                # Удаляем запись из БД
+                await delete_file(db, file_id)
+                
+            except Exception as e:
+                # Логируем ошибку, но продолжаем выполнение
+                print(f"Ошибка при удалении файла {file_id}: {str(e)}")
+        
+        # Делаем финальный commit для удаления файлов
+        await db.commit()
+        
+        # Получаем информацию о дефолтных файлах
         original_file = await get_file(db, 174)
         mobile_file = await get_file(db, 175)
         
