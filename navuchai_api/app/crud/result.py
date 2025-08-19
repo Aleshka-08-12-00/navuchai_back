@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
-from sqlalchemy import text
+from sqlalchemy import text, func
 from typing import List
 from datetime import datetime
 
@@ -385,3 +385,17 @@ async def finalize_manual_check_result(db: AsyncSession, result_id: int):
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при финализации результата: {str(e)}")
+
+
+async def count_user_attempts_in_group(db: AsyncSession, user_id: int, test_id: int, test_group_id: int) -> int:
+    """Возвращает количество попыток пользователя пройти конкретный тест в рамках заданной группы."""
+    try:
+        stmt = select(func.count()).select_from(Result).where(
+            Result.user_id == user_id,
+            Result.test_id == test_id,
+            Result.test_group_id == test_group_id
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one() or 0
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при подсчёте попыток: {str(e)}")
