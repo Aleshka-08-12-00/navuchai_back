@@ -27,6 +27,9 @@ class TestBase(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     code: Optional[str] = None
+    attempts: Optional[int] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
         "scale": [
             {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
@@ -68,6 +71,9 @@ class TestBase(BaseModel):
             'access': obj.access,
             'answer_view_mode': obj.answer_view_mode,
             'code': obj.code,
+            'attempts': obj.attempts,
+            'date_start': obj.date_start,
+            'date_end': obj.date_end,
             'grade_options': obj.grade_options,
         }
         return cls(**data)
@@ -112,6 +118,9 @@ class TestCreate(BaseModel):
     goodbye_message: Optional[str] = None
     access: TestAccessEnum = TestAccessEnum.PRIVATE
     answer_view_mode: AnswerViewModeEnum = AnswerViewModeEnum.USER_ONLY
+    attempts: Optional[int] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
         "scale": [
             {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},
@@ -145,6 +154,9 @@ class TestUpdate(BaseModel):
     welcome_message: Optional[str] = None
     goodbye_message: Optional[str] = None
     answer_view_mode: Optional[AnswerViewModeEnum] = None
+    attempts: Optional[int] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = None
 
     class Config:
@@ -170,6 +182,9 @@ class TestResponse(BaseModel):
     goodbye_message: Optional[str] = None
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
+    attempts: Optional[int] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     code: Optional[str] = None
@@ -215,6 +230,9 @@ class TestListResponse(BaseModel):
     completed: Optional[int] = None
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
+    attempts: Optional[int] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
         "scale": [
             {"max": 100, "min": 80, "pass": True, "color": "#43a047", "grade": 5},

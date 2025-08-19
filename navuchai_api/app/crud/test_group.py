@@ -911,3 +911,85 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении групп с категориями: {str(e)}")
+
+
+async def get_available_tests_in_group_for_user(db: AsyncSession, user_id: int, test_group_id: int):
+    """Возвращает все доступные тесты в группе для пользователя с учётом попыток и дат."""
+    from app.crud.result import count_user_attempts_in_group
+    from datetime import datetime, timezone
+    
+    try:
+        # Получаем группу
+        group = await get_test_group(db, test_group_id)
+        options_list = group.options or []
+        
+        available_tests = []
+        now = datetime.now(timezone.utc)
+        
+        for item in options_list:
+            try:
+                test_id = int(item.get("test_id"))
+                
+                # Проверяем даты
+                def parse_iso(dt_str: str | None):
+                    if not dt_str:
+                        return None
+                    if isinstance(dt_str, str) and dt_str.endswith('Z'):
+                        try:
+                            return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+                        except Exception:
+                            pass
+                    try:
+                        return datetime.fromisoformat(dt_str)
+                    except Exception:
+                        return None
+                
+                start_str = item.get("date_start") or (group.date_start.isoformat() if group.date_start else None)
+                end_str = item.get("date_end") or (group.date_end.isoformat() if group.date_end else None)
+                
+                start_dt = parse_iso(start_str)
+                end_dt = parse_iso(end_str)
+                
+                # Проверка дат
+                if start_dt and now < start_dt:
+                    continue  # Тест ещё недоступен
+                if end_dt and now > end_dt:
+                    continue  # Тест уже недоступен
+                
+                # Подсчёт попыток
+                attempts_total = None
+                try:
+                    attempts_total = int(item.get("attempts_count")) if item.get("attempts_count") is not None else None
+                except Exception:
+                    attempts_total = None
+                
+                attempts_used = await count_user_attempts_in_group(db, user_id, test_id, test_group_id)
+                
+                # Проверка попыток
+                if attempts_total is not None and attempts_used >= attempts_total:
+                    continue  # Все попытки израсходованы
+                
+                # Тест доступен
+                attempts_left = attempts_total - attempts_used if attempts_total is not None else None
+                
+                available_tests.append({
+                    "test_id": test_id,
+                    "test_title": item.get("test_title", ""),
+                    "time_limit": item.get("time_limit"),
+                    "date_start": start_str,
+                    "date_end": end_str,
+                    "attempts_total": attempts_total,
+                    "attempts_used": attempts_used,
+                    "attempts_left": attempts_left,
+                    "is_available": True
+                })
+                
+            except Exception as e:
+                # Пропускаем некорректные записи
+                print(f"Ошибка при обработке теста в группе {test_group_id}: {str(e)}")
+                continue
+        
+        return available_tests
+        
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении доступных тестов: {str(e)}")

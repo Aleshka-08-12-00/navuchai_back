@@ -251,3 +251,33 @@ async def check_test_availability_no_group(
         attempts_used=attempts_used,
         attempts_total=None
     )
+
+
+@router.get("/debug/{test_id}/")
+async def debug_test_structure(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    """Временный эндпоинт для отладки структуры теста"""
+    from app.crud.test import get_test_by_id
+    
+    test = await get_test_by_id(db, test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Тест не найден")
+    
+    # Получаем все атрибуты модели
+    test_dict = {}
+    for column in test.__table__.columns:
+        test_dict[column.name] = getattr(test, column.name)
+    
+    return {
+        "test_id": test_id,
+        "all_columns": test_dict,
+        "has_attempts": hasattr(test, 'attempts'),
+        "has_date_start": hasattr(test, 'date_start'),
+        "has_date_end": hasattr(test, 'date_end'),
+        "attempts_value": getattr(test, 'attempts', 'NOT_FOUND'),
+        "date_start_value": getattr(test, 'date_start', 'NOT_FOUND'),
+        "date_end_value": getattr(test, 'date_end', 'NOT_FOUND'),
+    }

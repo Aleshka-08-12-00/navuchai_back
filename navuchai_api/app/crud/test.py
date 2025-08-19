@@ -99,6 +99,9 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             goodbye_message=test.goodbye_message,
             access=test.access,
             answer_view_mode=test.answer_view_mode,
+            attempts=test.attempts,
+            date_start=test.date_start,
+            date_end=test.date_end,
             grade_options=test.grade_options
         )
         db.add(new_test)

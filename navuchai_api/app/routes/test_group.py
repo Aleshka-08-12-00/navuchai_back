@@ -273,3 +273,36 @@ async def check_test_availability(
         attempts_used=attempts_used,
         attempts_total=None
     )
+
+
+class GetAvailableTestsBody(BaseModel):
+    user_id: int
+    test_group_id: int
+
+
+class AvailableTestResponse(BaseModel):
+    test_id: int
+    test_title: str
+    time_limit: int | None = None
+    date_start: str | None = None
+    date_end: str | None = None
+    attempts_total: int | None = None
+    attempts_used: int
+    attempts_left: int | None = None
+    is_available: bool
+
+
+@router.post("/available-tests/", response_model=List[AvailableTestResponse])
+async def get_available_tests_in_group(
+    data: GetAvailableTestsBody,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(authorized_required)
+):
+    """Возвращает все доступные тесты в группе для пользователя с учётом попыток и дат."""
+    from app.crud.test_group import get_available_tests_in_group_for_user
+    
+    try:
+        available_tests = await get_available_tests_in_group_for_user(db, data.user_id, data.test_group_id)
+        return available_tests
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

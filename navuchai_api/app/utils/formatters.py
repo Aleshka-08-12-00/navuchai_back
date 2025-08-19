@@ -129,6 +129,10 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "access_code": access_code,
         # добавляем grade_options из БД
         "grade_options": test.grade_options,
+        # добавляем новые поля для логики доступности
+        "attempts": test.attempts,
+        "date_start": test.date_start,
+        "date_end": test.date_end,
     }
     
     # Определяем поля percent и completed в зависимости от наличия данных пользователя
