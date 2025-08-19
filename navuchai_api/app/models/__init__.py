@@ -33,6 +33,7 @@ from .test_group_access import TestGroupAccess
 from .faq_category import FaqCategory
 from .faq_category_access import FaqCategoryAccess
 from .faq import Faq
+from .system_settings import SystemSettings
 
 __all__ = [
     "Base",
@@ -68,6 +69,7 @@ __all__ = [
     "TestGroupAccess",
     "FaqCategory",
     "FaqCategoryAccess",
-    "Faq"
+    "Faq",
+    "SystemSettings"
 ]
 

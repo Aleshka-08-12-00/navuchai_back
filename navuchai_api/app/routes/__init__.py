@@ -23,6 +23,7 @@ from app.routes.test_group import router as test_group_router
 from .analytics import router as analytics_views_router
 from app.routes.faq import router as faq_router
 from app.routes.faq_categories import router as faq_categories_router
+from app.routes.system_settings import router as system_settings_router
 
 auth = auth_router
 tests = tests_router
@@ -49,3 +50,4 @@ test_group = test_group_router
 analytics_views = analytics_views_router
 faq = faq_router
 faq_categories = faq_categories_router
+system_settings = system_settings_router
