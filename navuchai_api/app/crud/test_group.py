@@ -212,7 +212,15 @@ async def get_test_groups_by_user_access(db: AsyncSession, user_id: int, user_ro
 # Получение одной группы
 async def get_test_group(db: AsyncSession, group_id: int):
     try:
-        stmt = select(TestGroup).where(TestGroup.id == group_id)
+        stmt = (
+            select(TestGroup)
+            .options(
+                selectinload(TestGroup.status),
+                selectinload(TestGroup.img),
+                selectinload(TestGroup.thumbnail)
+            )
+            .where(TestGroup.id == group_id)
+        )
         result = await db.execute(stmt)
         group = result.scalar_one_or_none()
         if not group:
@@ -236,6 +244,11 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
                 stmt = (
                     select(TestGroup)
                     .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .options(
+                        selectinload(TestGroup.status),
+                        selectinload(TestGroup.img),
+                        selectinload(TestGroup.thumbnail)
+                    )
                     .where(TestGroup.id == group_id)
                 )
             else:
@@ -244,6 +257,11 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
                     select(TestGroup)
                     .outerjoin(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
                     .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .options(
+                        selectinload(TestGroup.status),
+                        selectinload(TestGroup.img),
+                        selectinload(TestGroup.thumbnail)
+                    )
                     .where(
                         TestGroup.id == group_id,
                         TestGroupAccess.user_id == user_id
@@ -263,6 +281,11 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
             stmt = (
                 select(TestGroup)
                 .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
+                .options(
+                    selectinload(TestGroup.status),
+                    selectinload(TestGroup.img),
+                    selectinload(TestGroup.thumbnail)
+                )
                 .where(
                     TestGroup.id == group_id,
                     TestGroupAccess.user_id == user_id
@@ -282,6 +305,11 @@ async def get_test_group_with_access_check(db: AsyncSession, group_id: int, user
             select(TestGroup)
             .join(TestGroupAccess, TestGroup.id == TestGroupAccess.test_group_id)
             .join(TestStatus, TestGroup.status_id == TestStatus.id)
+            .options(
+                selectinload(TestGroup.status),
+                selectinload(TestGroup.img),
+                selectinload(TestGroup.thumbnail)
+            )
             .where(
                 TestGroup.id == group_id,
                 TestGroupAccess.user_id == user_id,
