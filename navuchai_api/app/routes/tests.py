@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from typing import List, Optional
 
 from app.crud import (
     get_tests,
@@ -21,6 +23,7 @@ from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
 from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate, TestWithAccessDetails
 from pydantic import BaseModel
+from datetime import datetime, timezone
 
 
 class CheckTestAvailabilityNoGroupBody(BaseModel):
@@ -34,6 +37,22 @@ class CheckTestAvailabilityResponse(BaseModel):
     attempts_left: int | None = None
     attempts_used: int | None = None
     attempts_total: int | None = None
+
+
+class TestGroupInfo(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    date_start: Optional[datetime] = None
+    date_end: Optional[datetime] = None
+    time_limit: Optional[int] = None
+    status_name: Optional[str] = None
+    status_name_ru: Optional[str] = None
+    status_color: Optional[str] = None
+    image: Optional[str] = None
+    thumbnail: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 router = APIRouter(prefix="/api/tests", tags=["Tests"])
@@ -281,3 +300,63 @@ async def debug_test_structure(
         "date_start_value": getattr(test, 'date_start', 'NOT_FOUND'),
         "date_end_value": getattr(test, 'date_end', 'NOT_FOUND'),
     }
+
+
+@router.get("/{test_id}/groups/", response_model=List[TestGroupInfo])
+async def get_test_groups(
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(authorized_required)
+):
+    """Возвращает все группы, содержащие указанный тест."""
+    from app.crud.test_group import get_test_group
+    from app.models.test_group_test import TestGroupTest
+    
+    try:
+        # Получаем все связи теста с группами
+        stmt = (
+            select(TestGroupTest.test_group_id)
+            .where(TestGroupTest.test_id == test_id)
+            .order_by(TestGroupTest.test_group_id)
+        )
+        result = await db.execute(stmt)
+        group_ids = result.scalars().all()
+        
+        if not group_ids:
+            return []
+        
+        # Получаем информацию о группах
+        groups_info = []
+        for group_id in group_ids:
+            try:
+                group = await get_test_group(db, group_id)
+                
+                # Формируем информацию о группе
+                group_info = {
+                    "id": group.id,
+                    "name": group.name,
+                    "description": group.description,
+                    "date_start": group.date_start,
+                    "date_end": group.date_end,
+                    "time_limit": group.time_limit,
+                    "status_name": group.status.name if group.status else None,
+                    "status_name_ru": group.status.name_ru if group.status else None,
+                    "status_color": group.status.color if group.status else None,
+                    "image": group.img.path if group.img else None,
+                    "thumbnail": group.thumbnail.path if group.thumbnail else None,
+                    "created_at": group.created_at,
+                    "updated_at": group.updated_at,
+                }
+                groups_info.append(group_info)
+            except Exception as e:
+                # Пропускаем группы, к которым нет доступа или которые не найдены
+                print(f"Ошибка при получении группы {group_id}: {str(e)}")
+                continue
+        
+        # Сортируем результат по ID группы
+        groups_info.sort(key=lambda x: x["id"])
+        
+        return groups_info
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при получении групп теста: {str(e)}")
