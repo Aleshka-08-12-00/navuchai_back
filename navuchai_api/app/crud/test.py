@@ -23,8 +23,8 @@ async def get_tests(db: AsyncSession):
             .join(User, Test.creator_id == User.id)
             .join(Locale, Test.locale_id == Locale.id)
             .join(TestStatus, Test.status_id == TestStatus.id)
-            .options(selectinload(Test.image))
-            .options(selectinload(Test.thumbnail))
+            .options(selectinload(Test.image_rel))
+            .options(selectinload(Test.thumbnail_rel))
             .order_by(Test.id)
         )
         rows = result.all()
@@ -42,8 +42,8 @@ async def get_test(db: AsyncSession, test_id: int):
         result = await db.execute(
             select(Test)
             .options(
-                selectinload(Test.image),
-                selectinload(Test.thumbnail),
+                selectinload(Test.image_rel),
+                selectinload(Test.thumbnail_rel),
                 selectinload(Test.category),
                 selectinload(Test.creator),
                 selectinload(Test.locale),
@@ -71,7 +71,7 @@ async def get_test(db: AsyncSession, test_id: int):
 async def get_test_by_id(db: AsyncSession, test_id: int):
     result = await db.execute(
         select(Test)
-        .options(selectinload(Test.image))
+        .options(selectinload(Test.image_rel))
         .where(Test.id == test_id)
     )
     return result.scalar_one_or_none()
