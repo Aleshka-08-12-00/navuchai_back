@@ -42,8 +42,8 @@ async def get_test(db: AsyncSession, test_id: int):
         result = await db.execute(
             select(Test)
             .options(
-                selectinload(Test.image_rel),
-                selectinload(Test.thumbnail_rel),
+                selectinload(Test.image),
+                selectinload(Test.thumbnail),
                 selectinload(Test.category),
                 selectinload(Test.creator),
                 selectinload(Test.locale),
@@ -71,7 +71,7 @@ async def get_test(db: AsyncSession, test_id: int):
 async def get_test_by_id(db: AsyncSession, test_id: int):
     result = await db.execute(
         select(Test)
-        .options(selectinload(Test.image_rel))
+        .options(selectinload(Test.image))
         .where(Test.id == test_id)
     )
     return result.scalar_one_or_none()
