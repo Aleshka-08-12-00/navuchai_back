@@ -86,8 +86,8 @@ class TestWithDetails(TestBase):
     status_name: str
     status_name_ru: Optional[str] = None
     status_color: Optional[str] = None
-    image: Optional[FileInDB] = None
-    thumbnail: Optional[FileInDB] = None
+    image: Optional[Union[FileInDB, str]] = None
+    thumbnail: Optional[Union[FileInDB, str]] = None
     code: Optional[str] = None
     group: Optional[TestGroup] = None
 
@@ -224,8 +224,8 @@ class TestListResponse(BaseModel):
     time_limit: Optional[int] = None
     img_id: Optional[int] = None
     thumbnail_id: Optional[int] = None
-    image: Optional[FileInDB] = None
-    thumbnail: Optional[FileInDB] = None
+    image: Optional[Union[FileInDB, str]] = None
+    thumbnail: Optional[Union[FileInDB, str]] = None
     percent: Optional[float] = None
     completed: Optional[int] = None
     access: TestAccessEnum

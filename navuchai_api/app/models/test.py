@@ -51,17 +51,7 @@ class Test(Base):
     test_questions = relationship("TestQuestion", back_populates="test", cascade="all, delete-orphan")
     results = relationship("Result", back_populates="test", cascade="all, delete-orphan")
     locale = relationship("Locale", back_populates="tests")
-    image_rel = relationship("File", foreign_keys=[img_id], lazy="selectin")
-    thumbnail_rel = relationship("File", foreign_keys=[thumbnail_id], lazy="selectin")
+    image = relationship("File", foreign_keys=[img_id], lazy="selectin")
+    thumbnail = relationship("File", foreign_keys=[thumbnail_id], lazy="selectin")
     status = relationship("TestStatus", back_populates="tests")
     test_accesses = relationship("TestAccess", back_populates="test", cascade="all, delete-orphan")
-
-    @property
-    def image(self):
-        """Возвращает путь к изображению теста"""
-        return self.image_rel.path if self.image_rel else None
-
-    @property
-    def thumbnail(self):
-        """Возвращает путь к миниатюре теста"""
-        return self.thumbnail_rel.path if self.thumbnail_rel else None

@@ -156,6 +156,11 @@ async def get_tests_with_groups(
             
             # Добавляем группы к тесту
             test_with_groups = test.copy()
+            # Приводим image/thumbnail теста к строковым путям, если это объекты File
+            img_val = test.get("image")
+            thumb_val = test.get("thumbnail")
+            test_with_groups["image"] = getattr(img_val, "path", img_val)
+            test_with_groups["thumbnail"] = getattr(thumb_val, "path", thumb_val)
             test_with_groups["groups"] = groups_info
             tests_with_groups.append(test_with_groups)
         
