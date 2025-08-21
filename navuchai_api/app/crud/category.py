@@ -48,7 +48,19 @@ async def update_category(db: AsyncSession, category_id: int, category: Category
 
 async def delete_category(db: AsyncSession, category_id: int) -> None:
     try:
+        from app.models.test import Test
+        
+        # Проверяем, что категория существует
         db_category = await get_category(db, category_id)
+        
+        # Переназначаем все тесты этой категории на общую категорию (ID 76)
+        await db.execute(
+            Test.__table__.update()
+            .where(Test.category_id == category_id)
+            .values(category_id=76)
+        )
+        
+        # Удаляем категорию
         await db.delete(db_category)
         await db.commit()
     except SQLAlchemyError as e:
