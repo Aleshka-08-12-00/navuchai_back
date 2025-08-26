@@ -141,3 +141,54 @@ async def delete_question(db: AsyncSession, question_id: int):
     except SQLAlchemyError:
         await db.rollback()
         raise DatabaseException("Ошибка при удалении вопроса")
+
+
+async def update_question_positions(db: AsyncSession, test_id: int, positions_data: list):
+    """
+    Обновляет позиции вопросов в тесте.
+    
+    Args:
+        db: Сессия базы данных
+        test_id: ID теста
+        positions_data: Список словарей с questionId и position
+    """
+    try:
+        # update уже импортирован как sql_update
+        
+        # Проверяем, что все вопросы принадлежат данному тесту
+        question_ids = [item["questionId"] for item in positions_data]
+        
+        # Получаем существующие связи вопросов с тестом
+        result = await db.execute(
+            select(TestQuestion)
+            .where(TestQuestion.test_id == test_id)
+            .where(TestQuestion.question_id.in_(question_ids))
+        )
+        existing_questions = result.scalars().all()
+        
+        if len(existing_questions) != len(question_ids):
+            raise NotFoundException("Некоторые вопросы не найдены в данном тесте")
+        
+        # Обновляем позиции
+        for item in positions_data:
+            question_id = item["questionId"]
+            position = item["position"]
+            
+            await db.execute(
+                sql_update(TestQuestion)
+                .where(TestQuestion.test_id == test_id)
+                .where(TestQuestion.question_id == question_id)
+                .values(position=position)
+            )
+        
+        await db.commit()
+        return {"message": "Позиции вопросов успешно обновлены"}
+        
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при обновлении позиций вопросов: {str(e)}")
+    except NotFoundException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise DatabaseException(f"Неожиданная ошибка: {str(e)}")

@@ -65,3 +65,16 @@ class QuestionUpdate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class QuestionPositionUpdate(BaseModel):
+    questionId: int
+    position: int
+
+
+# Убираем обертку positions, теперь принимаем массив напрямую
+QuestionPositionsUpdateRequest = list[QuestionPositionUpdate]
+
+
+class QuestionPositionsUpdateResponse(BaseModel):
+    message: str

@@ -22,6 +22,7 @@ from app.dependencies import get_db
 from app.exceptions import NotFoundException, DatabaseException
 from app.models import User
 from app.schemas.test import TestCreate, TestResponse, TestWithDetails, TestUpdate, TestWithAccessDetails
+from app.schemas.question import QuestionPositionsUpdateRequest, QuestionPositionsUpdateResponse
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from app.models.test import TestAccessEnum, AnswerViewModeEnum
@@ -382,6 +383,34 @@ async def check_test_availability_no_group(
         attempts_used=attempts_used,
         attempts_total=None
     )
+
+
+@router.put("/{test_id}/questions/positions/", response_model=QuestionPositionsUpdateResponse)
+async def update_question_positions(
+    test_id: int,
+    data: QuestionPositionsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(root_admin_moderator_required)
+):
+    """
+    Обновляет позиции вопросов в тесте.
+    Требует права администратора или модератора.
+    """
+    from app.crud.question import update_question_positions
+    
+    try:
+        # Преобразуем данные в нужный формат для CRUD функции
+        positions_data = [{"questionId": item.questionId, "position": item.position} for item in data]
+        
+        result = await update_question_positions(db, test_id, positions_data)
+        return QuestionPositionsUpdateResponse(message=result["message"])
+        
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Неожиданная ошибка: {str(e)}")
 
 
 
