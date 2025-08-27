@@ -178,17 +178,17 @@ async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession 
         raise DatabaseException("Error unlinking test and question")
 
 
-# Генерация тестовых вопросов на основе текста
-@router.post("/generate-from-text/", response_model=List[GeneratedQuestionResponse])
-async def generate_questions_from_text(
-    request: TextGenerationRequest,
-    user: User = Depends(root_admin_moderator_required)
-):
-    """
-    Генерирует тестовые вопросы на основе предоставленного текста с помощью Yandex Cloud ML
-    """
-    try:
-        questions = generate_test_questions(request.source_text, request.questions_count)
-        return questions
-    except Exception as e:
-        raise DatabaseException(f"Ошибка при генерации вопросов: {str(e)}")
+# Генерация тестовых вопросов на основе текста - ОТКЛЮЧЕНО
+# @router.post("/generate-from-text/", response_model=List[GeneratedQuestionResponse])
+# async def generate_questions_from_text(
+#     request: TextGenerationRequest,
+#     user: User = Depends(root_admin_moderator_required)
+# ):
+#     """
+#     Генерирует тестовые вопросы на основе предоставленного текста с помощью Yandex Cloud ML
+#     """
+#     try:
+#         questions = generate_test_questions(request.source_text, request.questions_count)
+#         return questions
+#     except Exception as e:
+#         raise DatabaseException(f"Ошибка при генерации вопросов: {str(e)}")
