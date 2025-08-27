@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from app.models.test_group import TestGroup
 from app.models.test_group_test import TestGroupTest
+from app.models.test_question import TestQuestion
 from app.schemas.test_group import TestGroupCreate, TestGroupUpdate
 from app.schemas.test_group_test import TestGroupTestCreate
 from app.exceptions import DatabaseException, NotFoundException
@@ -853,6 +854,14 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                         'tests_count': 0
                     }
                 
+                # Подсчитываем количество вопросов для теста
+                questions_count_stmt = (
+                    select(func.count(TestQuestion.id))
+                    .where(TestQuestion.test_id == test.id)
+                )
+                questions_count_result = await db.execute(questions_count_stmt)
+                questions_count = questions_count_result.scalar_one() or 0
+                
                 # Формируем объект теста
                 test_dict = {
                     'id': test.id,
@@ -870,7 +879,8 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     'status_name': status_name,
                     'status_name_ru': status_name_ru,
                     'status_color': status_color,
-                    'is_completed': is_completed
+                    'is_completed': is_completed,
+                    'questions_count': questions_count
                 }
                 
                 categories_dict[category_id]['tests'].append(test_dict)
