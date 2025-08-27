@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/questions", tags=["Questions"])
 
 class TextGenerationRequest(BaseModel):
     source_text: str
+    questions_count: int
 
 
 class GeneratedQuestionResponse(BaseModel):
@@ -187,7 +188,7 @@ async def generate_questions_from_text(
     Генерирует тестовые вопросы на основе предоставленного текста с помощью Yandex Cloud ML
     """
     try:
-        questions = generate_test_questions(request.source_text)
+        questions = generate_test_questions(request.source_text, request.questions_count)
         return questions
     except Exception as e:
         raise DatabaseException(f"Ошибка при генерации вопросов: {str(e)}")

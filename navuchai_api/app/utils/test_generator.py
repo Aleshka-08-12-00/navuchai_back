@@ -6,7 +6,7 @@ from yandex_cloud_ml_sdk import YCloudML
 from yandex_cloud_ml_sdk.auth import APIKeyAuth
 
 
-def generate_test_questions(source_text: str) -> List[Dict[str, Any]]:
+def generate_test_questions(source_text: str, questions_count: int) -> List[Dict[str, Any]]:
     """
     Генерирует тестовые вопросы на основе предоставленного текста.
     
@@ -18,6 +18,11 @@ def generate_test_questions(source_text: str) -> List[Dict[str, Any]]:
         
     Raises:
         Exception: При ошибке в работе с Yandex Cloud ML API
+
+    Parameters
+    ----------
+    source_text
+    questions_count
     """
     try:
         # Загружаем переменные из .env
@@ -35,7 +40,7 @@ def generate_test_questions(source_text: str) -> List[Dict[str, Any]]:
         
         # Формируем промпт для генерации вопросов
         prompt = f"""
-        Создай минимум 5 тестовых вопросов по тексту ниже, содержать минимум 3-5 вариантов ответов. Каждый вопрос должен быть в формате JSON как в примере:
+        Создай минимум {questions_count} тестовых вопросов по тексту ниже, содержать минимум 3-5 вариантов ответов. Каждый вопрос должен быть в формате JSON как в примере:
 
         {{
           "text": "<p>Вопрос в HTML</p>",
