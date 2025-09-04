@@ -71,12 +71,15 @@ async def get_analytics_user_performance(db: AsyncSession) -> List[Dict[str, Any
         raise DatabaseException(f"Ошибка при получении аналитических данных: {str(e)}")
 
 
+
+
 async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[Dict[str, Any]]:
     """Универсальный метод для получения данных из любого аналитического представления"""
     try:
         # Проверяем, что представление существует и безопасно
         allowed_views = [
             'analytics_user_performance',
+            'analytics_user_performance_extended',
             'analytics_test_statistics',
             'analytics_group_performance',
             'analytics_question_analysis',
@@ -140,6 +143,31 @@ def get_column_mapping(view_name: str) -> Dict[str, str]:
             "first_test_date": "Дата первого теста",
             "last_test_date": "Дата последнего теста",
             "days_active": "Дней активности"
+        },
+        'analytics_user_performance_extended': {
+            "user_id": "ID пользователя",
+            "user_name": "Имя пользователя",
+            "user_email": "Email",
+            "role_name": "Роль",
+            "total_tests_accessed": "Всего доступных тестов",
+            "total_tests_completed": "Всего завершенных тестов",
+            "avg_score": "Средний балл",
+            "best_score": "Лучший балл",
+            "worst_score": "Худший балл",
+            "total_attempts": "Всего попыток",
+            "avg_percent_completion": "Средний процент выполнения",
+            "total_questions_answered": "Всего отвеченных вопросов",
+            "first_test_date": "Дата первого теста",
+            "last_test_date": "Дата последнего теста",
+            "days_active": "Дней активности",
+            "best_time_test_title": "Название теста с лучшим временем",
+            "best_time_seconds": "Лучшее время (сек)",
+            "best_time_score": "Балл за лучший тест по времени",
+            "best_time_date": "Дата лучшего времени",
+            "worst_time_test_title": "Название теста с худшим временем",
+            "worst_time_seconds": "Худшее время (сек)",
+            "worst_time_score": "Балл за худший тест по времени",
+            "worst_time_date": "Дата худшего времени"
         },
         'analytics_test_statistics': {
             "test_id": "ID теста",
@@ -224,6 +252,7 @@ def get_sheet_name(view_name: str) -> str:
     """Возвращает название листа для Excel"""
     sheet_names = {
         'analytics_user_performance': 'Аналитика производительности пользователей',
+        'analytics_user_performance_extended': 'Расширенная аналитика производительности пользователей',
         'analytics_test_statistics': 'Статистика по тестам',
         'analytics_group_performance': 'Производительность групп',
         'analytics_question_analysis': 'Анализ вопросов',
@@ -237,6 +266,7 @@ def get_filename(view_name: str) -> str:
     """Возвращает имя файла для Excel"""
     filenames = {
         'analytics_user_performance': 'analytics_user_performance.xlsx',
+        'analytics_user_performance_extended': 'analytics_user_performance_extended.xlsx',
         'analytics_test_statistics': 'analytics_test_statistics.xlsx',
         'analytics_group_performance': 'analytics_group_performance.xlsx',
         'analytics_question_analysis': 'analytics_question_analysis.xlsx',
@@ -265,3 +295,79 @@ async def get_analytics_user_test_question_performance(db: AsyncSession) -> List
         return analytics_data
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении данных из вью analytics_user_test_question_performance: {str(e)}") 
+
+
+async def get_user_tests_chart_config(db: AsyncSession, user_id: int, limit: int = 10) -> Dict[str, Any]:
+    """Формирует JSON-конфиг ApexCharts: топ-N тестов пользователя по последнему результату."""
+    try:
+        # Берём последний результат по каждому тесту пользователя
+        stmt = text(
+            """
+            WITH ranked AS (
+                SELECT r.test_id,
+                       t.title AS test_title,
+                       r.score,
+                       r.completed_at,
+                       ROW_NUMBER() OVER (PARTITION BY r.test_id ORDER BY r.completed_at DESC) AS rn
+                FROM result r
+                JOIN test t ON t.id = r.test_id
+                WHERE r.user_id = :user_id AND r.score IS NOT NULL
+            )
+            SELECT test_title, score
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY score ASC
+            LIMIT :limit
+            """
+        ).bindparams(user_id=user_id, limit=limit)
+
+        res = await db.execute(stmt)
+        rows = res.fetchall()
+        categories = [row[0] for row in rows]
+        data = [row[1] for row in rows]
+
+        colors = ["#33b2df", "#546E7A", "#d4526e", "#13d8aa", "#A5978B", "#2b908f", "#f9a3a4", "#90ee7e", "#f48024", "#69d2e7"]
+
+        return {
+            "data": data,
+            "colors": colors,
+            "categories": categories
+        }
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при формировании чарта: {str(e)}") 
+
+
+async def get_user_tests_pie_config(db: AsyncSession, user_id: int, limit: int = 5) -> Dict[str, Any]:
+    """Формирует JSON-конфиг ApexCharts для pie-чарта: последние результаты по тестам пользователя."""
+    try:
+        stmt = text(
+            """
+            WITH ranked AS (
+                SELECT r.test_id,
+                       t.title AS test_title,
+                       r.score,
+                       r.completed_at,
+                       ROW_NUMBER() OVER (PARTITION BY r.test_id ORDER BY r.completed_at DESC) AS rn
+                FROM result r
+                JOIN test t ON t.id = r.test_id
+                WHERE r.user_id = :user_id AND r.score IS NOT NULL
+            )
+            SELECT test_title, score
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY score DESC
+            LIMIT :limit
+            """
+        ).bindparams(user_id=user_id, limit=limit)
+
+        res = await db.execute(stmt)
+        rows = res.fetchall()
+        labels = [row[0] for row in rows]
+        series = [row[1] for row in rows]
+
+        return {
+            "series": series,
+            "labels": labels
+        } 
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при формировании pie-чарта: {str(e)}") 
