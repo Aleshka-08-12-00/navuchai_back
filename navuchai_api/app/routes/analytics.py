@@ -24,7 +24,7 @@ async def get_my_tests_chart(
     return await get_user_tests_chart_config(db, current_user.id, limit=10)
 
 
-@router.get("/user/me/pie", response_model=dict)
+@router.get("/user/me/pie", response_model=list[dict])
 async def get_my_tests_pie(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required)

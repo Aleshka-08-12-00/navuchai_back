@@ -337,37 +337,100 @@ async def get_user_tests_chart_config(db: AsyncSession, user_id: int, limit: int
         raise DatabaseException(f"Ошибка при формировании чарта: {str(e)}") 
 
 
-async def get_user_tests_pie_config(db: AsyncSession, user_id: int, limit: int = 5) -> Dict[str, Any]:
-    """Формирует JSON-конфиг ApexCharts для pie-чарта: последние результаты по тестам пользователя."""
+async def get_user_tests_pie_config(db: AsyncSession, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
+    """Формирует данные для pie-чарта: агрегирует последние результаты пользователя по тестам в 3 категории.
+    Категории:
+    - Зеленый: pass == true ("Хорошо сдал тест")
+    - Красный: диапазон последней строки шкалы (самый низкий) ("Плохо сдал тест")
+    - Желтый: все прочие диапазоны ("Нормально сдал тест")
+    Основано на grade_options.scale типа percent и поле result->>'percentage'.
+    """
     try:
         stmt = text(
             """
             WITH ranked AS (
                 SELECT r.test_id,
                        t.title AS test_title,
-                       r.score,
+                       r.result->>'percentage' AS percentage_text,
+                       t.grade_options AS grade_options,
                        r.completed_at,
                        ROW_NUMBER() OVER (PARTITION BY r.test_id ORDER BY r.completed_at DESC) AS rn
                 FROM result r
                 JOIN test t ON t.id = r.test_id
-                WHERE r.user_id = :user_id AND r.score IS NOT NULL
+                WHERE r.user_id = :user_id
             )
-            SELECT test_title, score
+            SELECT test_title, percentage_text, grade_options
             FROM ranked
             WHERE rn = 1
-            ORDER BY score DESC
-            LIMIT :limit
             """
-        ).bindparams(user_id=user_id, limit=limit)
+        ).bindparams(user_id=user_id)
 
         res = await db.execute(stmt)
         rows = res.fetchall()
-        labels = [row[0] for row in rows]
-        series = [row[1] for row in rows]
 
-        return {
-            "series": series,
-            "labels": labels
-        } 
+        good_count = 0
+        bad_count = 0
+        normal_count = 0
+
+        for row in rows:
+            percentage_text = row[1]
+            try:
+                percentage = float(percentage_text) if percentage_text is not None else None
+            except (TypeError, ValueError):
+                percentage = None
+
+            grade_options = row[2] or {}
+            scale = grade_options.get("scale") if isinstance(grade_options, dict) else None
+            scale_type = grade_options.get("scaleType") if isinstance(grade_options, dict) else None
+
+            if not scale or scale_type != "percent" or percentage is None:
+                # Не хватает данных для классификации — считаем как "Нормально"
+                normal_count += 1
+                continue
+
+            # Определяем попадание процента в диапазон шкалы
+            matched_index = None
+            pass_flag = False
+            for idx, band in enumerate(scale):
+                try:
+                    band_min = float(band.get("min"))
+                    band_max = float(band.get("max"))
+                except (TypeError, ValueError):
+                    continue
+                if band_min <= percentage <= band_max:
+                    matched_index = idx
+                    pass_flag = bool(band.get("pass"))
+                    break
+
+            if matched_index is None:
+                normal_count += 1
+                continue
+
+            # pass == true -> зеленый (good)
+            if pass_flag:
+                good_count += 1
+                continue
+
+            # Последняя строка шкалы -> красный (bad)
+            if matched_index == len(scale) - 1:
+                bad_count += 1
+            else:
+                normal_count += 1
+
+        data = [
+            {"name": "Хорошо сдал тест", "value": good_count, "color": "#00C853"},
+            {"name": "Почти сдал тест", "value": normal_count, "color": "#FF9800"},
+            {"name": "Плохо сдал тест", "value": bad_count, "color": "#F44336"},
+        ]
+
+        total = good_count + normal_count + bad_count
+        if total > 0:
+            for item in data:
+                item["value"] = round(item["value"] * 100.0 / total, 1)
+        else:
+            for item in data:
+                item["value"] = 0.0
+
+        return data
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при формировании pie-чарта: {str(e)}") 
