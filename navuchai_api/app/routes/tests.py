@@ -85,6 +85,7 @@ class TestWithGroupsInfo(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     attempts: Optional[int] = None
+    required_score: int = 0
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     created_at: datetime

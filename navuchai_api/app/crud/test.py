@@ -100,6 +100,7 @@ async def create_test(db: AsyncSession, test: TestCreate) -> Test:
             access=test.access,
             answer_view_mode=test.answer_view_mode,
             attempts=test.attempts,
+            required_score=test.required_score,
             date_start=test.date_start,
             date_end=test.date_end,
             grade_options=test.grade_options

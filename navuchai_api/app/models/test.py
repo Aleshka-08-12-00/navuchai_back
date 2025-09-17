@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean, Enum, text
+from sqlalchemy import Integer, String, Column, TIMESTAMP, ForeignKey, Boolean, Enum, text, SmallInteger
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.models.base import Base
@@ -41,6 +41,7 @@ class Test(Base):
     grade_options = Column(JSONB, nullable=False)
     # Новые поля для логики доступности без групп
     attempts = Column(Integer, nullable=True)
+    required_score = Column(SmallInteger, nullable=False, server_default=text('0'))
     date_start = Column(PG_TIMESTAMP(timezone=True), nullable=True)
     date_end = Column(PG_TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())

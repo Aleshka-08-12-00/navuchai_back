@@ -131,6 +131,7 @@ def format_test_with_names(test, category_name: str, creator_name: str, locale_c
         "grade_options": test.grade_options,
         # добавляем новые поля для логики доступности
         "attempts": test.attempts,
+        "required_score": getattr(test, 'required_score', 0),
         "date_start": test.date_start,
         "date_end": test.date_end,
     }

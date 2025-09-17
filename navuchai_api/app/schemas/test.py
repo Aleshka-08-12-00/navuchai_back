@@ -28,6 +28,7 @@ class TestBase(BaseModel):
     answer_view_mode: AnswerViewModeEnum
     code: Optional[str] = None
     attempts: Optional[int] = None
+    required_score: int = 0
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
@@ -72,6 +73,7 @@ class TestBase(BaseModel):
             'answer_view_mode': obj.answer_view_mode,
             'code': obj.code,
             'attempts': obj.attempts,
+            'required_score': getattr(obj, 'required_score', 0),
             'date_start': obj.date_start,
             'date_end': obj.date_end,
             'grade_options': obj.grade_options,
@@ -119,6 +121,7 @@ class TestCreate(BaseModel):
     access: TestAccessEnum = TestAccessEnum.PRIVATE
     answer_view_mode: AnswerViewModeEnum = AnswerViewModeEnum.USER_ONLY
     attempts: Optional[int] = None
+    required_score: int = 0
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
@@ -155,6 +158,7 @@ class TestUpdate(BaseModel):
     goodbye_message: Optional[str] = None
     answer_view_mode: Optional[AnswerViewModeEnum] = None
     attempts: Optional[int] = None
+    required_score: Optional[int] = None
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = None
@@ -183,6 +187,7 @@ class TestResponse(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     attempts: Optional[int] = None
+    required_score: int = 0
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     created_at: datetime
@@ -231,6 +236,7 @@ class TestListResponse(BaseModel):
     access: TestAccessEnum
     answer_view_mode: AnswerViewModeEnum
     attempts: Optional[int] = None
+    required_score: int = 0
     date_start: Optional[datetime] = None
     date_end: Optional[datetime] = None
     grade_options: Optional[Dict[str, Any]] = {
