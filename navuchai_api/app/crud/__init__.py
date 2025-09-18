@@ -1,7 +1,7 @@
 from .permissions import role_required, root_required, admin_required, moderator_required, user_required, root_admin_required, root_admin_moderator_required, admin_moderator_required, \
     authorized_required
 from .question import get_questions, get_question, create_question, update_question, delete_question, \
-    get_questions_by_test_id
+    get_questions_by_test_id, copy_question_to_test
 from .test import get_tests, get_test, create_test, delete_test, update_test, get_user_tests, get_test_by_code, get_test_by_access_code, get_test_universal
 from .test_question import create_test_question, delete_test_question
 from .user import get_users, get_user, update_user, delete_user, update_user_role, reset_user_password
