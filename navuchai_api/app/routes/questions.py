@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
@@ -187,8 +187,22 @@ async def copy_question_to_test_route(
     user: User = Depends(root_admin_moderator_required)
 ):
     try:
-        new_question = await copy_question_to_test(db, question_id, test_id)
-        return new_question
+        # 1) Получаем исходный вопрос (ORM модель)
+        source = await get_question(db, question_id)
+        # 2) Создаем новый вопрос через существующий CRUD
+        payload = QuestionCreate(
+            text=source.text,
+            text_abstract=source.text_abstract,
+            type_id=source.type_id,
+            reviewable=source.reviewable,
+            answers=source.answers,
+            time_limit=source.time_limit,
+        )
+        created = await create_question(db, payload)
+        # 3) Привязываем новый вопрос к тесту существующим методом
+        await create_test_question(db, test_id, created.id)
+        # 4) Возвращаем новый вопрос с предзагруженным type
+        return await get_question(db, created.id)
     except NotFoundException as e:
         raise HTTPException(status_code=404, detail=str(e))
     except SQLAlchemyError:

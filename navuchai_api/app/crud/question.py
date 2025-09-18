@@ -246,9 +246,13 @@ async def copy_question_to_test(db: AsyncSession, source_question_id: int, targe
         )
         db.add(link)
         await db.commit()
-        await db.refresh(new_question)
-
-        return new_question
+        # Перечитываем вопрос с предзагрузкой связей (например, type), чтобы корректно сериализовать ответ
+        loaded_result = await db.execute(
+            select(Question)
+            .options(selectinload(Question.type))
+            .where(Question.id == new_question.id)
+        )
+        return loaded_result.scalar_one()
     except NotFoundException:
         raise
     except SQLAlchemyError:
