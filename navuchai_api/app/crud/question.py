@@ -3,7 +3,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import update as sql_update
+from sqlalchemy import update as sql_update, func
 
 from app.models import Question, TestQuestion
 from app.schemas.question import QuestionCreate, QuestionUpdate
@@ -192,3 +192,68 @@ async def update_question_positions(db: AsyncSession, test_id: int, positions_da
     except Exception as e:
         await db.rollback()
         raise DatabaseException(f"Неожиданная ошибка: {str(e)}")
+
+
+# Копирование вопроса и привязка к тесту
+async def copy_question_to_test(db: AsyncSession, source_question_id: int, target_test_id: int) -> Question:
+    """
+    Создаёт копию вопроса и привязывает её к указанному тесту на следующую позицию.
+    """
+    try:
+        # 1) Получаем исходный вопрос
+        result = await db.execute(
+            select(Question).options(selectinload(Question.test_questions)).where(Question.id == source_question_id)
+        )
+        source_question = result.scalar_one_or_none()
+        if not source_question:
+            raise NotFoundException("Исходный вопрос не найден")
+
+        # 2) Создаём копию вопроса
+        new_question = Question(
+            text=source_question.text,
+            text_abstract=source_question.text_abstract,
+            type_id=source_question.type_id,
+            reviewable=source_question.reviewable,
+            answers=source_question.answers,
+            time_limit=source_question.time_limit
+        )
+        db.add(new_question)
+        await db.commit()
+        await db.refresh(new_question)
+
+        # 3) Определяем следующую позицию в тесте
+        pos_result = await db.execute(
+            select(func.coalesce(func.max(TestQuestion.position), 0)).where(TestQuestion.test_id == target_test_id)
+        )
+        max_position = pos_result.scalar_one()
+        next_position = (max_position or 0) + 1
+
+        # 4) Определяем required и max_score
+        required = True
+        correct_score = 1
+        answers = new_question.answers
+        if isinstance(answers, dict) and 'settings' in answers:
+            settings = answers.get('settings', {})
+            correct_score = settings.get('correctScore', 1)
+
+        # 5) Создаём связь TestQuestion
+        link = TestQuestion(
+            test_id=target_test_id,
+            question_id=new_question.id,
+            position=next_position,
+            required=required,
+            max_score=correct_score
+        )
+        db.add(link)
+        await db.commit()
+        await db.refresh(new_question)
+
+        return new_question
+    except NotFoundException:
+        raise
+    except SQLAlchemyError:
+        await db.rollback()
+        raise DatabaseException("Ошибка при копировании вопроса в тест")
+    except Exception as e:
+        await db.rollback()
+        raise DatabaseException(f"Неожиданная ошибка при копировании вопроса: {str(e)}")

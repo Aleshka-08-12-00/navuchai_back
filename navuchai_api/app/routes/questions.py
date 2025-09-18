@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 
 from app.crud import (
     create_test_question, delete_test_question, get_questions,
-    get_question, create_question, update_question, delete_question, get_questions_by_test_id, root_admin_moderator_required, authorized_required
+    get_question, create_question, update_question, delete_question, get_questions_by_test_id, root_admin_moderator_required, authorized_required, copy_question_to_test
 )
 from app.dependencies import get_db
 from app.schemas import QuestionCreate, QuestionResponse, QuestionUpdate, QuestionWithDetails
@@ -176,6 +176,23 @@ async def unlink_test_question(test_id: int, question_id: int, db: AsyncSession 
         return {"detail": "Test-Question relation deleted successfully", "data": result}
     except SQLAlchemyError:
         raise DatabaseException("Error unlinking test and question")
+
+
+# Копирование вопроса в тест
+@router.post("/{question_id}/copy-to-test/{test_id}/", response_model=QuestionResponse)
+async def copy_question_to_test_route(
+    question_id: int,
+    test_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(root_admin_moderator_required)
+):
+    try:
+        new_question = await copy_question_to_test(db, question_id, test_id)
+        return new_question
+    except NotFoundException as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при копировании вопроса в тест")
 
 
 #Генерация тестовых вопросов на основе текста
