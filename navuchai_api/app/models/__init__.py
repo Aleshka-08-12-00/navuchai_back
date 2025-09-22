@@ -34,6 +34,7 @@ from .faq_category import FaqCategory
 from .faq_category_access import FaqCategoryAccess
 from .faq import Faq
 from .system_settings import SystemSettings
+from .employee import Employee
 
 __all__ = [
     "Base",
@@ -70,6 +71,7 @@ __all__ = [
     "FaqCategory",
     "FaqCategoryAccess",
     "Faq",
-    "SystemSettings"
+    "SystemSettings",
+    "Employee"
 ]
 
