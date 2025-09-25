@@ -5,6 +5,17 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.models import CategoryAccess
 from app.schemas.category_access import CategoryAccessCreate, CategoryAccessUpdate
 from app.exceptions import DatabaseException, NotFoundException
+from datetime import timezone
+
+
+def _to_aware_utc(dt):
+    if dt is None:
+        return None
+    # Приводим к UTC и оставляем tzinfo (TIMESTAMPTZ)
+    if getattr(dt, 'tzinfo', None) is not None:
+        return dt.astimezone(timezone.utc)
+    # Наивную дату считаем UTC
+    return dt.replace(tzinfo=timezone.utc)
 
 
 async def create_category_access(db: AsyncSession, payload: CategoryAccessCreate) -> CategoryAccess:
@@ -19,7 +30,11 @@ async def create_category_access(db: AsyncSession, payload: CategoryAccessCreate
         if existing.scalar_one_or_none():
             raise DatabaseException("Доступ уже существует для этой группы и категории")
 
-        entity = CategoryAccess(**payload.dict(exclude_unset=True))
+        data = payload.dict(exclude_unset=True)
+        data['start_date'] = _to_aware_utc(data.get('start_date'))
+        data['end_date'] = _to_aware_utc(data.get('end_date'))
+
+        entity = CategoryAccess(**data)
         db.add(entity)
         await db.commit()
         await db.refresh(entity)
@@ -56,7 +71,13 @@ async def list_category_accesses(db: AsyncSession, category_id: int | None = Non
 async def update_category_access(db: AsyncSession, access_id: int, payload: CategoryAccessUpdate) -> CategoryAccess:
     try:
         entity = await get_category_access(db, access_id)
-        for field, value in payload.dict(exclude_unset=True).items():
+        data = payload.dict(exclude_unset=True)
+        if 'start_date' in data:
+            data['start_date'] = _to_aware_utc(data['start_date'])
+        if 'end_date' in data:
+            data['end_date'] = _to_aware_utc(data['end_date'])
+
+        for field, value in data.items():
             setattr(entity, field, value)
         await db.commit()
         await db.refresh(entity)
