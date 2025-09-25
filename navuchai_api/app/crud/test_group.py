@@ -2,13 +2,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 from app.models.test_group import TestGroup
 from app.models.test_group_test import TestGroupTest
 from app.models.test_question import TestQuestion
 from app.schemas.test_group import TestGroupCreate, TestGroupUpdate
 from app.schemas.test_group_test import TestGroupTestCreate
 from app.exceptions import DatabaseException, NotFoundException
-from app.models import Test, Category, User, Locale, TestStatus
+from app.models import Test, Category, User, Locale, TestStatus, CategoryAccess, UserGroupMember
 from app.models.test_group_access import TestGroupAccess
 from app.models.test_access import TestAccess
 from app.utils import format_test_with_names
@@ -588,6 +589,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                     TestAccess.access_code, TestAccess.is_completed
                 )
                 .join(Category, Test.category_id == Category.id)
+                .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
                 .join(User, Test.creator_id == User.id)
                 .join(Locale, Test.locale_id == Locale.id)
                 .join(TestStatus, Test.status_id == TestStatus.id)
@@ -596,6 +599,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                 .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
                 .where(TestGroupTest.test_group_id == group_id)
                 .where(TestAccess.user_id == user_id)
+                .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
                 .options(selectinload(Test.image))
                 .options(selectinload(Test.thumbnail))
                 .order_by(Test.id)
@@ -644,11 +649,15 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                     TestStatus.name, TestStatus.name_ru, TestStatus.color
                 )
                 .join(Category, Test.category_id == Category.id)
+                .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
                 .join(User, Test.creator_id == User.id)
                 .join(Locale, Test.locale_id == Locale.id)
                 .join(TestStatus, Test.status_id == TestStatus.id)
                 .join(TestGroupTest, Test.id == TestGroupTest.test_id)
                 .where(TestGroupTest.test_group_id == group_id)
+                .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
                 .options(selectinload(Test.image))
                 .options(selectinload(Test.thumbnail))
                 .order_by(Test.id)
@@ -685,6 +694,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                     TestAccess.access_code, TestAccess.is_completed
                 )
                 .join(Category, Test.category_id == Category.id)
+                .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
                 .join(User, Test.creator_id == User.id)
                 .join(Locale, Test.locale_id == Locale.id)
                 .join(TestStatus, Test.status_id == TestStatus.id)
@@ -693,6 +704,8 @@ async def get_tests_by_group_id(db: AsyncSession, group_id: int, user_id: int = 
                 .outerjoin(TestAccessStatus, TestAccess.status_id == TestAccessStatus.id)
                 .where(TestGroupTest.test_group_id == group_id)
                 .where(TestAccess.user_id == user_id)
+                .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
                 .options(selectinload(Test.image))
                 .options(selectinload(Test.thumbnail))
                 .order_by(Test.id)
@@ -814,10 +827,16 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                         TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
                     )
                     .join(Category, Test.category_id == Category.id)
+                    # Ограничиваем категориями, доступными пользователю через группы
+                    .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                    .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
                     .join(TestStatus, Test.status_id == TestStatus.id)
                     .join(TestGroupTest, Test.id == TestGroupTest.test_id)
                     .join(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
                     .where(TestGroupTest.test_group_id == group.id)
+                    # Окно дат доступа к категории, если задано
+                    .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                    .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
                     .options(selectinload(Test.image), selectinload(Test.thumbnail))
                     .order_by(Category.id, Test.id)
                 )
@@ -830,10 +849,16 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                         TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
                     )
                     .join(Category, Test.category_id == Category.id)
+                    # Ограничиваем категориями, доступными пользователю через группы (для всех, кроме root)
+                    .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                    .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
                     .join(TestStatus, Test.status_id == TestStatus.id)
                     .join(TestGroupTest, Test.id == TestGroupTest.test_id)
                     .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
                     .where(TestGroupTest.test_group_id == group.id)
+                    # Окно дат доступа к категории, если задано
+                    .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                    .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
                     .options(selectinload(Test.image), selectinload(Test.thumbnail))
                     .order_by(Category.id, Test.id)
                 )

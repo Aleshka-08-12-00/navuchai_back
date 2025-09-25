@@ -32,6 +32,7 @@ from .test_group_test import TestGroupTest
 from .test_group_access import TestGroupAccess
 from .faq_category import FaqCategory
 from .faq_category_access import FaqCategoryAccess
+from .category_access import CategoryAccess
 from .faq import Faq
 from .system_settings import SystemSettings
 from .employee import Employee
@@ -70,6 +71,7 @@ __all__ = [
     "TestGroupAccess",
     "FaqCategory",
     "FaqCategoryAccess",
+    "CategoryAccess",
     "Faq",
     "SystemSettings",
     "Employee"
