@@ -924,6 +924,25 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         raise DatabaseException(f"Ошибка при получении групп с категориями: {str(e)}")
 
 
+async def get_test_groups_with_categories_for_user(db: AsyncSession, target_user_id: int):
+    """Возвращает древовидную структуру групп->категорий->тестов, доступных указанному пользователю.
+    Выборка учитывает роль самого целевого пользователя (root/admin/moderator/user)."""
+    try:
+        # Определяем роль целевого пользователя
+        user_row = await db.execute(
+            select(User).options(selectinload(User.role)).where(User.id == target_user_id)
+        )
+        target_user = user_row.scalar_one_or_none()
+        if not target_user:
+            raise NotFoundException("Пользователь не найден")
+
+        target_role_code = target_user.role.code if getattr(target_user, 'role', None) else None
+
+        # Переиспользуем основную функцию
+        return await get_test_groups_with_categories(db, target_user_id, target_role_code)
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении групп с категориями для пользователя: {str(e)}")
+
 async def get_available_tests_in_group_for_user(db: AsyncSession, user_id: int, test_group_id: int):
     """Возвращает все доступные тесты в группе для пользователя с учётом попыток и дат."""
     from app.crud.result import count_user_attempts_in_group

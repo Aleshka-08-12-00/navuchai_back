@@ -6,7 +6,7 @@ from app.schemas.test_group_test import TestGroupTest, TestGroupTestCreate
 from app.crud import test_group as crud
 from app.dependencies import get_db
 from app.schemas.test import TestWithDetails
-from app.crud import root_admin_moderator_required, authorized_required, get_test_groups_with_categories
+from app.crud import root_admin_moderator_required, authorized_required, get_test_groups_with_categories, get_test_groups_with_categories_for_user
 from sqlalchemy.exc import SQLAlchemyError
 from app.exceptions import NotFoundException, DatabaseException
 from pydantic import BaseModel
@@ -54,6 +54,19 @@ async def get_test_groups_with_categories_route(
         return await get_test_groups_with_categories(db, user.id, user_role_code)
     except SQLAlchemyError:
         raise DatabaseException("Ошибка при получении групп с категориями")
+
+
+@router.get("/with-categories/by-user/{target_user_id}/", response_model=List[TestGroupWithCategories])
+async def get_test_groups_with_categories_by_user_route(
+        target_user_id: int,
+        db: AsyncSession = Depends(get_db),
+        user=Depends(root_admin_moderator_required)
+):
+    """Дерево групп/категорий/тестов, доступных указанному пользователю. Доступно админам/модераторам."""
+    try:
+        return await get_test_groups_with_categories_for_user(db, target_user_id)
+    except SQLAlchemyError:
+        raise DatabaseException("Ошибка при получении групп с категориями для пользователя")
 
 
 @router.get("/{group_id}/", response_model=TestGroupEnriched)

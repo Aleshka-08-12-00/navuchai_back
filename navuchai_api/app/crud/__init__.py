@@ -116,6 +116,7 @@ from .test_group import (
     get_tests_by_group_id,
     get_all_tests_by_group_id,
     get_test_groups_with_categories,
+    get_test_groups_with_categories_for_user,
 )
 from .category import (
     create_category,
