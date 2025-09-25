@@ -806,7 +806,22 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         
         for group in groups:
             # Получаем тесты для группы
-            if user_role_code == 'moderator' and group.id == 25:
+            if user_role_code == 'root':
+                tests_stmt = (
+                    select(
+                        Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                        TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                        TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                    )
+                    .join(Category, Test.category_id == Category.id)
+                    .join(TestStatus, Test.status_id == TestStatus.id)
+                    .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                    .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                    .where(TestGroupTest.test_group_id == group.id)
+                    .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                    .order_by(Category.id, Test.id)
+                )
+            elif user_role_code == 'moderator' and group.id == 25:
                 # Для модератора в группе "Все тесты" показываем только тесты, к которым у него есть доступ
                 tests_stmt = (
                     select(
