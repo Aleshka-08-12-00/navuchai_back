@@ -794,6 +794,60 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         
         result = await db.execute(group_stmt)
         groups = result.scalars().all()
+
+        # Дополнительно: включаем группы, в которых у пользователя есть доступ хотя бы к одному тесту
+        # (персональный TestAccess или доступ по CategoryAccess), даже если нет TestGroupAccess
+        if user_role_code != 'root':
+            content_groups_stmt = (
+                select(TestGroup)
+                .join(TestGroupTest, TestGroup.id == TestGroupTest.test_group_id)
+                .join(Test, Test.id == TestGroupTest.test_id)
+                .outerjoin(TestAccess, (TestAccess.test_id == Test.id) & (TestAccess.user_id == user_id))
+                .outerjoin(Category, Category.id == Test.category_id)
+                .outerjoin(CategoryAccess, CategoryAccess.category_id == Category.id)
+                .outerjoin(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
+            )
+
+            # Ограничения по ролям и статусам
+            if user_role_code == 'moderator':
+                # Модераторы: добавляем также спец-группу 25, но она уже учтена выше; тут просто без статуса
+                content_groups_stmt = content_groups_stmt.where(
+                    (TestAccess.user_id.isnot(None)) | (UserGroupMember.user_id.isnot(None))
+                )
+            elif user_role_code == 'admin':
+                content_groups_stmt = content_groups_stmt.where(
+                    (TestAccess.user_id.isnot(None)) | (UserGroupMember.user_id.isnot(None))
+                )
+            else:
+                # Обычные пользователи: только активные группы и валидные по датам категорий
+                content_groups_stmt = (
+                    content_groups_stmt
+                    .join(TestStatus, TestGroup.status_id == TestStatus.id)
+                    .where(
+                        ((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date)) &
+                        ((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
+                    )
+                    .where(
+                        (TestAccess.user_id.isnot(None)) | (UserGroupMember.user_id.isnot(None))
+                    )
+                    .where(TestStatus.code == 'active')
+                )
+
+            content_groups_stmt = content_groups_stmt.options(
+                selectinload(TestGroup.status),
+                selectinload(TestGroup.img),
+                selectinload(TestGroup.thumbnail)
+            ).distinct()
+
+            content_groups_result = await db.execute(content_groups_stmt)
+            content_groups = content_groups_result.scalars().all()
+
+            # Объединяем и убираем дубликаты по id
+            group_map = {g.id: g for g in groups}
+            for cg in content_groups:
+                if cg.id not in group_map:
+                    group_map[cg.id] = cg
+            groups = list(group_map.values())
         
         # Добавляем отладочную информацию для модераторов
         if user_role_code == 'moderator':
@@ -896,7 +950,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                         # Если есть доступ по категориям, используем его и игнорируем индивидуальные назначения
                         tests_data = category_rows
                     else:
-                        # Иначе используем только персональные назначения тестов
+                    # Иначе используем только персональные назначения тестов
                         tests_stmt = (
                             select(
                                 Test, Category.id.label('category_id'), Category.name.label('category_name'),
@@ -904,7 +958,7 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                                 TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
                             )
                             .join(Category, Test.category_id == Category.id)
-                            .join(TestStatus, Test.status_id == TestStatus.id)
+                        .join(TestStatus, Test.status_id == TestStatus.id)
                             .join(TestGroupTest, Test.id == TestGroupTest.test_id)
                             .join(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
                             .where(TestGroupTest.test_group_id == group.id)
