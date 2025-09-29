@@ -38,6 +38,18 @@ async def read_categories(
     return await category_crud.get_categories(db=db)
 
 
+@router.get("/available/", response_model=list[CategoryInDB])
+async def read_available_categories(
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(authorized_required)
+):
+    """Категории, доступные текущему пользователю через доступы групп на категории."""
+    try:
+        return await category_crud.get_categories_available_for_user(db=db, user_id=current_user.id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/by-test-group/{test_group_id}/", response_model=list[CategoryInDB])
 async def read_categories_by_test_group(
         test_group_id: int,

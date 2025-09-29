@@ -3,6 +3,8 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.category import Category
+from app.models.user_group_member import UserGroupMember
+from app.models.category_access import CategoryAccess
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.exceptions import DatabaseException, NotFoundException
 
@@ -33,6 +35,23 @@ async def get_categories(db: AsyncSession) -> list[Category]:
         return result.scalars().all()
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при получении списка категорий: {str(e)}")
+
+
+async def get_categories_available_for_user(db: AsyncSession, user_id: int) -> list[Category]:
+    """Категории, доступные пользователю через membership в user_group и CategoryAccess."""
+    try:
+        # join CategoryAccess -> UserGroupMember by user_group_id and user_id
+        result = await db.execute(
+            select(Category)
+            .distinct()
+            .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+            .join(UserGroupMember, UserGroupMember.group_id == CategoryAccess.user_group_id)
+            .where(UserGroupMember.user_id == user_id)
+            .order_by(Category.id)
+        )
+        return result.scalars().all()
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении доступных категорий: {str(e)}")
 
 async def update_category(db: AsyncSession, category_id: int, category: CategoryUpdate) -> Category:
     try:

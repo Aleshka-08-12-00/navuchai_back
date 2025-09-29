@@ -633,28 +633,38 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
         created_accesses = []
         # Если тесты уже есть, создаём TestAccess сразу, иначе только TestGroupAccess
         if tests:
+            # Сначала очищаем лишние персональные назначения на тесты для членов группы внутри этой группы тестов
+            from sqlalchemy import delete
+            test_ids = [t.id for t in tests]
+            for member in group_members:
+                await db.execute(
+                    delete(TestAccess).where(
+                        TestAccess.user_id == member.user_id,
+                        TestAccess.test_id.in_(test_ids)
+                    )
+                )
+            await db.commit()
+
             for test in tests:
                 for member in group_members:
-                    existing_access = await get_test_access(db, test.id, member.user_id)
-                    if not existing_access:
-                        test_access_payload = TestAccessCreate(
-                            test_id=test.id,
-                            user_id=member.user_id,
-                            status_id=status_id if status_id is not None else 1
-                        )
-                        access_code = _generate_access_code() if member.user_id else None
-                        db_test_access = TestAccess(
-                            **test_access_payload.model_dump(exclude_none=True),
-                            user_group_id=group_id,
-                            test_group_id=test_group_id,
-                            completed_number=0,
-                            avg_percent=0,
-                            access_code=access_code
-                        )
-                        db.add(db_test_access)
-                        await db.commit()
-                        await db.refresh(db_test_access)
-                        created_accesses.append(db_test_access)
+                    test_access_payload = TestAccessCreate(
+                        test_id=test.id,
+                        user_id=member.user_id,
+                        status_id=status_id if status_id is not None else 1
+                    )
+                    access_code = _generate_access_code() if member.user_id else None
+                    db_test_access = TestAccess(
+                        **test_access_payload.model_dump(exclude_none=True),
+                        user_group_id=group_id,
+                        test_group_id=test_group_id,
+                        completed_number=0,
+                        avg_percent=0,
+                        access_code=access_code
+                    )
+                    db.add(db_test_access)
+                    await db.commit()
+                    await db.refresh(db_test_access)
+                    created_accesses.append(db_test_access)
         return created_accesses
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании доступа к группе тестов: {str(e)}")
@@ -678,26 +688,35 @@ async def create_user_test_group_access(db: AsyncSession, test_group_id: int, us
         await create_test_group_access(db, test_group_access_data)
         
         created_accesses = []
+        # Сначала очищаем все персональные назначения пользователя на тесты внутри этой группы тестов
+        from sqlalchemy import delete
+        test_ids = [t.id for t in tests]
+        await db.execute(
+            delete(TestAccess).where(
+                TestAccess.user_id == user_id,
+                TestAccess.test_id.in_(test_ids)
+            )
+        )
+        await db.commit()
+
         for test in tests:
-            existing_access = await get_test_access(db, test.id, user_id)
-            if not existing_access:
-                test_access_payload = TestAccessCreate(
-                    test_id=test.id,
-                    user_id=user_id,
-                    status_id=status_id if status_id is not None else 1
-                )
-                access_code = _generate_access_code() if user_id else None
-                db_test_access = TestAccess(
-                    **test_access_payload.model_dump(exclude_none=True),
-                    test_group_id=test_group_id,
-                    completed_number=0,
-                    avg_percent=0,
-                    access_code=access_code
-                )
-                db.add(db_test_access)
-                await db.commit()
-                await db.refresh(db_test_access)
-                created_accesses.append(db_test_access)
+            test_access_payload = TestAccessCreate(
+                test_id=test.id,
+                user_id=user_id,
+                status_id=status_id if status_id is not None else 1
+            )
+            access_code = _generate_access_code() if user_id else None
+            db_test_access = TestAccess(
+                **test_access_payload.model_dump(exclude_none=True),
+                test_group_id=test_group_id,
+                completed_number=0,
+                avg_percent=0,
+                access_code=access_code
+            )
+            db.add(db_test_access)
+            await db.commit()
+            await db.refresh(db_test_access)
+            created_accesses.append(db_test_access)
         return created_accesses
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании доступа к группе тестов: {str(e)}")
