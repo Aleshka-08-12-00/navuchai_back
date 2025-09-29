@@ -805,7 +805,10 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
         result_groups = []
         
         for group in groups:
-            # Получаем тесты для группы
+            # Получаем тесты для группы с приоритетом доступа:
+            # 1) Есть доступ к ГРУППЕ тестов -> все категории и все тесты группы
+            # 2) Иначе, есть доступ по КАТЕГОРИИ (через группы пользователей) -> все тесты этих категорий в группе
+            # 3) Иначе, показываем только персонально назначенные ТЕСТЫ из группы
             if user_role_code == 'root':
                 tests_stmt = (
                     select(
@@ -842,28 +845,80 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
                     .order_by(Category.id, Test.id)
                 )
             else:
-                # Для остальных случаев - обычная логика
-                tests_stmt = (
-                    select(
-                        Test, Category.id.label('category_id'), Category.name.label('category_name'),
-                        TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
-                        TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
-                    )
-                    .join(Category, Test.category_id == Category.id)
-                    .join(CategoryAccess, CategoryAccess.category_id == Category.id)
-                    .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
-                    .join(TestStatus, Test.status_id == TestStatus.id)
-                    .join(TestGroupTest, Test.id == TestGroupTest.test_id)
-                    .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
-                    .where(TestGroupTest.test_group_id == group.id)
-                    .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
-                    .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
-                    .options(selectinload(Test.image), selectinload(Test.thumbnail))
-                    .order_by(Category.id, Test.id)
+                # Для остальных ролей/групп реализуем приоритетную логику
+                # Проверяем наличие доступа к группе
+                access_stmt = select(TestGroupAccess).where(
+                    TestGroupAccess.test_group_id == group.id,
+                    TestGroupAccess.user_id == user_id
                 )
+                access_result = await db.execute(access_stmt)
+                has_group_access = access_result.scalar_one_or_none() is not None
+
+                if has_group_access:
+                    # Все тесты группы
+                    tests_stmt = (
+                        select(
+                            Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                            TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                            TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                        )
+                        .join(Category, Test.category_id == Category.id)
+                        .join(TestStatus, Test.status_id == TestStatus.id)
+                        .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                        .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                        .where(TestGroupTest.test_group_id == group.id)
+                        .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                        .order_by(Category.id, Test.id)
+                    )
+                else:
+                    # Пробуем доступ по категориям
+                    category_based_stmt = (
+                        select(
+                            Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                            TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                            TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                        )
+                        .join(Category, Test.category_id == Category.id)
+                        .join(CategoryAccess, CategoryAccess.category_id == Category.id)
+                        .join(UserGroupMember, (UserGroupMember.group_id == CategoryAccess.user_group_id) & (UserGroupMember.user_id == user_id))
+                        .join(TestStatus, Test.status_id == TestStatus.id)
+                        .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                        .outerjoin(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                        .where(TestGroupTest.test_group_id == group.id)
+                        .where((CategoryAccess.start_date.is_(None)) | (func.now() >= CategoryAccess.start_date))
+                        .where((CategoryAccess.end_date.is_(None)) | (func.now() <= CategoryAccess.end_date))
+                        .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                        .order_by(Category.id, Test.id)
+                    )
+                    category_result = await db.execute(category_based_stmt)
+                    category_rows = category_result.all()
+                    if category_rows:
+                        # Если есть доступ по категориям, используем его и игнорируем индивидуальные назначения
+                        tests_data = category_rows
+                    else:
+                        # Иначе используем только персональные назначения тестов
+                        tests_stmt = (
+                            select(
+                                Test, Category.id.label('category_id'), Category.name.label('category_name'),
+                                TestStatus.name.label('status_name'), TestStatus.name_ru.label('status_name_ru'),
+                                TestStatus.color.label('status_color'), TestAccess.is_completed.label('is_completed')
+                            )
+                            .join(Category, Test.category_id == Category.id)
+                            .join(TestStatus, Test.status_id == TestStatus.id)
+                            .join(TestGroupTest, Test.id == TestGroupTest.test_id)
+                            .join(TestAccess, (Test.id == TestAccess.test_id) & (TestAccess.user_id == user_id))
+                            .where(TestGroupTest.test_group_id == group.id)
+                            .options(selectinload(Test.image), selectinload(Test.thumbnail))
+                            .order_by(Category.id, Test.id)
+                        )
+
+                if not has_group_access and 'tests_stmt' not in locals():
+                    # tests_data уже установлен для категорий
+                    pass
             
-            tests_result = await db.execute(tests_stmt)
-            tests_data = tests_result.all()
+            if 'tests_data' not in locals():
+                tests_result = await db.execute(tests_stmt)
+                tests_data = tests_result.all()
             
             # Группируем тесты по категориям
             categories_dict = {}
@@ -940,6 +995,16 @@ async def get_test_groups_with_categories(db: AsyncSession, user_id: int, user_r
             }
             
             result_groups.append(group_dict)
+
+            # Очистка локальных временных переменных цикла
+            if 'tests_data' in locals():
+                del tests_data
+            if 'tests_stmt' in locals():
+                del tests_stmt
+            if 'category_rows' in locals():
+                del category_rows
+            if 'has_group_access' in locals():
+                del has_group_access
         
         return result_groups
         

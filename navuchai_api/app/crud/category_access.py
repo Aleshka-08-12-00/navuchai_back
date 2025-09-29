@@ -38,6 +38,9 @@ async def create_category_access(db: AsyncSession, payload: CategoryAccessCreate
         db.add(entity)
         await db.commit()
         await db.refresh(entity)
+
+        # Дополнительно: при назначении доступа на категорию НЕ удаляем ничего, т.к. приоритет группы выше,
+        # но категория должна перекрывать индивидуальные назначения при отображении (логика реализована в get_test_groups_with_categories)
         return entity
     except SQLAlchemyError as e:
         await db.rollback()
