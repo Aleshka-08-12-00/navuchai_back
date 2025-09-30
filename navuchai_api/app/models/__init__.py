@@ -36,6 +36,11 @@ from .category_access import CategoryAccess
 from .faq import Faq
 from .system_settings import SystemSettings
 from .employee import Employee
+from .adaptation_template import AdaptationTemplate
+from .adaptation_section import AdaptationSection
+from .adaptation_element import AdaptationElement
+from .employee_adaptation import EmployeeAdaptation
+from .adaptation_element_status import AdaptationElementStatus
 
 __all__ = [
     "Base",
