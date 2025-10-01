@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_
 from app.models import CourseEnrollment
+from app.utils.activity_logger import log_user_activity
 from app.exceptions import NotFoundException
 
 async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
@@ -12,6 +13,10 @@ async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
     enroll = CourseEnrollment(course_id=course_id, user_id=user_id)
     db.add(enroll)
     await db.commit()
+    try:
+        await log_user_activity(db, user_id=user_id, action="course_enrolled", context={"course_id": course_id})
+    except Exception:
+        pass
 
 async def unenroll_user(db: AsyncSession, course_id: int, user_id: int):
     result = await db.execute(select(CourseEnrollment).where(and_(CourseEnrollment.course_id == course_id,
@@ -21,6 +26,10 @@ async def unenroll_user(db: AsyncSession, course_id: int, user_id: int):
         raise NotFoundException("Запись не найдена")
     await db.delete(enroll)
     await db.commit()
+    try:
+        await log_user_activity(db, user_id=user_id, action="course_unenrolled", context={"course_id": course_id})
+    except Exception:
+        pass
 
 async def get_user_courses(db: AsyncSession, user_id: int):
     result = await db.execute(select(CourseEnrollment).where(CourseEnrollment.user_id == user_id))

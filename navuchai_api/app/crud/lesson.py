@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload, defer
 from app.models import Lesson, LessonProgress, Module, File
 from app.schemas.lesson import LessonCreate
 from app.exceptions import NotFoundException
+from app.utils.activity_logger import log_user_activity
 
 async def create_lesson(db: AsyncSession, data: LessonCreate):
     """
@@ -162,6 +163,10 @@ async def complete_lesson(db: AsyncSession, lesson_id: int, user_id: int):
     progress = LessonProgress(lesson_id=lesson_id, user_id=user_id)
     db.add(progress)
     await db.commit()
+    try:
+        await log_user_activity(db, user_id=user_id, action="lesson_completed", context={"lesson_id": lesson_id})
+    except Exception:
+        pass
 
 
 async def get_module_progress(db: AsyncSession, module_id: int, user_id: int) -> float:

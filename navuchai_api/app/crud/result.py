@@ -12,6 +12,7 @@ from app.exceptions import NotFoundException, DatabaseException
 from app.utils.answer_checker import process_test_results
 from app.crud.question import get_questions_by_test_id
 from app.crud.test_access import update_test_access_status, update_test_access_completion
+from app.utils.activity_logger import log_user_activity
 
 
 async def create_result(db: AsyncSession, result_data: ResultCreate):
@@ -76,6 +77,20 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         await db.refresh(new_result)
         # Явно подгружаем связанные объекты test и user для корректной сериализации
         await db.refresh(new_result, attribute_names=["test", "user"])
+        try:
+            await log_user_activity(
+                db,
+                user_id=result_data.user_id,
+                action="test_completed",
+                context={
+                    "test_id": result_data.test_id,
+                    "score": new_result.score,
+                    "percentage": new_result.result.get("percentage"),
+                    "is_passed": new_result.result.get("is_passed"),
+                },
+            )
+        except Exception:
+            pass
         return new_result
     except SQLAlchemyError as e:
         await db.rollback()
