@@ -15,6 +15,8 @@ from app.schemas.adaptation import (
     AdaptationSectionCreate, AdaptationSectionUpdate,
     AdaptationElement as AdaptationElementSchema,
     AdaptationElementCreate, AdaptationElementUpdate,
+    UserAdaptationProgress,
+    UpdateAdaptationRequest,
 )
 from app.crud.adaptation import (
     get_templates, get_template, create_template, update_template, delete_template,
@@ -22,6 +24,7 @@ from app.crud.adaptation import (
     update_element_status, get_stats, get_progress, copy_adaptation,
     create_section, update_section, delete_section,
     create_element, update_element, delete_element,
+    get_user_adaptations, update_user_adaptation,
 )
 from app.routes.auth import authorized_required
 
@@ -184,6 +187,30 @@ async def delete_element_route(element_id: int, db: AsyncSession = Depends(get_d
     try:
         ok = await delete_element(db, element_id)
         return {"success": bool(ok)}
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# User adaptations
+@router.get("/users/{user_id}/adaptations/", response_model=list[UserAdaptationProgress])
+async def get_user_adaptations_route(user_id: int, db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
+    try:
+        return await get_user_adaptations(db, user_id)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/users/{user_id}/adaptations/{adaptation_id}/", response_model=EmployeeAdaptationSchema)
+async def update_user_adaptation_route(
+    user_id: int, 
+    adaptation_id: int, 
+    data: UpdateAdaptationRequest, 
+    db: AsyncSession = Depends(get_db), 
+    user=Depends(authorized_required)
+):
+    try:
+        update_data = data.model_dump(exclude_unset=True)
+        return await update_user_adaptation(db, user_id, adaptation_id, update_data)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
 

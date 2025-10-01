@@ -1,4 +1,5 @@
 from typing import Optional, List
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -82,6 +83,8 @@ class AdaptationTemplateCreate(AdaptationTemplateBase):
 class AdaptationTemplate(AdaptationTemplateBase):
     id: int
     sections: List[AdaptationSection] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -100,6 +103,11 @@ class EmployeeAdaptation(EmployeeAdaptationBase):
     id: int
     is_completed: bool
     completion_percentage: int
+    assigned_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -112,5 +120,25 @@ class UpdateElementStatusRequest(BaseModel):
 class CopyAdaptationRequest(BaseModel):
     source_adaptation_id: int
     target_employee_id: int
+
+
+class UserAdaptationProgress(BaseModel):
+    adaptation_id: int
+    template_id: int
+    template_title: str
+    is_completed: bool
+    completion_percentage: int
+    assigned_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    sections: List[dict] = []
+
+
+class UpdateAdaptationRequest(BaseModel):
+    is_completed: Optional[bool] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
 

@@ -15,6 +15,46 @@ from app.schemas.adaptation import (
     AdaptationElementCreate, AdaptationElementUpdate,
 )
 
+# Helpers to grant access for adaptation elements
+async def _grant_access_for_element(db: AsyncSession, user_id: int, element: AdaptationElement):
+    try:
+        etype = (element.type or '').lower()
+        if etype == 'text':
+            return
+        if etype == 'test' and element.entity_id:
+            from app.crud.test_access import get_test_access, create_test_access
+            from app.schemas.test_access import TestAccessCreate
+            existing = await get_test_access(db, element.entity_id, user_id)
+            if not existing:
+                payload = TestAccessCreate(test_id=element.entity_id, user_id=user_id, status_id=1)
+                await create_test_access(db, payload)
+            return
+        if etype == 'course' and element.entity_id:
+            from app.crud.enrollment import enroll_user
+            await enroll_user(db, element.entity_id, user_id)
+            return
+        if etype == 'module' and element.entity_id:
+            from app.crud.module import get_module
+            module = await get_module(db, element.entity_id)
+            if getattr(module, 'course_id', None):
+                from app.crud.enrollment import enroll_user
+                await enroll_user(db, module.course_id, user_id)
+            return
+        if etype == 'lesson' and element.entity_id:
+            from app.crud.lesson import get_lesson
+            lesson = await get_lesson(db, element.entity_id)
+            course_id = None
+            if getattr(lesson, 'module', None) and getattr(lesson.module, 'course_id', None):
+                course_id = lesson.module.course_id
+            if course_id:
+                from app.crud.enrollment import enroll_user
+                await enroll_user(db, course_id, user_id)
+            return
+        # faq: нет отдельной выдачи доступа
+    except Exception:
+        # Не прерываем основную операцию, если выдача доступа не удалась
+        pass
+
 
 # Templates
 async def get_templates(db: AsyncSession) -> list[AdaptationTemplate]:
@@ -130,6 +170,18 @@ async def assign_adaptation(db: AsyncSession, payload: EmployeeAdaptationCreate)
         db.add(adaptation)
         await db.commit()
         await db.refresh(adaptation)
+
+        # Выдать доступы по элементам шаблона (кроме текста)
+        tpl_q = await db.execute(
+            select(AdaptationTemplate)
+            .options(selectinload(AdaptationTemplate.sections).selectinload(AdaptationSection.elements))
+            .where(AdaptationTemplate.id == payload.template_id)
+        )
+        template = tpl_q.scalar_one_or_none()
+        if template:
+            for section in template.sections:
+                for el in section.elements:
+                    await _grant_access_for_element(db, payload.employee_id, el)
         return adaptation
     except SQLAlchemyError as e:
         await db.rollback()
@@ -267,6 +319,115 @@ async def copy_adaptation(db: AsyncSession, source_adaptation_id: int, target_em
         raise DatabaseException(f"Ошибка при копировании адаптации: {str(e)}")
 
 
+# User adaptations
+async def get_user_adaptations(db: AsyncSession, user_id: int) -> list[dict]:
+    """Получить все адаптации пользователя с полной структурой шаблона."""
+    try:
+        result = await db.execute(
+            select(EmployeeAdaptation)
+            .options(
+                selectinload(EmployeeAdaptation.template)
+                .selectinload(AdaptationTemplate.sections)
+                .selectinload(AdaptationSection.elements)
+            )
+            .where(EmployeeAdaptation.employee_id == user_id)
+            .order_by(EmployeeAdaptation.assigned_at.desc())
+        )
+        adaptations = result.scalars().all()
+        
+        # Статусы элементов для всех адаптаций
+        adaptation_ids = [a.id for a in adaptations]
+        statuses_q = await db.execute(
+            select(AdaptationElementStatus).where(
+                AdaptationElementStatus.employee_adaptation_id.in_(adaptation_ids)
+            )
+        )
+        statuses = statuses_q.scalars().all()
+        status_by_adaptation_element: dict[tuple[int, int], AdaptationElementStatus] = {
+            (s.employee_adaptation_id, s.element_id): s for s in statuses
+        }
+        
+        user_adaptations = []
+        for adaptation in adaptations:
+            sections_data = []
+            for section in adaptation.template.sections:
+                elements_data = []
+                for element in section.elements:
+                    status = status_by_adaptation_element.get((adaptation.id, element.id))
+                    is_completed = bool(status.is_completed) if status else bool(element.is_completed)
+                    elements_data.append({
+                        "element_id": element.id,
+                        "title": element.title,
+                        "description": element.description,
+                        "type": element.type,
+                        "text_content": element.text_content,
+                        "entity_type": element.entity_type,
+                        "entity_id": element.entity_id,
+                        "entity_title": element.entity_title,
+                        "is_completed": is_completed,
+                        "completed_at": getattr(status, 'completed_at', None) if status else element.completed_at,
+                        "order_index": element.order_index,
+                        "parent_id": element.parent_id,
+                        "level": element.level,
+                    })
+                
+                sections_data.append({
+                    "section_id": section.id,
+                    "title": section.title,
+                    "description": section.description,
+                    "icon": section.icon,
+                    "order_index": section.order_index,
+                    "elements": elements_data,
+                })
+            
+            user_adaptations.append({
+                "adaptation_id": adaptation.id,
+                "template_id": adaptation.template_id,
+                "template_title": adaptation.template.title,
+                "is_completed": adaptation.is_completed,
+                "completion_percentage": adaptation.completion_percentage,
+                "assigned_at": adaptation.assigned_at,
+                "started_at": adaptation.started_at,
+                "completed_at": adaptation.completed_at,
+                "created_at": adaptation.created_at,
+                "updated_at": adaptation.updated_at,
+                "sections": sections_data,
+            })
+        
+        return user_adaptations
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении адаптаций пользователя: {str(e)}")
+
+
+async def update_user_adaptation(db: AsyncSession, user_id: int, adaptation_id: int, data: dict) -> EmployeeAdaptation:
+    """Обновить адаптацию пользователя."""
+    try:
+        result = await db.execute(
+            select(EmployeeAdaptation).where(
+                EmployeeAdaptation.id == adaptation_id,
+                EmployeeAdaptation.employee_id == user_id
+            )
+        )
+        adaptation = result.scalar_one_or_none()
+        if not adaptation:
+            raise NotFoundException("Адаптация не найдена")
+        
+        for field, value in data.items():
+            if hasattr(adaptation, field):
+                # Конвертируем timezone-aware datetime в naive для БД
+                if field in ['started_at', 'completed_at'] and value is not None:
+                    if hasattr(value, 'tzinfo') and value.tzinfo is not None:
+                        value = value.replace(tzinfo=None)
+                setattr(adaptation, field, value)
+        
+        await db.commit()
+        await db.refresh(adaptation)
+        return adaptation
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при обновлении адаптации: {str(e)}")
+
+
 # Sections
 async def create_section(db: AsyncSession, data: AdaptationSectionCreate):
     try:
@@ -348,7 +509,20 @@ async def create_element(db: AsyncSession, data: AdaptationElementCreate):
         result = await db.execute(
             select(AdaptationElement).where(AdaptationElement.id == element.id)
         )
-        return result.scalar_one()
+        created = result.scalar_one()
+
+        # Выдать доступ пользователю(ям), у кого назначена адаптация с этим шаблоном
+        tpl_id_q = await db.execute(
+            select(AdaptationSection.template_id).where(AdaptationSection.id == created.section_id)
+        )
+        tpl_id = tpl_id_q.scalar_one_or_none()
+        if tpl_id is not None:
+            user_ids_q = await db.execute(
+                select(EmployeeAdaptation.employee_id).where(EmployeeAdaptation.template_id == tpl_id)
+            )
+            for (uid,) in user_ids_q.all():
+                await _grant_access_for_element(db, uid, created)
+        return created
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при создании элемента: {str(e)}")
