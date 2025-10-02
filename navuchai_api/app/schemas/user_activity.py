@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class UserActivityBase(BaseModel):
     user_id: Optional[int] = None
     action: str
+    action_ru: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
     ip: Optional[str] = None
     user_agent: Optional[str] = None

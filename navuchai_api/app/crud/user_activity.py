@@ -14,6 +14,7 @@ async def create_user_activity(db: AsyncSession, data: UserActivityCreate) -> Us
         record = UserActivity(
             user_id=data.user_id,
             action=data.action,
+            action_ru=data.action_ru,
             context=data.context,
             ip=data.ip,
             user_agent=data.user_agent,

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.user_activity import UserActivityCreate
 from app.crud.user_activity import create_user_activity
-from app.utils.activity_actions import ALLOWED_ACTIONS
+from app.utils.activity_actions import ALLOWED_ACTIONS, ACTION_RU_NAMES
 
 
 async def log_user_activity(
@@ -29,6 +29,7 @@ async def log_user_activity(
     data = UserActivityCreate(
         user_id=user_id,
         action=action,
+        action_ru=ACTION_RU_NAMES.get(action),
         context=context,
         ip=ip,
         user_agent=user_agent,

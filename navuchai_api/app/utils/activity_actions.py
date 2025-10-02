@@ -1,4 +1,4 @@
-from typing import Final, Set
+from typing import Final, Set, Dict
 
 
 # Базовый whitelist кодов действий (можно дополнять по мере необходимости)
@@ -32,6 +32,22 @@ ALLOWED_ACTIONS: Final[Set[str]] = {
     MODULE_COMPLETED,
     TEST_COMPLETED,
     TEST_STARTED,
+}
+
+# Словарь русских названий действий
+ACTION_RU_NAMES: Final[Dict[str, str]] = {
+    LOGIN_SUCCESS: "Успешный вход",
+    LOGIN_FAILED: "Неуспешный вход",
+    REGISTER: "Регистрация",
+    COURSE_ENROLLED: "Запись на курс",
+    COURSE_UNENROLLED: "Отмена записи на курс",
+    COURSE_STARTED: "Начало курса",
+    COURSE_COMPLETED: "Завершение курса",
+    LESSON_COMPLETED: "Завершение урока",
+    LESSON_OPENED: "Открытие урока",
+    MODULE_COMPLETED: "Завершение модуля",
+    TEST_COMPLETED: "Завершение теста",
+    TEST_STARTED: "Начало теста",
 }
 
 
