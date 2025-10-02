@@ -219,7 +219,7 @@ async def update_element_status(db: AsyncSession, element_id: int, employee_adap
                 employee_adaptation_id=employee_adaptation_id,
                 element_id=element_id,
                 is_completed=is_completed,
-                completed_by=completed_by
+                completed_by=completed_by  # Используем переданное значение или null
             )
             db.add(status)
         await db.commit()
@@ -293,8 +293,8 @@ async def _check_and_update_adaptation_completion(db: AsyncSession, adaptation_i
         pass
 
 
-async def bulk_update_element_statuses(db: AsyncSession, updates: List[dict]) -> List[AdaptationElementStatus]:
-    """Массовое обновление статусов элементов адаптации"""
+async def bulk_update_element_statuses(db: AsyncSession, updates: List[dict], user_id: int) -> List[AdaptationElementStatus]:
+    """Массовое обновление статусов элементов адаптации для конкретного пользователя"""
     try:
         updated_statuses = []
         affected_adaptations = set()
@@ -314,13 +314,16 @@ async def bulk_update_element_statuses(db: AsyncSession, updates: List[dict]) ->
             if not element:
                 continue
                 
-            # Получаем все адаптации пользователей для этого элемента
+            # Получаем адаптации только для текущего пользователя
             adaptations_result = await db.execute(
                 select(EmployeeAdaptation)
                 .join(AdaptationTemplate)
                 .join(AdaptationSection)
                 .join(AdaptationElement)
-                .where(AdaptationElement.id == element_id)
+                .where(
+                    AdaptationElement.id == element_id,
+                    EmployeeAdaptation.employee_id == user_id
+                )
             )
             adaptations = adaptations_result.scalars().all()
             
@@ -340,12 +343,15 @@ async def bulk_update_element_statuses(db: AsyncSession, updates: List[dict]) ->
                     status = AdaptationElementStatus(
                         employee_adaptation_id=adaptation.id,
                         element_id=element_id,
-                        is_completed=is_completed
+                        is_completed=is_completed,
+                        completed_by=user_id  # Используем ID текущего пользователя
                     )
                     db.add(status)
                 else:
                     # Обновляем существующий статус
                     status.is_completed = is_completed
+                    if is_completed and not status.completed_by:
+                        status.completed_by = user_id
                 
                 updated_statuses.append(status)
                 affected_adaptations.add(adaptation.id)
