@@ -78,16 +78,26 @@ async def create_result(db: AsyncSession, result_data: ResultCreate):
         # Явно подгружаем связанные объекты test и user для корректной сериализации
         await db.refresh(new_result, attribute_names=["test", "user"])
         try:
+            # Получаем название теста для контекста
+            test_title = test.title if test else None
+            
+            context = {
+                "test_id": result_data.test_id,
+                "test_title": test_title,
+                "score": new_result.score,
+                "percentage": new_result.result.get("percentage"),
+                "is_passed": new_result.result.get("is_passed"),
+                "grade": new_result.result.get("grade"),
+                "color": new_result.result.get("color"),
+                "message": new_result.result.get("message"),
+                "total_time_seconds": new_result.result.get("total_time_seconds"),
+                "completed_at": new_result.created_at.isoformat() if new_result.created_at else None
+            }
             await log_user_activity(
                 db,
                 user_id=result_data.user_id,
                 action="test_completed",
-                context={
-                    "test_id": result_data.test_id,
-                    "score": new_result.score,
-                    "percentage": new_result.result.get("percentage"),
-                    "is_passed": new_result.result.get("is_passed"),
-                },
+                context=context,
             )
         except Exception:
             pass

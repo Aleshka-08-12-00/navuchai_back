@@ -9,9 +9,11 @@ REGISTER: Final[str] = "register"
 COURSE_ENROLLED: Final[str] = "course_enrolled"
 COURSE_UNENROLLED: Final[str] = "course_unenrolled"
 COURSE_STARTED: Final[str] = "course_started"
+COURSE_COMPLETED: Final[str] = "course_completed"
 
 LESSON_COMPLETED: Final[str] = "lesson_completed"
 LESSON_OPENED: Final[str] = "lesson_opened"
+MODULE_COMPLETED: Final[str] = "module_completed"
 
 TEST_COMPLETED: Final[str] = "test_completed"
 TEST_STARTED: Final[str] = "test_started"
@@ -24,8 +26,10 @@ ALLOWED_ACTIONS: Final[Set[str]] = {
     COURSE_ENROLLED,
     COURSE_UNENROLLED,
     COURSE_STARTED,
+    COURSE_COMPLETED,
     LESSON_COMPLETED,
     LESSON_OPENED,
+    MODULE_COMPLETED,
     TEST_COMPLETED,
     TEST_STARTED,
 }

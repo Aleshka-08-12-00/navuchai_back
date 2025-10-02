@@ -73,7 +73,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             logger.warning(f"Ошибка входа: пользователь не найден или неверный пароль: {form_data.username}")
             # Логируем неуспешный вход без user_id
             try:
-                await log_user_activity(db, user_id=None, action="login_failed", context={"username": form_data.username}, request=request)
+                await log_user_activity(db, user_id=None, action="login_failed", context={"username": form_data.username, "user_name": None}, request=request)
             except Exception:
                 pass
             raise BadRequestException("Неверное имя пользователя/email или пароль")
@@ -91,7 +91,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
         })
         logger.info(f"Успешный вход пользователя: {form_data.username}")
         try:
-            await log_user_activity(db, user_id=user.id, action="login_success", context={"username": form_data.username}, request=request)
+            await log_user_activity(db, user_id=user.id, action="login_success", context={"username": form_data.username, "user_name": user.name}, request=request)
         except Exception:
             pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
@@ -145,7 +145,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db), 
         })
         logger.info(f"Успешная регистрация пользователя: {user_data.username}")
         try:
-            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username}, request=request)
+            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username, "user_name": new_user.name}, request=request)
         except Exception:
             pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
@@ -218,7 +218,7 @@ async def register_with_group(user_data: UserRegisterWithGroup, db: AsyncSession
         })
         logger.info(f"Успешная регистрация пользователя с группой: {user_data.username}")
         try:
-            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username, "group_id": user_data.group_id}, request=request)
+            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username, "user_name": new_user.name, "group_id": user_data.group_id}, request=request)
         except Exception:
             pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}

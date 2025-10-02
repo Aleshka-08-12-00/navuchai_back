@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload, defer
-from app.models import Lesson, LessonProgress, Module, File
+from app.models import Lesson, LessonProgress, Module, File, Course
 from app.schemas.lesson import LessonCreate
 from app.exceptions import NotFoundException
 from app.utils.activity_logger import log_user_activity
@@ -164,7 +164,52 @@ async def complete_lesson(db: AsyncSession, lesson_id: int, user_id: int):
     db.add(progress)
     await db.commit()
     try:
-        await log_user_activity(db, user_id=user_id, action="lesson_completed", context={"lesson_id": lesson_id})
+        # Получаем полную информацию об уроке, модуле и курсе для контекста
+        lesson_result = await db.execute(
+            select(Lesson)
+            .options(selectinload(Lesson.module).selectinload(Module.course))
+            .where(Lesson.id == lesson_id)
+        )
+        lesson = lesson_result.scalar_one_or_none()
+        
+        # Получаем прогресс модуля и курса
+        module_progress = await get_module_progress(db, lesson.module_id, user_id)
+        course_progress = await get_course_progress(db, lesson.module.course_id, user_id)
+        
+        context = {
+            "lesson_id": lesson_id,
+            "lesson_title": lesson.title,
+            "module_id": lesson.module_id,
+            "module_title": lesson.module.title,
+            "course_id": lesson.module.course_id,
+            "course_title": lesson.module.course.title,
+            "module_progress": module_progress,
+            "course_progress": course_progress,
+            "completed_at": progress.created_at.isoformat() if hasattr(progress, 'created_at') else None
+        }
+        await log_user_activity(db, user_id=user_id, action="lesson_completed", context=context)
+        
+        # Проверяем, завершён ли модуль (прогресс = 100%)
+        if module_progress >= 100.0:
+            module_completed_context = {
+                "module_id": lesson.module_id,
+                "module_title": lesson.module.title,
+                "course_id": lesson.module.course_id,
+                "course_title": lesson.module.course.title,
+                "module_progress": module_progress,
+                "completed_at": progress.created_at.isoformat() if hasattr(progress, 'created_at') else None
+            }
+            await log_user_activity(db, user_id=user_id, action="module_completed", context=module_completed_context)
+        
+        # Проверяем, завершён ли курс (прогресс = 100%)
+        if course_progress >= 100.0:
+            course_completed_context = {
+                "course_id": lesson.module.course_id,
+                "course_title": lesson.module.course.title,
+                "course_progress": course_progress,
+                "completed_at": progress.created_at.isoformat() if hasattr(progress, 'created_at') else None
+            }
+            await log_user_activity(db, user_id=user_id, action="course_completed", context=course_completed_context)
     except Exception:
         pass
 
