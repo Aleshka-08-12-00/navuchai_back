@@ -26,6 +26,8 @@ from app.routes.faq_categories import router as faq_categories_router
 from app.routes.system_settings import router as system_settings_router
 from app.routes.employees import router as employees_router
 from app.routes.category_access import router as category_access_router
+from .folders import router as folders_router
+from .documents import router as documents_router
 
 auth = auth_router
 tests = tests_router
@@ -55,3 +57,5 @@ faq_categories = faq_categories_router
 system_settings = system_settings_router
 employees = employees_router
 category_access = category_access_router
+folders = folders_router
+documents = documents_router
