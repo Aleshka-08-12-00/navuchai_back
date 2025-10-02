@@ -145,5 +145,6 @@ class UpdateAdaptationRequest(BaseModel):
 class BulkElementStatusUpdate(BaseModel):
     element_id: int
     is_completed: bool
+    user_id: Optional[int] = None  # Для рут/админ/модератор - ID пользователя, для которого изменяется статус
 
 

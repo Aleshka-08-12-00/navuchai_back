@@ -115,11 +115,24 @@ async def bulk_update_element_statuses_route(
     db: AsyncSession = Depends(get_db),
     user=Depends(authorized_required)
 ):
-    """Массовое обновление статусов элементов адаптации для текущего пользователя"""
+    """Массовое обновление статусов элементов адаптации"""
     try:
         from app.crud.adaptation import bulk_update_element_statuses
+        from app.models.role_enum import RoleCode
+        
+        # Определяем, для какого пользователя обновлять статусы
+        target_user_id = user.id  # По умолчанию для текущего пользователя
+        
+        # Если пользователь - рут, админ или модератор, и в данных указан user_id
+        if user.role and user.role.code in [RoleCode.ROOT, RoleCode.ADMIN, RoleCode.MODERATOR]:
+            # Проверяем, есть ли user_id в данных
+            for update in data:
+                if update.user_id is not None:
+                    target_user_id = update.user_id
+                    break
+        
         updates = [update.model_dump() for update in data]
-        updated_statuses = await bulk_update_element_statuses(db, updates, user.id)
+        updated_statuses = await bulk_update_element_statuses(db, updates, target_user_id)
         return {
             "success": True,
             "updated_count": len(updated_statuses),
