@@ -13,3 +13,22 @@ services:
       - "8012:8012"
     volumes: []  # в проде без монтирования кода с хоста
     command: uvicorn app.main:app --host 0.0.0.0 --port 8012
+
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: navuchai_cron_prod
+    restart: always
+    env_file:
+      - .env.prod
+    volumes: []  # в проде без монтирования кода с хоста
+    command: |
+      sh -c "
+        # Запускаем cron в фоне
+        cron -f &
+        # Ждем завершения cron
+        wait
+      "
+    depends_on:
+      - web

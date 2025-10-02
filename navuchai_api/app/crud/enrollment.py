@@ -1,7 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_
-from app.models import CourseEnrollment
+from sqlalchemy.orm import selectinload
+from app.models import CourseEnrollment, Course
+from app.utils.activity_logger import log_user_activity
 from app.exceptions import NotFoundException
 
 async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
@@ -12,6 +14,22 @@ async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
     enroll = CourseEnrollment(course_id=course_id, user_id=user_id)
     db.add(enroll)
     await db.commit()
+    await db.refresh(enroll)
+    try:
+        # Получаем информацию о курсе для контекста
+        course_result = await db.execute(
+            select(Course).where(Course.id == course_id)
+        )
+        course = course_result.scalar_one_or_none()
+        
+        context = {
+            "course_id": course_id,
+            "course_title": course.title if course else None,
+            "enrolled_at": enroll.enrolled_at.isoformat() if enroll.enrolled_at else None
+        }
+        await log_user_activity(db, user_id=user_id, action="course_enrolled", context=context)
+    except Exception:
+        pass
 
 async def unenroll_user(db: AsyncSession, course_id: int, user_id: int):
     result = await db.execute(select(CourseEnrollment).where(and_(CourseEnrollment.course_id == course_id,
@@ -19,8 +37,26 @@ async def unenroll_user(db: AsyncSession, course_id: int, user_id: int):
     enroll = result.scalar_one_or_none()
     if not enroll:
         raise NotFoundException("Запись не найдена")
+    
+    # Сохраняем информацию о курсе и дате отчисления перед удалением
+    course_result = await db.execute(
+        select(Course).where(Course.id == course_id)
+    )
+    course = course_result.scalar_one_or_none()
+    enrolled_at = enroll.enrolled_at.isoformat() if enroll.enrolled_at else None
+    
     await db.delete(enroll)
     await db.commit()
+    try:
+        context = {
+            "course_id": course_id,
+            "course_title": course.title if course else None,
+            "enrolled_at": enrolled_at,
+            "unenrolled_at": enroll.updated_at.isoformat() if hasattr(enroll, 'updated_at') and enroll.updated_at else None
+        }
+        await log_user_activity(db, user_id=user_id, action="course_unenrolled", context=context)
+    except Exception:
+        pass
 
 async def get_user_courses(db: AsyncSession, user_id: int):
     result = await db.execute(select(CourseEnrollment).where(CourseEnrollment.user_id == user_id))

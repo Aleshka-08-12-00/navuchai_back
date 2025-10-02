@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ from app.exceptions import BadRequestException, DatabaseException, NotFoundExcep
 from app.models import User
 from app.crud.user_group import add_group_member, get_group, import_users_from_csv
 from app.schemas.user_auth import Token, UserRegister, UserRegisterWithGroup, UserImportResponse
+from app.utils.activity_logger import log_user_activity
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -50,7 +51,7 @@ def create_user_from_data(user_data):
 
 
 @router.post("/login/", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db), request: Request = None):
     try:
         logger.info(f"Попытка входа пользователя: {form_data.username}")
         # Сначала ищем по username
@@ -70,6 +71,11 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             user = result.scalar_one_or_none()
         if not user or not verify_password(form_data.password, user.password):
             logger.warning(f"Ошибка входа: пользователь не найден или неверный пароль: {form_data.username}")
+            # Логируем неуспешный вход без user_id
+            try:
+                await log_user_activity(db, user_id=None, action="login_failed", context={"username": form_data.username, "user_name": None}, request=request)
+            except Exception:
+                pass
             raise BadRequestException("Неверное имя пользователя/email или пароль")
         token = create_access_token({
             "sub": str(user.id),
@@ -84,6 +90,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
             "email": user.email
         })
         logger.info(f"Успешный вход пользователя: {form_data.username}")
+        try:
+            await log_user_activity(db, user_id=user.id, action="login_success", context={"username": form_data.username, "user_name": user.name}, request=request)
+        except Exception:
+            pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при входе: {str(e)}")
@@ -91,7 +101,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 
 
 @router.post("/register/", response_model=Token)
-async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db), request: Request = None):
     try:
         logger.info(f"Попытка регистрации пользователя: {user_data.username}")
 
@@ -134,6 +144,10 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
             "email": new_user.email
         })
         logger.info(f"Успешная регистрация пользователя: {user_data.username}")
+        try:
+            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username, "user_name": new_user.name}, request=request)
+        except Exception:
+            pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при регистрации: {str(e)}")
@@ -144,7 +158,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/register-with-group/", response_model=Token)
-async def register_with_group(user_data: UserRegisterWithGroup, db: AsyncSession = Depends(get_db)):
+async def register_with_group(user_data: UserRegisterWithGroup, db: AsyncSession = Depends(get_db), request: Request = None):
     try:
         logger.info(f"Попытка регистрации пользователя с группой: {user_data.username}, группа: {user_data.group_id}")
 
@@ -203,6 +217,10 @@ async def register_with_group(user_data: UserRegisterWithGroup, db: AsyncSession
             "email": new_user.email
         })
         logger.info(f"Успешная регистрация пользователя с группой: {user_data.username}")
+        try:
+            await log_user_activity(db, user_id=new_user.id, action="register", context={"username": new_user.username, "user_name": new_user.name, "group_id": user_data.group_id}, request=request)
+        except Exception:
+            pass
         return {"access_token": token, "refresh_token": refresh_token, "token_type": "bearer"}
     except SQLAlchemyError as e:
         logger.error(f"Ошибка базы данных при регистрации с группой: {str(e)}")
