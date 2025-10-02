@@ -15,7 +15,9 @@ class EmployeeAdaptation(Base):
     assigned_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     started_at = Column(TIMESTAMP, nullable=True)
     completed_at = Column(TIMESTAMP, nullable=True)
+    completed_to = Column(TIMESTAMP, nullable=True)  # Дата до которой нужно выполнить адаптацию
     is_completed = Column(Boolean, nullable=False, server_default='false', default=False)
+    is_failed = Column(Boolean, nullable=False, server_default='false', default=False)  # Статус провала по сроку
     completion_percentage = Column(Integer, nullable=False, server_default='0')
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())

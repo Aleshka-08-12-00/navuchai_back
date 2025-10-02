@@ -167,6 +167,7 @@ async def assign_adaptation(db: AsyncSession, payload: EmployeeAdaptationCreate)
             template_id=payload.template_id,
             employee_id=payload.employee_id,
             assigned_by=payload.assigned_by,
+            completed_to=payload.completed_to,
         )
         db.add(adaptation)
         await db.commit()
@@ -450,6 +451,7 @@ async def copy_adaptation(db: AsyncSession, source_adaptation_id: int, target_em
             template_id=source.template_id,
             employee_id=target_employee_id,
             assigned_by=source.assigned_by,
+            completed_to=source.completed_to,
         )
         db.add(new)
         await db.commit()
@@ -699,5 +701,57 @@ async def delete_element(db: AsyncSession, element_id: int) -> bool:
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при удалении элемента: {str(e)}")
+
+
+# Deadline checking
+async def check_expired_adaptations(db: AsyncSession) -> int:
+    """Проверяет истекшие адаптации и устанавливает is_failed = True"""
+    try:
+        from datetime import datetime
+        
+        # Получаем все адаптации с истекшим сроком, которые не завершены и не провалены
+        result = await db.execute(
+            select(EmployeeAdaptation)
+            .where(
+                EmployeeAdaptation.completed_to.isnot(None),
+                EmployeeAdaptation.completed_to < datetime.utcnow(),
+                EmployeeAdaptation.is_completed == False,
+                EmployeeAdaptation.is_failed == False
+            )
+        )
+        expired_adaptations = result.scalars().all()
+        
+        # Устанавливаем is_failed = True для истекших адаптаций
+        updated_count = 0
+        for adaptation in expired_adaptations:
+            adaptation.is_failed = True
+            updated_count += 1
+        
+        if updated_count > 0:
+            await db.commit()
+        
+        return updated_count
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при проверке истекших адаптаций: {str(e)}")
+
+
+async def get_expired_adaptations(db: AsyncSession) -> List[EmployeeAdaptation]:
+    """Получает список истекших адаптаций"""
+    try:
+        from datetime import datetime
+        
+        result = await db.execute(
+            select(EmployeeAdaptation)
+            .options(selectinload(EmployeeAdaptation.template))
+            .where(
+                EmployeeAdaptation.completed_to.isnot(None),
+                EmployeeAdaptation.completed_to < datetime.utcnow(),
+                EmployeeAdaptation.is_completed == False
+            )
+        )
+        return result.scalars().all()
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Ошибка при получении истекших адаптаций: {str(e)}")
 
 

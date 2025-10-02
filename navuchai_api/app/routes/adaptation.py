@@ -26,6 +26,7 @@ from app.crud.adaptation import (
     create_section, update_section, delete_section,
     create_element, update_element, delete_element,
     get_user_adaptations, update_user_adaptation,
+    check_expired_adaptations, get_expired_adaptations,
 )
 from app.routes.auth import authorized_required
 
@@ -245,6 +246,30 @@ async def update_user_adaptation_route(
     try:
         update_data = data.model_dump(exclude_unset=True)
         return await update_user_adaptation(db, user_id, adaptation_id, update_data)
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Deadline management
+@router.post("/check-expired/", response_model=dict)
+async def check_expired_adaptations_route(db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
+    """Проверяет истекшие адаптации и устанавливает is_failed = True"""
+    try:
+        updated_count = await check_expired_adaptations(db)
+        return {
+            "success": True,
+            "updated_count": updated_count,
+            "message": f"Проверено истекших адаптаций: {updated_count}"
+        }
+    except (DatabaseException, NotFoundException) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/expired/", response_model=list[EmployeeAdaptationSchema])
+async def get_expired_adaptations_route(db: AsyncSession = Depends(get_db), user=Depends(authorized_required)):
+    """Получает список истекших адаптаций"""
+    try:
+        return await get_expired_adaptations(db)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
 

@@ -97,15 +97,18 @@ class EmployeeAdaptationBase(BaseModel):
 
 class EmployeeAdaptationCreate(EmployeeAdaptationBase):
     assigned_by: int
+    completed_to: Optional[datetime] = None  # Дата до которой нужно выполнить адаптацию
 
 
 class EmployeeAdaptation(EmployeeAdaptationBase):
     id: int
     is_completed: bool
+    is_failed: bool
     completion_percentage: int
     assigned_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    completed_to: Optional[datetime] = None  # Дата до которой нужно выполнить адаптацию
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
