@@ -142,3 +142,8 @@ class UpdateAdaptationRequest(BaseModel):
     completed_at: Optional[datetime] = None
 
 
+class BulkElementStatusUpdate(BaseModel):
+    element_id: int
+    is_completed: bool
+
+

@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
@@ -222,10 +223,144 @@ async def update_element_status(db: AsyncSession, element_id: int, employee_adap
             )
             db.add(status)
         await db.commit()
+        
+        # Проверяем и обновляем статус адаптации
+        await _check_and_update_adaptation_completion(db, employee_adaptation_id)
+        await db.commit()
+        
         return {"success": True}
     except SQLAlchemyError as e:
         await db.rollback()
         raise DatabaseException(f"Ошибка при обновлении статуса элемента: {str(e)}")
+
+
+async def _check_and_update_adaptation_completion(db: AsyncSession, adaptation_id: int):
+    """Проверяет и обновляет статус завершения адаптации на основе статусов элементов"""
+    try:
+        # Получаем адаптацию
+        adaptation_result = await db.execute(
+            select(EmployeeAdaptation).where(EmployeeAdaptation.id == adaptation_id)
+        )
+        adaptation = adaptation_result.scalar_one_or_none()
+        if not adaptation:
+            return
+
+        # Получаем все элементы шаблона
+        elements_result = await db.execute(
+            select(AdaptationElement)
+            .join(AdaptationSection)
+            .join(AdaptationTemplate)
+            .where(AdaptationTemplate.id == adaptation.template_id)
+        )
+        all_elements = elements_result.scalars().all()
+        
+        if not all_elements:
+            return
+
+        # Получаем статусы элементов для этой адаптации
+        statuses_result = await db.execute(
+            select(AdaptationElementStatus)
+            .where(AdaptationElementStatus.employee_adaptation_id == adaptation_id)
+        )
+        element_statuses = statuses_result.scalars().all()
+        
+        # Создаем словарь статусов по element_id
+        status_by_element = {status.element_id: status.is_completed for status in element_statuses}
+        
+        # Проверяем, все ли элементы завершены
+        all_completed = True
+        for element in all_elements:
+            if element.id not in status_by_element or not status_by_element[element.id]:
+                all_completed = False
+                break
+        
+        # Обновляем статус адаптации
+        if all_completed and not adaptation.is_completed:
+            adaptation.is_completed = True
+            adaptation.completion_percentage = 100.0
+            if not adaptation.completed_at:
+                from datetime import datetime
+                adaptation.completed_at = datetime.utcnow()
+        elif not all_completed and adaptation.is_completed:
+            adaptation.is_completed = False
+            # Пересчитываем процент завершения
+            completed_count = sum(1 for status in element_statuses if status.is_completed)
+            adaptation.completion_percentage = (completed_count / len(all_elements)) * 100.0
+            adaptation.completed_at = None
+            
+    except Exception:
+        # Не прерываем основную операцию при ошибке проверки
+        pass
+
+
+async def bulk_update_element_statuses(db: AsyncSession, updates: List[dict]) -> List[AdaptationElementStatus]:
+    """Массовое обновление статусов элементов адаптации"""
+    try:
+        updated_statuses = []
+        affected_adaptations = set()
+        
+        for update in updates:
+            element_id = update.get('element_id')
+            is_completed = update.get('is_completed')
+            
+            if element_id is None or is_completed is None:
+                continue
+                
+            # Получаем элемент
+            element_result = await db.execute(
+                select(AdaptationElement).where(AdaptationElement.id == element_id)
+            )
+            element = element_result.scalar_one_or_none()
+            if not element:
+                continue
+                
+            # Получаем все адаптации пользователей для этого элемента
+            adaptations_result = await db.execute(
+                select(EmployeeAdaptation)
+                .join(AdaptationTemplate)
+                .join(AdaptationSection)
+                .join(AdaptationElement)
+                .where(AdaptationElement.id == element_id)
+            )
+            adaptations = adaptations_result.scalars().all()
+            
+            for adaptation in adaptations:
+                # Проверяем существующий статус
+                status_result = await db.execute(
+                    select(AdaptationElementStatus)
+                    .where(
+                        AdaptationElementStatus.employee_adaptation_id == adaptation.id,
+                        AdaptationElementStatus.element_id == element_id
+                    )
+                )
+                status = status_result.scalar_one_or_none()
+                
+                if not status:
+                    # Создаем новый статус
+                    status = AdaptationElementStatus(
+                        employee_adaptation_id=adaptation.id,
+                        element_id=element_id,
+                        is_completed=is_completed
+                    )
+                    db.add(status)
+                else:
+                    # Обновляем существующий статус
+                    status.is_completed = is_completed
+                
+                updated_statuses.append(status)
+                affected_adaptations.add(adaptation.id)
+        
+        await db.commit()
+        
+        # Проверяем и обновляем статусы адаптаций
+        for adaptation_id in affected_adaptations:
+            await _check_and_update_adaptation_completion(db, adaptation_id)
+        
+        await db.commit()
+        return updated_statuses
+    except SQLAlchemyError as e:
+        await db.rollback()
+        raise DatabaseException(f"Ошибка при массовом обновлении статусов: {str(e)}")
 
 
 # Stats and progress

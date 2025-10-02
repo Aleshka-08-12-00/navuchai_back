@@ -17,6 +17,7 @@ from app.schemas.adaptation import (
     AdaptationElementCreate, AdaptationElementUpdate,
     UserAdaptationProgress,
     UpdateAdaptationRequest,
+    BulkElementStatusUpdate,
 )
 from app.crud.adaptation import (
     get_templates, get_template, create_template, update_template, delete_template,
@@ -213,5 +214,25 @@ async def update_user_adaptation_route(
         return await update_user_adaptation(db, user_id, adaptation_id, update_data)
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/elements/bulk-status/", response_model=dict)
+async def bulk_update_element_statuses_route(
+    data: List[BulkElementStatusUpdate],
+    db: AsyncSession = Depends(get_db),
+    user=Depends(authorized_required)
+):
+    """Массовое обновление статусов элементов адаптации"""
+    try:
+        from app.crud.adaptation import bulk_update_element_statuses
+        updates = [update.model_dump() for update in data]
+        updated_statuses = await bulk_update_element_statuses(db, updates)
+        return {
+            "success": True,
+            "updated_count": len(updated_statuses),
+            "message": f"Обновлено {len(updated_statuses)} статусов элементов"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при массовом обновлении статусов: {str(e)}")
 
 
