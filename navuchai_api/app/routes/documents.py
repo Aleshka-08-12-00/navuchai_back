@@ -72,18 +72,51 @@ async def delete_route(doc_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.post("/upload/", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(root_admin_moderator_required)])
-async def upload_document(file: UploadFile = File(...), folder_id: int | None = Query(default=None, alias="folderId"), db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def upload_document(
+    file: UploadFile = File(...),
+    folder_id: int = Query(..., alias="folderId"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     try:
-        if folder_id is not None and not await get_folder_shallow(db, folder_id):
+        # Проверяем, что папка существует
+        folder = await get_folder_shallow(db, folder_id)
+        if not folder:
             raise NotFoundException("Папка не найдена")
         content = await file.read()
         size = len(content)
         ext = os.path.splitext(file.filename)[1]
         key = f"user_{user.id}/docs/{uuid.uuid4().hex}{ext}"
-        s3.put_object(Bucket=MINIO_BUCKET_NAME, Key=key, Body=content, ContentLength=size, ContentType=file.content_type)
+        s3.put_object(
+            Bucket=MINIO_BUCKET_NAME,
+            Key=key,
+            Body=content,
+            ContentLength=size,
+            ContentType=file.content_type
+        )
         url = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/{key}"
-        file_row = await file_crud.create_file(db, FileCreate(type=file.content_type, name=os.path.basename(key), size=size, path=url, provider="minio", creator_id=user.id))
-        doc = await create_document(db, user.id, file.content_type, file.filename, size, url, "minio", folder_id)
+        file_row = await file_crud.create_file(
+            db,
+            FileCreate(
+                type=file.content_type,
+                name=os.path.basename(key),
+                size=size,
+                path=url,
+                provider="minio",
+                creator_id=user.id
+            )
+        )
+        # Привязываем документ к папке
+        doc = await create_document(
+            db,
+            user.id,
+            file.content_type,
+            file.filename,
+            size,
+            url,
+            "minio",
+            folder_id
+        )
         return DocumentUploadResponse(
             document=DocumentResponse.model_validate(doc, from_attributes=True),
             file=FileUploadResponse(

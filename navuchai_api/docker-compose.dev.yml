@@ -15,22 +15,22 @@ services:
       - .:/app  # автоперезагрузка при изменениях
     command: uvicorn app.main:app --host 0.0.0.0 --port 8012 --reload
 
-  cron:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: navuchai_cron_dev
-    restart: always
-    env_file:
-      - .env.dev
-    volumes:
-      - .:/app
-    command: |
-      sh -c "
-        # Запускаем cron в фоне
-        cron -f &
-        # Ждем завершения cron
-        wait
-      "
-    depends_on:
-      - web
+  # cron:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: navuchai_cron_dev
+  #   restart: always
+  #   env_file:
+  #     - .env.dev
+  #   volumes:
+  #     - .:/app
+  #   command: |
+  #     sh -c "
+  #       # Запускаем cron в фоне
+  #       cron -f &
+  #       # Ждем завершения cron
+  #       wait
+  #     "
+  #   depends_on:
+  #     - web

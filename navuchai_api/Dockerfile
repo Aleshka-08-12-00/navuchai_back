@@ -18,7 +18,7 @@ COPY cron/ /app/cron/
 RUN chmod +x /app/scripts/check_deadlines.sh
 
 # Устанавливаем cron задачу
-RUN crontab /app/cron/deadline_check
+# RUN crontab /app/cron/deadline_check
 
 # Создаем директорию для логов
 RUN mkdir -p /var/log && touch /var/log/deadline_check.log
