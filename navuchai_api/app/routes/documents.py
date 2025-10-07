@@ -18,6 +18,9 @@ from app.crud import file as file_crud
 from app.exceptions import NotFoundException, DatabaseException
 from app.config import MINIO_URL, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET_NAME, MINIO_REGION, MINIO_URL_SERT
 from app.models import User
+import re
+import urllib.parse
+from fastapi.responses import StreamingResponse
 
 router = APIRouter(prefix="/api/documents", tags=["Documents"])
 
@@ -135,22 +138,31 @@ async def upload_document(
     except (DatabaseException, NotFoundException) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+def _content_disposition(name: str) -> str:
+    fallback = re.sub(r'[^A-Za-z0-9._-]+', '_', name or 'file')
+    encoded = urllib.parse.quote(name, encoding='utf-8')
+    return f"attachment; filename={fallback}; filename*=UTF-8''{encoded}"
+
 @router.get("/{doc_id}/download-url/", dependencies=[Depends(authorized_required)])
 async def download_proxy(doc_id: int, db: AsyncSession = Depends(get_db)):
     doc = await get_document(db, doc_id)
     key = _extract_key(doc.path)
     if not key:
         raise DatabaseException("Неверный путь к объекту")
+
     obj = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
     body = obj["Body"]
+
     def _iter():
         while True:
             chunk = body.read(1024 * 1024)
             if not chunk:
                 break
             yield chunk
+
     headers = {
-        "Content-Disposition": f'attachment; filename="{doc.name}"',
+        "Content-Disposition": _content_disposition(doc.name),
         "Cache-Control": "no-store",
     }
-    return StreamingResponse(_iter(), headers=headers, media_type="application/octet-stream")
+
+    return StreamingResponse(_iter(), headers=headers, media_type=(doc.type or "application/octet-stream"))
