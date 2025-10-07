@@ -3,7 +3,7 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict, List
 
-from app.models import Employee
+from app.models import Employee, User
 from app.exceptions import DatabaseException
 
 
@@ -11,6 +11,10 @@ async def get_employee_tree(db: AsyncSession) -> List[Dict]:
     try:
         result = await db.execute(select(Employee))
         employees = result.scalars().all()
+
+        # Соберем множество email существующих пользователей для быстрого сравнения
+        user_result = await db.execute(select(User.email))
+        user_emails = { (email or '').strip().lower() for (email,) in user_result.all() if email }
 
         by_id: Dict[int, Employee] = {e.id: e for e in employees}
 
@@ -29,6 +33,7 @@ async def get_employee_tree(db: AsyncSession) -> List[Dict]:
                 "email": emp.email,
                 "phone": emp.phone,
                 "is_owner": bool(emp.is_owner),
+                "is_user": ((emp.email or '').strip().lower() in user_emails),
                 "level": level,
                 "children": []
             }
