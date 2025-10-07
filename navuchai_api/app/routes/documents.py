@@ -137,26 +137,20 @@ async def upload_document(
 
 @router.get("/{doc_id}/download-url/", dependencies=[Depends(authorized_required)])
 async def download_proxy(doc_id: int, db: AsyncSession = Depends(get_db)):
-    try:
-        doc = await get_document(db, doc_id)
-        key = _extract_key(doc.path)
-        if not key:
-            raise DatabaseException("Неверный путь к объекту")
-        obj = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
-        body = obj["Body"]
-        def _iter():
-            while True:
-                chunk = body.read(1024 * 1024)
-                if not chunk:
-                    break
-                yield chunk
-        headers = {
-            "Content-Disposition": f'attachment; filename="{doc.name}"',
-            "Content-Type": "application/octet-stream",
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Expose-Headers": "Content-Disposition"
-        }
-        return StreamingResponse(_iter(), headers=headers)
-    except ClientError as e:
-        raise DatabaseException(f"Ошибка при формировании ссылки: {str(e)}")
+    doc = await get_document(db, doc_id)
+    key = _extract_key(doc.path)
+    if not key:
+        raise DatabaseException("Неверный путь к объекту")
+    obj = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+    body = obj["Body"]
+    def _iter():
+        while True:
+            chunk = body.read(1024 * 1024)
+            if not chunk:
+                break
+            yield chunk
+    headers = {
+        "Content-Disposition": f'attachment; filename="{doc.name}"',
+        "Cache-Control": "no-store",
+    }
+    return StreamingResponse(_iter(), headers=headers, media_type="application/octet-stream")
