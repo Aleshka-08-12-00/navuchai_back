@@ -6,6 +6,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException, status, Query, File, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.crud import authorized_required, get_current_user, root_admin_moderator_required
@@ -135,13 +136,27 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/{doc_id}/download-url/", dependencies=[Depends(authorized_required)])
-async def download_url(doc_id: int, db: AsyncSession = Depends(get_db)):
+async def download_proxy(doc_id: int, db: AsyncSession = Depends(get_db)):
     try:
         doc = await get_document(db, doc_id)
         key = _extract_key(doc.path)
         if not key:
             raise DatabaseException("Неверный путь к объекту")
-        url = s3.generate_presigned_url("get_object", Params={"Bucket": MINIO_BUCKET_NAME, "Key": key}, ExpiresIn=3600)
-        return {"url": url}
+        obj = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+        body = obj["Body"]
+        def _iter():
+            while True:
+                chunk = body.read(1024 * 1024)
+                if not chunk:
+                    break
+                yield chunk
+        headers = {
+            "Content-Disposition": f'attachment; filename="{doc.name}"',
+            "Content-Type": "application/octet-stream",
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
+        return StreamingResponse(_iter(), headers=headers)
     except ClientError as e:
         raise DatabaseException(f"Ошибка при формировании ссылки: {str(e)}")
