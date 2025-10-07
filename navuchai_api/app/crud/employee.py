@@ -20,13 +20,15 @@ async def get_employee_tree(db: AsyncSession) -> List[Dict]:
             children_map.setdefault(parent_id, []).append(e)
 
         def make_node(emp: Employee, level: int) -> Dict:
+            full_name = f"{emp.name or ''} {emp.last_name or ''}".strip()
             node = {
                 "id": str(emp.id),
-                "name": emp.name,
+                "name": full_name,
                 "position": emp.position,
                 "department": emp.department,
                 "email": emp.email,
                 "phone": emp.phone,
+                "is_owner": bool(emp.is_owner),
                 "level": level,
                 "children": []
             }

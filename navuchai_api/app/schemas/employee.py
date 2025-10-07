@@ -7,9 +7,10 @@ class EmployeeNode(BaseModel):
     name: str
     position: Optional[str] = None
     department: Optional[str] = None
-    email: str
+    email: Optional[str] = None
     phone: Optional[str] = None
     level: int
+    is_owner: bool = False
     children: List["EmployeeNode"] = Field(default_factory=list)
 
     class Config:
