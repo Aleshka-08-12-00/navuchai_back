@@ -8,7 +8,7 @@ class File(Base):
     __tablename__ = "file"
 
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(String(50), nullable=True)
+    type = Column(String(120), nullable=True)
     name = Column(String(120), nullable=False)
     size = Column(Integer, nullable=False)
     path = Column(String, nullable=False)

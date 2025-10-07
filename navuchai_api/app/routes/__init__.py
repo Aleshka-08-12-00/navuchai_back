@@ -28,6 +28,8 @@ from app.routes.employees import router as employees_router
 from app.routes.category_access import router as category_access_router
 from app.routes.adaptation import router as adaptation_router
 from app.routes.user_activity import router as user_activity_router
+from .folders import router as folders_router
+from .documents import router as documents_router
 
 auth = auth_router
 tests = tests_router
@@ -59,3 +61,5 @@ employees = employees_router
 category_access = category_access_router
 adaptation = adaptation_router
 user_activity = user_activity_router
+folders = folders_router
+documents = documents_router
