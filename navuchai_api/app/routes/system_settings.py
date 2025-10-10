@@ -40,7 +40,10 @@ async def create_system_setting(
     """
     try:
         # Проверяем, что код уникален
-        existing_setting = await get_system_setting_by_code(db, setting_data.code)
+        try:
+            existing_setting = await get_system_setting_by_code(db, setting_data.code)
+        except NotFoundException:
+            existing_setting = None
         if existing_setting:
             raise BadRequestException("Настройка с таким кодом уже существует")
 
