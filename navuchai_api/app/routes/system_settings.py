@@ -94,7 +94,10 @@ async def update_system_setting_by_id(
     try:
         # Если обновляется код, проверяем уникальность
         if setting_data.code:
-            existing_setting = await get_system_setting_by_code(db, setting_data.code)
+            try:
+                existing_setting = await get_system_setting_by_code(db, setting_data.code)
+            except NotFoundException:
+                existing_setting = None
             if existing_setting and existing_setting.id != setting_id:
                 raise BadRequestException("Настройка с таким кодом уже существует")
 
