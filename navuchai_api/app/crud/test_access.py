@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from sqlalchemy import update, func, text
 import secrets
+from datetime import datetime
 
 from app.models import TestAccess, Test, TestAccessStatus, User, UserGroup, UserGroupMember, TestStatus
 from app.schemas.test_access import TestAccessCreate
@@ -73,14 +74,14 @@ async def create_test_access(db: AsyncSession, test_access_data: TestAccessCreat
         try:
             if test_access.user_id:
                 title = f"Тест: {test.title}" if test else f"Тест #{test_access.test_id}"
-                if getattr(test_access, 'start_date', None):
-                    await create_simple_event(
-                        db,
-                        user_id=test_access.user_id,
-                        title=title,
-                        type='task',
-                        starts_at=test_access.start_date,
-                    )
+                start_dt = getattr(test_access, 'start_date', None) or datetime.utcnow()
+                await create_simple_event(
+                    db,
+                    user_id=test_access.user_id,
+                    title=title,
+                    type='task',
+                    starts_at=start_dt,
+                )
                 if getattr(test_access, 'end_date', None):
                     await create_simple_event(
                         db,
@@ -149,14 +150,14 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
             try:
                 if db_test_access.user_id:
                     title = f"Тест #{db_test_access.test_id}"
-                    if getattr(db_test_access, 'start_date', None):
-                        await create_simple_event(
-                            db,
-                            user_id=db_test_access.user_id,
-                            title=title,
-                            type='task',
-                            starts_at=db_test_access.start_date,
-                        )
+                    start_dt = getattr(db_test_access, 'start_date', None) or datetime.utcnow()
+                    await create_simple_event(
+                        db,
+                        user_id=db_test_access.user_id,
+                        title=title,
+                        type='task',
+                        starts_at=start_dt,
+                    )
                     if getattr(db_test_access, 'end_date', None):
                         await create_simple_event(
                             db,
@@ -715,14 +716,14 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
                     try:
                         if db_test_access.user_id:
                             title = f"Тест: {test.title}" if test else f"Тест #{db_test_access.test_id}"
-                            if getattr(db_test_access, 'start_date', None):
-                                await create_simple_event(
-                                    db,
-                                    user_id=db_test_access.user_id,
-                                    title=title,
-                                    type='task',
-                                    starts_at=db_test_access.start_date,
-                                )
+                            start_dt = getattr(db_test_access, 'start_date', None) or datetime.utcnow()
+                            await create_simple_event(
+                                db,
+                                user_id=db_test_access.user_id,
+                                title=title,
+                                type='task',
+                                starts_at=start_dt,
+                            )
                             if getattr(db_test_access, 'end_date', None):
                                 await create_simple_event(
                                     db,
