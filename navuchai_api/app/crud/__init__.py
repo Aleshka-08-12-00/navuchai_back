@@ -130,4 +130,17 @@ from .file import (
     create_file,
     get_file,
 )
-from .calendar import get_user_calendar
+from .calendar import (
+    create_event,
+    update_event,
+    delete_event,
+    get_event,
+    list_events,
+    add_attendee,
+    update_attendee,
+    remove_attendee,
+    list_event_attendees,
+    add_reminder,
+    remove_reminder,
+    get_user_calendar,
+)

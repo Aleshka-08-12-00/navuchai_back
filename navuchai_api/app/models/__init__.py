@@ -42,6 +42,9 @@ from .adaptation_element import AdaptationElement
 from .employee_adaptation import EmployeeAdaptation
 from .adaptation_element_status import AdaptationElementStatus
 from .user_activity import UserActivity
+from .calendar_event import CalendarEvent
+from .calendar_event_attendee import CalendarEventAttendee
+from .calendar_event_reminder import CalendarEventReminder
 
 __all__ = [
     "Base",
@@ -82,5 +85,8 @@ __all__ = [
     "SystemSettings",
     "Employee",
     "UserActivity",
+    "CalendarEvent",
+    "CalendarEventAttendee",
+    "CalendarEventReminder",
 ]
 
