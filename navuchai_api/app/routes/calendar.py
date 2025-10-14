@@ -15,6 +15,7 @@ from app.schemas.calendar import (
     CalendarReminderCreate, CalendarReminderOut, CalendarMyFilter,
 )
 from app.models import User
+from typing import Any
 
 
 router = APIRouter(prefix="/api/calendar", tags=["Calendar"])
@@ -39,7 +40,7 @@ async def get_calendar_event(event_id: int, db: AsyncSession = Depends(get_db), 
     return event
 
 
-@router.get("/events", response_model=list[CalendarEventOut])
+@router.get("/events", response_model=list[dict])
 async def list_calendar_events(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required),
@@ -49,7 +50,22 @@ async def list_calendar_events(
     types: list[str] | None = Query(default=None),
 ):
     events = await list_events(db, organization_id, from_dt, to_dt, types)
-    return events
+    def to_client(e) -> dict[str, Any]:
+        return {
+            "event_id": str(e.id),
+            "title": e.title,
+            "subtitle": e.subtitle,
+            "start": e.starts_at,
+            "end": e.ends_at,
+            "color": e.color,
+            "textColor": e.text_color,
+            "data": {
+                "type": e.type,
+                "description": e.description,
+                "link": e.link,
+            },
+        }
+    return [to_client(e) for e in events]
 
 
 @router.put("/events/{event_id}", response_model=CalendarEventOut)
@@ -128,7 +144,7 @@ async def delete_calendar_reminder(reminder_id: int, db: AsyncSession = Depends(
 from app.schemas.calendar import CalendarEventOut
 
 
-@router.get("/my", response_model=list[CalendarEventOut])
+@router.get("/my", response_model=list[dict])
 async def get_my_calendar(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(authorized_required),
@@ -138,5 +154,20 @@ async def get_my_calendar(
 ):
     filters = CalendarMyFilter(from_dt=from_dt, to_dt=to_dt, types=types)
     events = await get_user_calendar(db, current_user.id, filters)
-    return events
+    def to_client(e) -> dict[str, Any]:
+        return {
+            "event_id": str(e.id),
+            "title": e.title,
+            "subtitle": e.subtitle,
+            "start": e.starts_at,
+            "end": e.ends_at,
+            "color": e.color,
+            "textColor": e.text_color,
+            "data": {
+                "type": e.type,
+                "description": e.description,
+                "link": e.link,
+            },
+        }
+    return [to_client(e) for e in events]
 
