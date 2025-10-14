@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,12 @@ async def create_simple_event(
     except Exception:
         pass
 
+    # Гарантируем, что ends_at > starts_at
+    _starts = starts_at
+    _ends = ends_at
+    if _ends is None or _ends <= _starts:
+        _ends = (_starts + timedelta(days=1)) if is_all_day else (_starts + timedelta(minutes=1))
+
     event = CalendarEvent(
         title=title,
         subtitle=subtitle,
@@ -40,8 +46,8 @@ async def create_simple_event(
         color=color,
         text_color=text_color,
         is_all_day=is_all_day,
-        starts_at=starts_at,
-        ends_at=ends_at or starts_at,
+        starts_at=_starts,
+        ends_at=_ends,
         created_by_user_id=created_by_user_id,
         organization_id=organization_id,
     )
