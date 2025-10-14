@@ -11,6 +11,7 @@ from app.exceptions import DatabaseException, NotFoundException
 from app.models.test import TestAccessEnum
 from app.models.role import Role
 from app.auth import get_password_hash
+from app.utils.calendar_events import create_simple_event
 
 OPAQUE_TOKEN_NUM_BYTES = 16
 
@@ -67,7 +68,30 @@ async def create_test_access(db: AsyncSession, test_access_data: TestAccessCreat
             print(f"Debug: Status loaded - {test_access.status.name}, {test_access.status.code}, {test_access.status.color}")
         else:
             print("Debug: Status not loaded")
-            
+
+        # Календарь: события начала/окончания доступа (если есть даты)
+        try:
+            if test_access.user_id:
+                title = f"Тест: {test.title}" if test else f"Тест #{test_access.test_id}"
+                if getattr(test_access, 'start_date', None):
+                    await create_simple_event(
+                        db,
+                        user_id=test_access.user_id,
+                        title=title,
+                        type='task',
+                        starts_at=test_access.start_date,
+                    )
+                if getattr(test_access, 'end_date', None):
+                    await create_simple_event(
+                        db,
+                        user_id=test_access.user_id,
+                        title=title,
+                        type='deadline',
+                        starts_at=test_access.end_date,
+                    )
+        except Exception:
+            pass
+
         return test_access
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании доступа к тесту: {str(e)}")
@@ -121,6 +145,28 @@ async def create_group_test_access(db: AsyncSession, test_id: int, group_id: int
             await db.commit()
             await db.refresh(db_test_access)
             created_accesses.append(db_test_access)
+            # Календарь: события для каждого назначения по группе
+            try:
+                if db_test_access.user_id:
+                    title = f"Тест #{db_test_access.test_id}"
+                    if getattr(db_test_access, 'start_date', None):
+                        await create_simple_event(
+                            db,
+                            user_id=db_test_access.user_id,
+                            title=title,
+                            type='task',
+                            starts_at=db_test_access.start_date,
+                        )
+                    if getattr(db_test_access, 'end_date', None):
+                        await create_simple_event(
+                            db,
+                            user_id=db_test_access.user_id,
+                            title=title,
+                            type='deadline',
+                            starts_at=db_test_access.end_date,
+                        )
+            except Exception:
+                pass
         return created_accesses
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании группового доступа к тесту: {str(e)}")
@@ -665,6 +711,28 @@ async def create_group_test_group_access(db: AsyncSession, test_group_id: int, g
                     await db.commit()
                     await db.refresh(db_test_access)
                     created_accesses.append(db_test_access)
+                    # Календарь: события для назначения по группе тестов
+                    try:
+                        if db_test_access.user_id:
+                            title = f"Тест: {test.title}" if test else f"Тест #{db_test_access.test_id}"
+                            if getattr(db_test_access, 'start_date', None):
+                                await create_simple_event(
+                                    db,
+                                    user_id=db_test_access.user_id,
+                                    title=title,
+                                    type='task',
+                                    starts_at=db_test_access.start_date,
+                                )
+                            if getattr(db_test_access, 'end_date', None):
+                                await create_simple_event(
+                                    db,
+                                    user_id=db_test_access.user_id,
+                                    title=title,
+                                    type='deadline',
+                                    starts_at=db_test_access.end_date,
+                                )
+                    except Exception:
+                        pass
         return created_accesses
     except SQLAlchemyError as e:
         raise DatabaseException(f"Ошибка при создании доступа к группе тестов: {str(e)}")
