@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import selectinload
 from app.models import CourseEnrollment, Course
 from app.utils.activity_logger import log_user_activity
+from app.utils.calendar_events import create_simple_event
 from app.exceptions import NotFoundException
 
 async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
@@ -28,6 +29,21 @@ async def enroll_user(db: AsyncSession, course_id: int, user_id: int):
             "enrolled_at": enroll.enrolled_at.isoformat() if enroll.enrolled_at else None
         }
         await log_user_activity(db, user_id=user_id, action="course_enrolled", context=context)
+
+        # Календарь: событие назначения на курс
+        try:
+            await create_simple_event(
+                db,
+                user_id=user_id,
+                title=(course.title if course else f"Курс #{course_id}"),
+                type='task',
+                starts_at=enroll.enrolled_at or datetime.utcnow(),
+                ends_at=enroll.enrolled_at or datetime.utcnow(),
+                link=None,
+                created_by_user_id=None,
+            )
+        except Exception:
+            pass
     except Exception:
         pass
 

@@ -15,6 +15,7 @@ from app.schemas.adaptation import (
     AdaptationSectionCreate, AdaptationSectionUpdate,
     AdaptationElementCreate, AdaptationElementUpdate,
 )
+from app.utils.calendar_events import create_simple_event
 
 # Helpers to grant access for adaptation elements
 async def _grant_access_for_element(db: AsyncSession, user_id: int, element: AdaptationElement):
@@ -184,6 +185,27 @@ async def assign_adaptation(db: AsyncSession, payload: EmployeeAdaptationCreate)
             for section in template.sections:
                 for el in section.elements:
                     await _grant_access_for_element(db, payload.employee_id, el)
+        # Календарь: события "назначена адаптация" и "дедлайн" (если есть)
+        try:
+            await create_simple_event(
+                db,
+                user_id=payload.employee_id,
+                title=f"Адаптация: {template.title}" if template else f"Адаптация #{adaptation.id}",
+                type='task',
+                starts_at=adaptation.assigned_at or datetime.utcnow(),
+                ends_at=adaptation.assigned_at or datetime.utcnow(),
+            )
+            if adaptation.completed_to:
+                await create_simple_event(
+                    db,
+                    user_id=payload.employee_id,
+                    title=f"Адаптация: {template.title}" if template else f"Адаптация #{adaptation.id}",
+                    type='deadline',
+                    starts_at=adaptation.completed_to,
+                    ends_at=adaptation.completed_to,
+                )
+        except Exception:
+            pass
         return adaptation
     except SQLAlchemyError as e:
         await db.rollback()
