@@ -1,5 +1,5 @@
 sqlalchemy~=2.0.40
-pydantic~=2.10.6
+pydantic>=2.0,<3.0
 fastapi~=0.115.7
 dotenv~=0.9.9
 python-dotenv~=1.1.0
@@ -20,5 +20,5 @@ Pillow>=10.0.0
 yandex-cloud-ml-sdk
 
 # Email sending
-fastapi-mail
+fastapi-mail==1.4.0
 jinja2
