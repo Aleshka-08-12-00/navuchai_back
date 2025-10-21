@@ -562,6 +562,12 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
     else:
         df['Имя'] = ''
         df['Фамилия'] = ''
+    
+    # Добавляем поле Отдел из category_name
+    if 'category_name' in df.columns:
+        df['Отдел'] = df['category_name'].fillna('Не указан')
+    else:
+        df['Отдел'] = 'Не указан'
     # Проверяем, что у нас есть необходимые колонки
     required_columns = ['test_title', 'user_test_score', 'test_max_score', 'test_percent']
     missing_columns = [col for col in required_columns if col not in df.columns]
@@ -573,7 +579,7 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
         raise ValueError("Нет данных для создания отчёта")
     
     pivot = df.pivot_table(
-        index=['Имя', 'Фамилия'],
+        index=['Имя', 'Фамилия', 'Отдел'],
         columns='test_title',
         values=['user_test_score', 'test_max_score', 'test_percent'],
         aggfunc='first'
@@ -591,9 +597,9 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
     ]
     score_cols = [col for col in pivot.columns if col.endswith('(user_test_score)')]
     pivot['Сумма баллов (личная)'] = pivot[score_cols].fillna(0).sum(axis=1)
-    fam_idx = list(pivot.columns).index('Фамилия')
+    otdel_idx = list(pivot.columns).index('Отдел')
     cols = list(pivot.columns)
-    cols.insert(fam_idx + 1, cols.pop(cols.index('Сумма баллов (личная)')))
+    cols.insert(otdel_idx + 1, cols.pop(cols.index('Сумма баллов (личная)')))
     pivot = pivot[cols]
     rename_map = {}
     for col in pivot.columns:
@@ -607,7 +613,7 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
             test = col.split(' (')[0]
             rename_map[col] = f"{test} (уровень %)"
     pivot = pivot.rename(columns=rename_map)
-    main_cols = ['Имя', 'Фамилия', 'Сумма баллов (личная)']
+    main_cols = ['Имя', 'Фамилия', 'Отдел', 'Сумма баллов (личная)']
     test_names = set()
     for col in pivot.columns:
         if col not in main_cols:
@@ -651,9 +657,9 @@ def generate_analytics_excel(analytics_data: List[Dict[str, Any]]) -> BytesIO:
         green_cols = []
         for idx, cell in enumerate(ws[1]):
             col_name = pivot.columns[idx]
-            if col_name in ['Имя', 'Фамилия', 'Сумма баллов (личная)'] or col_name.endswith('(баллы)'):
+            if col_name in ['Имя', 'Фамилия', 'Отдел', 'Сумма баллов (личная)'] or col_name.endswith('(баллы)'):
                 cell.fill = PatternFill(start_color='D9EAD3', end_color='D9EAD3', fill_type='solid')
-                if col_name == 'Сумма баллов (личная)' or col_name.endswith('(баллы)'):
+                if col_name in ['Отдел', 'Сумма баллов (личная)'] or col_name.endswith('(баллы)'):
                     green_cols.append(idx)
             elif col_name.startswith('Вопросы ') or col_name.endswith('(уровень %)'):
                 cell.fill = PatternFill(start_color='FCE5CD', end_color='FCE5CD', fill_type='solid')
