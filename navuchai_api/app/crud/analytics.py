@@ -235,10 +235,10 @@ def get_column_mapping(view_name: str) -> Dict[str, str]:
 
 
 def get_sheet_name(view_name: str) -> str:
-    """Возвращает название листа для Excel"""
+    """Возвращает название листа для Excel (максимум 31 символ)"""
     sheet_names = {
-        'analytics_user_performance': 'Аналитика производительности пользователей',
-        'analytics_test_statistics': 'Статистика по тестам',
+        'analytics_user_performance': 'Аналитика пользователей',
+        'analytics_test_statistics': 'Статистика тестов',
         'analytics_group_performance': 'Производительность групп',
         'analytics_question_analysis': 'Анализ вопросов',
         # Здесь можно добавить названия для других представлений
