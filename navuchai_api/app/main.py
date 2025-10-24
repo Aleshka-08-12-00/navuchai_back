@@ -10,6 +10,7 @@ from app.routes import (
     test_access_status, courses, modules, lessons, enrollment, module_tests,
     test_import, analytics_views, test_group, faq, faq_categories, system_settings, employees, category_access, adaptation, user_activity, folders, documents, calendar
 )
+from app.routes.dashboard_stats import router as dashboard_stats
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -56,6 +57,7 @@ app.include_router(user_activity)
 app.include_router(folders)
 app.include_router(documents)
 app.include_router(calendar)
+app.include_router(dashboard_stats)
 
 
 @app.on_event("startup")

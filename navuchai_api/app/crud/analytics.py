@@ -83,6 +83,7 @@ async def get_analytics_data_by_view(db: AsyncSession, view_name: str) -> List[D
             'analytics_group_performance',
             'analytics_question_analysis',
             'analytics_category_performance',
+            'analytics_dashboard',
             # Здесь можно добавить другие представления в будущем
             # 'analytics_test_performance',
         ]
