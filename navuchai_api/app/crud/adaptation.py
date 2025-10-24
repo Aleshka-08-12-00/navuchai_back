@@ -169,6 +169,7 @@ async def assign_adaptation(db: AsyncSession, payload: EmployeeAdaptationCreate)
             employee_id=payload.employee_id,
             assigned_by=payload.assigned_by,
             completed_to=payload.completed_to,
+            options=payload.options,
         )
         db.add(adaptation)
         await db.commit()
@@ -474,6 +475,7 @@ async def copy_adaptation(db: AsyncSession, source_adaptation_id: int, target_em
             employee_id=target_employee_id,
             assigned_by=source.assigned_by,
             completed_to=source.completed_to,
+            options=source.options,
         )
         db.add(new)
         await db.commit()
@@ -554,6 +556,7 @@ async def get_user_adaptations(db: AsyncSession, user_id: int) -> list[dict]:
                 "assigned_at": adaptation.assigned_at,
                 "started_at": adaptation.started_at,
                 "completed_at": adaptation.completed_at,
+                "options": adaptation.options,
                 "created_at": adaptation.created_at,
                 "updated_at": adaptation.updated_at,
                 "sections": sections_data,

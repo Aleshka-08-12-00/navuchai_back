@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Boolean, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, Boolean, TIMESTAMP, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,7 @@ class EmployeeAdaptation(Base):
     is_completed = Column(Boolean, nullable=False, server_default='false', default=False)
     is_failed = Column(Boolean, nullable=False, server_default='false', default=False)  # Статус провала по сроку
     completion_percentage = Column(Integer, nullable=False, server_default='0')
+    options = Column(JSON, nullable=True)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -98,6 +98,7 @@ class EmployeeAdaptationBase(BaseModel):
 class EmployeeAdaptationCreate(EmployeeAdaptationBase):
     assigned_by: int
     completed_to: Optional[datetime] = None  # Дата до которой нужно выполнить адаптацию
+    options: Optional[Dict[str, Any]] = None
 
 
 class EmployeeAdaptation(EmployeeAdaptationBase):
@@ -109,6 +110,7 @@ class EmployeeAdaptation(EmployeeAdaptationBase):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     completed_to: Optional[datetime] = None  # Дата до которой нужно выполнить адаптацию
+    options: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -134,6 +136,7 @@ class UserAdaptationProgress(BaseModel):
     assigned_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    options: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     sections: List[dict] = []
@@ -143,6 +146,7 @@ class UpdateAdaptationRequest(BaseModel):
     is_completed: Optional[bool] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    options: Optional[Dict[str, Any]] = None
 
 
 class BulkElementStatusUpdate(BaseModel):
