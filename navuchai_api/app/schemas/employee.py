@@ -11,7 +11,9 @@ class EmployeeNode(BaseModel):
     phone: Optional[str] = None
     level: int
     is_owner: bool = False
-    is_user: bool = False
+    is_group_worker: bool = True
+    is_in_system: bool = True
+    system_id: Optional[int] = None
     children: List["EmployeeNode"] = Field(default_factory=list)
 
     class Config:
