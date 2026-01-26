@@ -8,7 +8,7 @@ from app.routes import (
     category, locale, files, role, user_groups,
     test_access, test_status, results, question_type,
     test_access_status, courses, modules, lessons, enrollment, module_tests,
-    test_import, analytics_views, test_group, faq, faq_categories, system_settings, employees, category_access, adaptation, user_activity, folders, documents, calendar
+    test_import, analytics_views, test_group, faq, faq_categories, system_settings, employees, category_access, adaptation, user_activity, folders, documents, calendar, topics
 )
 from app.routes.dashboard_stats import router as dashboard_stats
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,6 +57,7 @@ app.include_router(user_activity)
 app.include_router(folders)
 app.include_router(documents)
 app.include_router(calendar)
+app.include_router(topics)
 app.include_router(dashboard_stats)
 
 

@@ -45,6 +45,7 @@ from .user_activity import UserActivity
 from .calendar_event import CalendarEvent
 from .calendar_event_attendee import CalendarEventAttendee
 from .calendar_event_reminder import CalendarEventReminder
+from .topic import Topic, TopicTag, topic_tags, topic_files
 
 __all__ = [
     "Base",
@@ -88,5 +89,8 @@ __all__ = [
     "CalendarEvent",
     "CalendarEventAttendee",
     "CalendarEventReminder",
+    "Topic",
+    "TopicTag",
+    "topic_tags",
+    "topic_files",
 ]
-

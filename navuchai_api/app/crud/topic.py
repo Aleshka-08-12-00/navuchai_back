@@ -1,0 +1,214 @@
+from collections import defaultdict
+from io import BytesIO
+import re
+from typing import Dict, Iterable, List
+
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
+from pypdf import PdfReader, PdfWriter
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.config import MINIO_ACCESS_KEY, MINIO_BUCKET_NAME, MINIO_REGION, MINIO_SECRET_KEY, MINIO_URL, MINIO_URL_SERT
+from app.exceptions import BadRequestException, DatabaseException, NotFoundException
+from app.models.file import File
+from app.models.topic import Topic, TopicTag
+from app.schemas.file import FileCreate
+from app.crud.file import create_file
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url=MINIO_URL,
+    aws_access_key_id=MINIO_ACCESS_KEY,
+    aws_secret_access_key=MINIO_SECRET_KEY,
+    config=Config(signature_version="s3v4"),
+    region_name=MINIO_REGION,
+)
+
+
+async def _get_or_create_topic(db: AsyncSession, name: str) -> Topic:
+    stmt = select(Topic).where(func.lower(Topic.name) == name.lower())
+    result = await db.execute(stmt)
+    topic = result.scalar_one_or_none()
+    if topic:
+        return topic
+    topic = Topic(name=name)
+    db.add(topic)
+    await db.flush()
+    return topic
+
+
+async def _get_or_create_tags(db: AsyncSession, tag_names: List[str]) -> List[TopicTag]:
+    unique = {tag.strip() for tag in tag_names if tag and tag.strip()}
+    if not unique:
+        return []
+    stmt = select(TopicTag).where(func.lower(TopicTag.name).in_({tag.lower() for tag in unique}))
+    result = await db.execute(stmt)
+    existing = {tag.name.lower(): tag for tag in result.scalars().all()}
+    tags: List[TopicTag] = []
+    for name in unique:
+        key = name.lower()
+        tag = existing.get(key)
+        if not tag:
+            tag = TopicTag(name=name)
+            db.add(tag)
+            await db.flush()
+        tags.append(tag)
+    return tags
+
+
+def _parse_range_tokens(tokens: Iterable[str]) -> List[int]:
+    pages: List[int] = []
+    for token in tokens:
+        part = token.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start_str, end_str = part.split("-", 1)
+            start = int(start_str)
+            end = int(end_str)
+            if start < 1 or end < 1 or start > end:
+                raise BadRequestException(f"Некорректный диапазон страниц: {part}")
+            pages.extend(range(start, end + 1))
+        else:
+            page = int(part)
+            if page < 1:
+                raise BadRequestException(f"Некорректный номер страницы: {part}")
+            pages.append(page)
+    return pages
+
+
+def _pages_from_value(value: object) -> List[int]:
+    if isinstance(value, list):
+        pages: List[int] = []
+        for item in value:
+            pages.extend(_pages_from_value(item))
+        return pages
+    if isinstance(value, str):
+        tokens = value.split(",")
+        return _parse_range_tokens(tokens)
+    if isinstance(value, int):
+        if value < 1:
+            raise BadRequestException(f"Некорректный номер страницы: {value}")
+        return [value]
+    raise BadRequestException("Некорректный формат диапазона страниц")
+
+
+def _group_pages_by_topic(page_topic_map: Dict) -> Dict[str, List[int]]:
+    grouped: Dict[str, List[int]] = defaultdict(list)
+    if all(isinstance(key, (int, str)) and isinstance(value, str) for key, value in page_topic_map.items()):
+        if all(isinstance(key, int) or str(key).isdigit() for key in page_topic_map.keys()):
+            for page_number, topic in page_topic_map.items():
+                page = int(page_number)
+                if not topic:
+                    raise BadRequestException("Имя темы не может быть пустым")
+                grouped[str(topic)].append(page)
+            return grouped
+    for topic_name, ranges in page_topic_map.items():
+        if not topic_name:
+            raise BadRequestException("Имя темы не может быть пустым")
+        pages = _pages_from_value(ranges)
+        grouped[str(topic_name)].extend(pages)
+    return grouped
+
+
+async def split_book_by_topics(
+    db: AsyncSession,
+    creator_id: int,
+    book_pdf: bytes,
+    filename: str,
+    content_type: str,
+    page_topic_map: Dict,
+) -> List[Topic]:
+    if not page_topic_map:
+        raise BadRequestException("page_topic_map не может быть пустым")
+
+    reader = PdfReader(BytesIO(book_pdf))
+    total_pages = len(reader.pages)
+    grouped = _group_pages_by_topic(page_topic_map)
+    topics: List[Topic] = []
+
+    for topic_name, pages in grouped.items():
+        writer = PdfWriter()
+        for page_number in sorted(pages):
+            if page_number < 1 or page_number > total_pages:
+                raise BadRequestException(f"Недопустимый номер страницы: {page_number}")
+            writer.add_page(reader.pages[page_number - 1])
+        buffer = BytesIO()
+        writer.write(buffer)
+        content = buffer.getvalue()
+        safe_topic = re.sub(r"[^A-Za-z0-9._-]+", "_", topic_name)
+        key = f"user_{creator_id}/topics/{safe_topic}_{filename}"
+        try:
+            s3.put_object(
+                Bucket=MINIO_BUCKET_NAME,
+                Key=key,
+                Body=content,
+                ContentLength=len(content),
+                ContentType=content_type,
+            )
+        except ClientError as exc:
+            raise DatabaseException(f"Ошибка при загрузке файла: {str(exc)}") from exc
+
+        url = f"{MINIO_URL_SERT}/{MINIO_BUCKET_NAME}/{key}"
+        file_row = await create_file(
+            db,
+            FileCreate(
+                type=content_type,
+                name=key.split("/")[-1],
+                size=len(content),
+                path=url,
+                provider="minio",
+                creator_id=creator_id,
+            ),
+        )
+
+        topic = await _get_or_create_topic(db, topic_name)
+        if file_row not in topic.files:
+            topic.files.append(file_row)
+        topics.append(topic)
+
+    await db.commit()
+    for topic in topics:
+        await db.refresh(topic)
+    return topics
+
+
+async def add_tags_to_topic(db: AsyncSession, topic_id: int, tags: List[str]) -> Topic:
+    result = await db.execute(
+        select(Topic)
+        .options(selectinload(Topic.tags), selectinload(Topic.files))
+        .where(Topic.id == topic_id)
+    )
+    topic = result.scalar_one_or_none()
+    if not topic:
+        raise NotFoundException("Тема не найдена")
+    new_tags = await _get_or_create_tags(db, tags)
+    existing = {tag.name.lower() for tag in topic.tags}
+    for tag in new_tags:
+        if tag.name.lower() not in existing:
+            topic.tags.append(tag)
+    await db.commit()
+    await db.refresh(topic)
+    return topic
+
+
+async def search_documents_by_tags(db: AsyncSession, tags: List[str]) -> List[Topic]:
+    if not tags:
+        raise BadRequestException("Не указаны теги для поиска")
+    normalized = [tag.strip().lower() for tag in tags if tag and tag.strip()]
+    if not normalized:
+        raise BadRequestException("Не указаны теги для поиска")
+
+    stmt = (
+        select(Topic)
+        .join(Topic.tags)
+        .options(selectinload(Topic.tags), selectinload(Topic.files))
+        .where(func.lower(TopicTag.name).in_(normalized))
+        .group_by(Topic.id)
+        .having(func.count(func.distinct(TopicTag.id)) == len(set(normalized)))
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
