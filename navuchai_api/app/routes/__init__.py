@@ -31,6 +31,7 @@ from app.routes.user_activity import router as user_activity_router
 from .folders import router as folders_router
 from .documents import router as documents_router
 from app.routes.calendar import router as calendar_router
+from app.routes.topics import router as topics_router
 
 auth = auth_router
 tests = tests_router
@@ -65,3 +66,4 @@ user_activity = user_activity_router
 folders = folders_router
 documents = documents_router
 calendar = calendar_router
+topics = topics_router
