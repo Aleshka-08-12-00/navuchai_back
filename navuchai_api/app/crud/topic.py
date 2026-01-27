@@ -201,9 +201,17 @@ def _truncate_filename(filename: str, max_length: int = 120) -> str:
     return f"{base[:allowed_base_length]}{extension}"
 
 
-def _parse_table_of_contents_line(line: str) -> tuple[str, str] | None:
-    cleaned = re.sub(r"\.{2,}", " ", line or "")
+def _normalize_table_of_contents_line(line: str) -> str:
+    cleaned = line or ""
+    cleaned = re.sub(r"[·•∙‧]", " ", cleaned)
+    cleaned = re.sub(r"\.{2,}", " ", cleaned)
+    cleaned = re.sub(r"(?<=\w)\.(?=\w)", " ", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def _parse_table_of_contents_line(line: str) -> tuple[str, str] | None:
+    cleaned = _normalize_table_of_contents_line(line)
     if not cleaned:
         return None
     if re.search(r"\bсодержание\b", cleaned, re.IGNORECASE):
@@ -218,9 +226,23 @@ def _parse_table_of_contents_line(line: str) -> tuple[str, str] | None:
     pages = match.group("pages")
     if not title or not pages:
         return None
-    pages = re.sub(r"\s*[-–—]\s*", "-", pages)
-    pages = re.sub(r"\s*,\s*", ", ", pages)
+    pages = _normalize_pages(pages)
     return title, pages
+
+
+def _normalize_pages(pages: str) -> str:
+    normalized = re.sub(r"\s*[-–—]\s*", "-", pages)
+    normalized = re.sub(r"\s*,\s*", ", ", normalized)
+    return normalized
+
+
+def _parse_pages_only(line: str) -> str | None:
+    cleaned = _normalize_table_of_contents_line(line)
+    if not cleaned:
+        return None
+    if not re.fullmatch(r"\d+(?:\s*[-–—]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–—]\s*\d+)?)*", cleaned):
+        return None
+    return _normalize_pages(cleaned)
 
 
 def extract_table_of_contents_from_pdf(book_pdf: bytes) -> Dict[str, str]:
@@ -236,16 +258,36 @@ def extract_table_of_contents_from_pdf(book_pdf: bytes) -> Dict[str, str]:
         return {}
     results: Dict[str, str] = {}
     empty_pages = 0
+    pending_title: str | None = None
     for text in pages_text[toc_index:]:
         lines = text.splitlines()
         page_matches = 0
         for line in lines:
             parsed = _parse_table_of_contents_line(line)
-            if not parsed:
+            if parsed:
+                title, pages = parsed
+                if pending_title:
+                    title = f"{pending_title} {title}".strip()
+                    pending_title = None
+                results.setdefault(title, pages)
+                page_matches += 1
                 continue
-            title, pages = parsed
-            results.setdefault(title, pages)
-            page_matches += 1
+            pages_only = _parse_pages_only(line)
+            if pages_only and pending_title:
+                title = pending_title.strip(" .-—–")
+                pending_title = None
+                results.setdefault(title, pages_only)
+                page_matches += 1
+                continue
+            cleaned = _normalize_table_of_contents_line(line)
+            if not cleaned:
+                continue
+            if re.search(r"\bсодержание\b", cleaned, re.IGNORECASE):
+                continue
+            if pending_title:
+                pending_title = f"{pending_title} {cleaned}".strip()
+            else:
+                pending_title = cleaned
         if results and page_matches == 0:
             empty_pages += 1
             if empty_pages >= 2:
