@@ -1,6 +1,7 @@
 from collections import defaultdict
 from io import BytesIO
 import mimetypes
+import os
 import re
 from typing import Dict, Iterable, List
 from urllib.parse import unquote, urlparse
@@ -160,20 +161,20 @@ def _pages_from_value(value: object) -> List[int]:
 
 def _group_pages_by_topic(page_topic_map: Dict) -> Dict[str, List[int]]:
     grouped: Dict[str, List[int]] = defaultdict(list)
-    if all(isinstance(key, (int, str)) and isinstance(value, str) for key, value in page_topic_map.items()):
-        if all(isinstance(key, int) or str(key).isdigit() for key in page_topic_map.keys()):
-            for page_number, topic in page_topic_map.items():
-                page = int(page_number)
-                if not topic:
-                    raise BadRequestException("Имя темы не может быть пустым")
-                grouped[str(topic)].append(page)
-            return grouped
     for topic_name, ranges in page_topic_map.items():
         if not topic_name:
             raise BadRequestException("Имя темы не может быть пустым")
+        if isinstance(topic_name, int) or str(topic_name).isdigit():
+            raise BadRequestException("Ключи page_topic_map должны быть названиями тем")
         pages = _pages_from_value(ranges)
         grouped[str(topic_name)].extend(pages)
     return grouped
+
+
+def _sanitize_topic_filename(topic_name: str) -> str:
+    cleaned = re.sub(r"\s+", " ", topic_name or "").strip()
+    cleaned = cleaned.replace("/", "_")
+    return cleaned or "topic"
 
 
 async def split_book_by_topics(
@@ -201,8 +202,10 @@ async def split_book_by_topics(
         buffer = BytesIO()
         writer.write(buffer)
         content = buffer.getvalue()
-        safe_topic = re.sub(r"[^A-Za-z0-9._-]+", "_", topic_name)
-        key = f"user_{creator_id}/topics/{safe_topic}_{filename}"
+        topic = await _get_or_create_topic(db, topic_name)
+        extension = os.path.splitext(filename)[1] if filename else ".pdf"
+        topic_filename = f"{_sanitize_topic_filename(topic_name)}{extension}"
+        key = f"user_{creator_id}/topics/{topic.id}/{topic_filename}"
         try:
             s3.put_object(
                 Bucket=MINIO_BUCKET_NAME,
@@ -227,7 +230,10 @@ async def split_book_by_topics(
             ),
         )
 
-        topic = await _get_or_create_topic(db, topic_name)
+        tags = await _get_or_create_tags(db, [topic_name])
+        for tag in tags:
+            if tag not in topic.tags:
+                topic.tags.append(tag)
         await db.refresh(topic, attribute_names=["files"])
         if file_row not in topic.files:
             topic.files.append(file_row)
