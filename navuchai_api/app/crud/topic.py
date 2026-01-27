@@ -1,8 +1,10 @@
 from collections import defaultdict
 from io import BytesIO
+import mimetypes
 import re
 from typing import Dict, Iterable, List
 from urllib.parse import unquote, urlparse
+from urllib.request import urlopen
 
 import boto3
 from botocore.client import Config
@@ -59,6 +61,29 @@ def download_file_from_minio(file: File) -> bytes:
     if not body:
         raise BadRequestException("Не удалось получить содержимое файла")
     return body.read()
+
+
+def download_file_from_link(file_link: str) -> tuple[bytes, str, str]:
+    if not file_link:
+        raise BadRequestException("Не указана ссылка на файл")
+    filename = unquote(urlparse(file_link).path.split("/")[-1] or "")
+    if not filename:
+        raise BadRequestException("Не удалось определить имя файла")
+    content_type = mimetypes.guess_type(filename)[0] or "application/pdf"
+    key = _extract_minio_key(file_link)
+    if key:
+        try:
+            response = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+            body = response.get("Body")
+            if body:
+                return body.read(), filename, content_type
+        except ClientError:
+            pass
+    try:
+        with urlopen(file_link) as response:
+            return response.read(), filename, content_type
+    except Exception as exc:
+        raise BadRequestException("Не удалось получить содержимое файла по ссылке") from exc
 
 
 async def _get_or_create_topic(db: AsyncSession, name: str) -> Topic:

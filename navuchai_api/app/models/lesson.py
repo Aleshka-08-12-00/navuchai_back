@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Table
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from app.models.lesson_progress import LessonProgress
 from app.models.base import Base
@@ -23,6 +24,7 @@ class Lesson(Base):
     order = Column(Integer, default=0)
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
     thumbnail_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
+    file_links = Column(ARRAY(Text))
     module = relationship('Module', back_populates='lessons')
     tests = relationship('LessonTest', back_populates='lesson', cascade='all, delete-orphan')
     progress = relationship('LessonProgress', back_populates='lesson', cascade='all, delete-orphan')
