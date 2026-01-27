@@ -87,7 +87,11 @@ def download_file_from_link(file_link: str) -> tuple[bytes, str, str]:
 
 
 async def _get_or_create_topic(db: AsyncSession, name: str) -> Topic:
-    stmt = select(Topic).where(func.lower(Topic.name) == name.lower())
+    stmt = (
+        select(Topic)
+        .options(selectinload(Topic.files))
+        .where(func.lower(Topic.name) == name.lower())
+    )
     result = await db.execute(stmt)
     topic = result.scalar_one_or_none()
     if topic:
