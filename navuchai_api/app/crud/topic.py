@@ -171,10 +171,23 @@ def _group_pages_by_topic(page_topic_map: Dict) -> Dict[str, List[int]]:
     return grouped
 
 
+def _sanitize_filename_part(value: str, fallback: str) -> str:
+    cleaned = re.sub(r"\s+", " ", value or "").strip()
+    cleaned = cleaned.replace("/", "_").replace("\\", "_")
+    return cleaned or fallback
+
+
 def _sanitize_topic_filename(topic_name: str) -> str:
-    cleaned = re.sub(r"\s+", " ", topic_name or "").strip()
-    cleaned = cleaned.replace("/", "_")
-    return cleaned or "topic"
+    return _sanitize_filename_part(topic_name, "topic")
+
+
+def _build_topic_filename(source_filename: str, topic_name: str, tag_names: List[str]) -> str:
+    source_base = os.path.splitext(source_filename or "")[0]
+    source_part = _sanitize_filename_part(source_base, "source")
+    topic_part = _sanitize_filename_part(topic_name, "topic")
+    tags_value = "-".join(sorted({tag.strip() for tag in tag_names if tag and tag.strip()}))
+    tag_part = _sanitize_filename_part(tags_value, "tag")
+    return f"{source_part}__{topic_part}__{tag_part}"
 
 
 async def split_book_by_topics(
@@ -205,7 +218,8 @@ async def split_book_by_topics(
         topic = await _get_or_create_topic(db, topic_name)
         await db.refresh(topic, attribute_names=["tags"])
         extension = os.path.splitext(filename)[1] if filename else ".pdf"
-        topic_filename = f"{_sanitize_topic_filename(topic_name)}{extension}"
+        tags = await _get_or_create_tags(db, [topic_name])
+        topic_filename = f"{_build_topic_filename(filename, topic_name, [tag.name for tag in tags])}{extension}"
         key = f"user_{creator_id}/topics/{topic.id}/{topic_filename}"
         try:
             s3.put_object(
@@ -231,7 +245,6 @@ async def split_book_by_topics(
             ),
         )
 
-        tags = await _get_or_create_tags(db, [topic_name])
         for tag in tags:
             if tag not in topic.tags:
                 topic.tags.append(tag)
