@@ -297,6 +297,45 @@ def extract_table_of_contents_from_pdf(book_pdf: bytes) -> Dict[str, str]:
     return results
 
 
+def get_pdf_total_pages(book_pdf: bytes) -> int:
+    if not book_pdf:
+        return 0
+    reader = PdfReader(BytesIO(book_pdf))
+    return len(reader.pages)
+
+
+def build_table_of_contents_items(contents: Dict[str, str], total_pages: int) -> List[Dict[str, int | str]]:
+    parsed: List[Dict[str, int | str]] = []
+    for title, pages in contents.items():
+        tokens = (pages or "").split(",")
+        page_numbers = _parse_range_tokens(tokens)
+        if not page_numbers:
+            continue
+        parsed.append(
+            {
+                "name": title,
+                "page_from": min(page_numbers),
+                "page_to": max(page_numbers),
+            }
+        )
+    if parsed and total_pages > 0:
+        max_toc_page = max(item["page_to"] for item in parsed if isinstance(item["page_to"], int))
+        offset = max(max_toc_page - total_pages, 0)
+        if offset:
+            for item in parsed:
+                if isinstance(item["page_from"], int):
+                    item["page_from"] = max(1, item["page_from"] - offset)
+                if isinstance(item["page_to"], int):
+                    item["page_to"] = max(1, item["page_to"] - offset)
+    for index, item in enumerate(parsed):
+        if index >= len(parsed) - 1:
+            continue
+        next_from = parsed[index + 1]["page_from"]
+        if isinstance(next_from, int) and next_from > item["page_from"]:
+            item["page_to"] = next_from - 1
+    return parsed
+
+
 async def split_book_by_topics(
     db: AsyncSession,
     creator_id: int,

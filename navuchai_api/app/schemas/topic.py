@@ -40,3 +40,12 @@ class TopicTagsUpdateRequest(BaseModel):
 
 class TopicSearchRequest(BaseModel):
     tags: List[str]
+
+
+class TopicContentsItem(BaseModel):
+    name: str
+    page_from: int = Field(alias="pageFrom")
+    page_to: int = Field(alias="pageTo")
+
+    class Config:
+        populate_by_name = True
