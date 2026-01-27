@@ -228,6 +228,7 @@ async def split_book_by_topics(
         )
 
         topic = await _get_or_create_topic(db, topic_name)
+        await db.refresh(topic, attribute_names=["files"])
         if file_row not in topic.files:
             topic.files.append(file_row)
         topics.append(topic)
