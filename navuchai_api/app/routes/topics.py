@@ -71,21 +71,25 @@ async def get_topics_contents(
     db: AsyncSession = Depends(get_db),
 ):
     lesson = await get_lesson(db, lessonId)
-    if not lesson.files:
+    if not lesson.files and not lesson.file_links:
         raise BadRequestException("В уроке нет файлов для анализа")
     content = None
     filename = None
     content_type = "application/pdf"
-    file = None
-    if fileId is not None:
-        file = next((item for item in lesson.files if item.id == fileId), None)
-        if not file:
-            raise BadRequestException("Файл для анализа не найден в уроке")
+    if lesson.files:
+        file = None
+        if fileId is not None:
+            file = next((item for item in lesson.files if item.id == fileId), None)
+            if not file:
+                raise BadRequestException("Файл для анализа не найден в уроке")
+        else:
+            file = lesson.files[0]
+        content = topic_crud.download_file_from_minio(file)
+        filename = file.name
+        content_type = file.type or content_type
     else:
-        file = lesson.files[0]
-    content = topic_crud.download_file_from_minio(file)
-    filename = file.name
-    content_type = file.type or content_type
+        file_link = lesson.file_links[0]
+        content, filename, content_type = topic_crud.download_file_from_link(file_link)
     if content_type != "application/pdf" and not (filename or "").lower().endswith(".pdf"):
         raise BadRequestException("Файл должен быть PDF")
     return topic_crud.extract_table_of_contents_from_pdf(content)
