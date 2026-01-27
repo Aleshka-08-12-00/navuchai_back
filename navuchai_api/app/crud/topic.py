@@ -181,13 +181,24 @@ def _sanitize_topic_filename(topic_name: str) -> str:
     return _sanitize_filename_part(topic_name, "topic")
 
 
-def _build_topic_filename(source_filename: str, topic_name: str, tag_names: List[str]) -> str:
+def _build_topic_filename(source_filename: str, topic_name: str) -> str:
     source_base = os.path.splitext(source_filename or "")[0]
     source_part = _sanitize_filename_part(source_base, "source")
     topic_part = _sanitize_filename_part(topic_name, "topic")
-    tags_value = "-".join(sorted({tag.strip() for tag in tag_names if tag and tag.strip()}))
-    tag_part = _sanitize_filename_part(tags_value, "tag")
-    return f"{source_part}__{topic_part}__{tag_part}"
+    parts = [source_part]
+    if topic_part and topic_part.lower() not in source_part.lower():
+        parts.append(topic_part)
+    return "_".join(parts)
+
+
+def _truncate_filename(filename: str, max_length: int = 120) -> str:
+    if not filename or len(filename) <= max_length:
+        return filename
+    base, extension = os.path.splitext(filename)
+    if len(extension) >= max_length:
+        return filename[:max_length]
+    allowed_base_length = max_length - len(extension)
+    return f"{base[:allowed_base_length]}{extension}"
 
 
 async def split_book_by_topics(
@@ -219,7 +230,8 @@ async def split_book_by_topics(
         await db.refresh(topic, attribute_names=["tags"])
         extension = os.path.splitext(filename)[1] if filename else ".pdf"
         tags = await _get_or_create_tags(db, [topic_name])
-        topic_filename = f"{_build_topic_filename(filename, topic_name, [tag.name for tag in tags])}{extension}"
+        topic_filename = f"{_build_topic_filename(filename, topic_name)}{extension}"
+        topic_filename = _truncate_filename(topic_filename)
         key = f"user_{creator_id}/topics/{topic.id}/{topic_filename}"
         try:
             s3.put_object(
