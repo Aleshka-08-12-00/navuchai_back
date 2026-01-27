@@ -203,6 +203,7 @@ async def split_book_by_topics(
         writer.write(buffer)
         content = buffer.getvalue()
         topic = await _get_or_create_topic(db, topic_name)
+        await db.refresh(topic, attribute_names=["tags"])
         extension = os.path.splitext(filename)[1] if filename else ".pdf"
         topic_filename = f"{_sanitize_topic_filename(topic_name)}{extension}"
         key = f"user_{creator_id}/topics/{topic.id}/{topic_filename}"
