@@ -9,7 +9,13 @@ from app.crud.lesson import get_lesson
 from app.dependencies import get_db
 from app.exceptions import BadRequestException
 from app.models import User
-from app.schemas.topic import TopicResponse, TopicSearchRequest, TopicSplitRequest, TopicTagsUpdateRequest
+from app.schemas.topic import (
+    TopicContentsItem,
+    TopicResponse,
+    TopicSearchRequest,
+    TopicSplitRequest,
+    TopicTagsUpdateRequest,
+)
 from app.crud import topic as topic_crud
 
 router = APIRouter(prefix="/api/topics", tags=["Topics"])
@@ -62,7 +68,7 @@ async def split_book_by_topics(
 
 @router.get(
     "/contents/",
-    response_model=dict[str, str],
+    response_model=List[TopicContentsItem],
     dependencies=[Depends(authorized_required)],
 )
 async def get_topics_contents(
@@ -92,7 +98,10 @@ async def get_topics_contents(
         content, filename, content_type = topic_crud.download_file_from_link(file_link)
     if content_type != "application/pdf" and not (filename or "").lower().endswith(".pdf"):
         raise BadRequestException("Файл должен быть PDF")
-    return topic_crud.extract_table_of_contents_from_pdf(content)
+    contents = topic_crud.extract_table_of_contents_from_pdf(content)
+    total_pages = topic_crud.get_pdf_total_pages(content)
+    items = topic_crud.build_table_of_contents_items(contents, total_pages)
+    return [TopicContentsItem(name=item["name"], page_from=item["page_from"], page_to=item["page_to"]) for item in items]
 
 
 @router.post(
