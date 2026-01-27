@@ -201,6 +201,60 @@ def _truncate_filename(filename: str, max_length: int = 120) -> str:
     return f"{base[:allowed_base_length]}{extension}"
 
 
+def _parse_table_of_contents_line(line: str) -> tuple[str, str] | None:
+    cleaned = re.sub(r"\.{2,}", " ", line or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        return None
+    if re.search(r"\bсодержание\b", cleaned, re.IGNORECASE):
+        return None
+    match = re.search(
+        r"^(?P<title>.+?)\s+(?P<pages>\d+(?:\s*[-–—]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–—]\s*\d+)?)*)\s*$",
+        cleaned,
+    )
+    if not match:
+        return None
+    title = match.group("title").strip(" .-—–")
+    pages = match.group("pages")
+    if not title or not pages:
+        return None
+    pages = re.sub(r"\s*[-–—]\s*", "-", pages)
+    pages = re.sub(r"\s*,\s*", ", ", pages)
+    return title, pages
+
+
+def extract_table_of_contents_from_pdf(book_pdf: bytes) -> Dict[str, str]:
+    if not book_pdf:
+        raise BadRequestException("Файл пустой")
+    reader = PdfReader(BytesIO(book_pdf))
+    pages_text = [(page.extract_text() or "") for page in reader.pages]
+    toc_index = next(
+        (index for index, text in enumerate(pages_text) if re.search(r"\bсодержание\b", text, re.IGNORECASE)),
+        None,
+    )
+    if toc_index is None:
+        return {}
+    results: Dict[str, str] = {}
+    empty_pages = 0
+    for text in pages_text[toc_index:]:
+        lines = text.splitlines()
+        page_matches = 0
+        for line in lines:
+            parsed = _parse_table_of_contents_line(line)
+            if not parsed:
+                continue
+            title, pages = parsed
+            results.setdefault(title, pages)
+            page_matches += 1
+        if results and page_matches == 0:
+            empty_pages += 1
+            if empty_pages >= 2:
+                break
+        else:
+            empty_pages = 0
+    return results
+
+
 async def split_book_by_topics(
     db: AsyncSession,
     creator_id: int,
