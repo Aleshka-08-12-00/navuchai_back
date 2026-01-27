@@ -28,24 +28,33 @@ async def split_book_by_topics(
     user: User = Depends(get_current_user),
 ):
     lesson = await get_lesson(db, lessonId)
-    if not lesson.files:
+    if not lesson.files and not lesson.file_links:
         raise BadRequestException("В уроке нет файлов для разделения")
-    file = None
-    if fileId is not None:
-        file = next((item for item in lesson.files if item.id == fileId), None)
-        if not file:
-            raise BadRequestException("Файл для разделения не найден в уроке")
+    content = None
+    filename = None
+    content_type = "application/pdf"
+    if lesson.files:
+        file = None
+        if fileId is not None:
+            file = next((item for item in lesson.files if item.id == fileId), None)
+            if not file:
+                raise BadRequestException("Файл для разделения не найден в уроке")
+        else:
+            file = lesson.files[0]
+        content = topic_crud.download_file_from_minio(file)
+        filename = file.name
+        content_type = file.type or content_type
     else:
-        file = lesson.files[0]
-    content = topic_crud.download_file_from_minio(file)
+        file_link = lesson.file_links[0]
+        content, filename, content_type = topic_crud.download_file_from_link(file_link)
     payload = json.loads(pageTopicMap)
     request = TopicSplitRequest(pageTopicMap=payload)
     topics = await topic_crud.split_book_by_topics(
         db,
         user.id,
         content,
-        file.name,
-        file.type or "application/pdf",
+        filename,
+        content_type,
         request.page_topic_map,
     )
     return [TopicResponse.model_validate(topic, from_attributes=True) for topic in topics]
