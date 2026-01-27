@@ -90,7 +90,7 @@ def download_file_from_link(file_link: str) -> tuple[bytes, str, str]:
 async def _get_or_create_topic(db: AsyncSession, name: str) -> Topic:
     stmt = (
         select(Topic)
-        .options(selectinload(Topic.files))
+        .options(selectinload(Topic.files), selectinload(Topic.tags))
         .where(func.lower(Topic.name) == name.lower())
     )
     result = await db.execute(stmt)
