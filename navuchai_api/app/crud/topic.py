@@ -2,6 +2,7 @@ from collections import defaultdict
 from io import BytesIO
 import re
 from typing import Dict, Iterable, List
+from urllib.parse import unquote, urlparse
 
 import boto3
 from botocore.client import Config
@@ -26,6 +27,38 @@ s3 = boto3.client(
     config=Config(signature_version="s3v4"),
     region_name=MINIO_REGION,
 )
+
+
+def _extract_minio_key(file_path: str) -> str:
+    if not file_path:
+        raise BadRequestException("Не указан путь к файлу")
+    parsed = urlparse(file_path)
+    path = unquote(parsed.path or "").lstrip("/")
+    if path.startswith(f"{MINIO_BUCKET_NAME}/"):
+        return path[len(MINIO_BUCKET_NAME) + 1:]
+    if parsed.scheme:
+        return path
+    if file_path.startswith(f"{MINIO_BUCKET_NAME}/"):
+        return file_path[len(MINIO_BUCKET_NAME) + 1:]
+    return file_path
+
+
+def download_file_from_minio(file: File) -> bytes:
+    if not file:
+        raise BadRequestException("Файл для разделения не найден")
+    if file.provider and file.provider != "minio":
+        raise BadRequestException("Файл должен храниться в MinIO")
+    key = _extract_minio_key(file.path)
+    if not key:
+        raise BadRequestException("Некорректный путь к файлу в MinIO")
+    try:
+        response = s3.get_object(Bucket=MINIO_BUCKET_NAME, Key=key)
+    except ClientError as exc:
+        raise DatabaseException(f"Ошибка при получении файла: {str(exc)}") from exc
+    body = response.get("Body")
+    if not body:
+        raise BadRequestException("Не удалось получить содержимое файла")
+    return body.read()
 
 
 async def _get_or_create_topic(db: AsyncSession, name: str) -> Topic:
