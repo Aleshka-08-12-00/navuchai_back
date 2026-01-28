@@ -34,6 +34,15 @@ class TopicSplitRequest(BaseModel):
         populate_by_name = True
 
 
+class TopicSplitBodyRequest(BaseModel):
+    page_topic_map: dict = Field(alias="pageTopicMap")
+    lesson_id: int = Field(alias="lessonId")
+    file_id: int | None = Field(default=None, alias="fileId")
+
+    class Config:
+        populate_by_name = True
+
+
 class TopicTagsUpdateRequest(BaseModel):
     tags: List[str]
 
