@@ -21,19 +21,17 @@ from app.crud import topic as topic_crud
 router = APIRouter(prefix="/api/topics", tags=["Topics"])
 
 
-@router.post(
-    "/split/",
-    response_model=List[TopicResponse],
-    dependencies=[Depends(root_admin_moderator_required)],
-)
-async def split_book_by_topics(
-    pageTopicMap: str = Form(...),
-    lessonId: int = Form(...),
-    fileId: int | None = Form(None),
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    lesson = await get_lesson(db, lessonId)
+async def _split_topics(
+    page_topic_map: str | None,
+    lesson_id: int | None,
+    file_id: int | None,
+    db: AsyncSession,
+    user: User,
+    overwrite: bool = False,
+) -> List[TopicResponse]:
+    if not page_topic_map or lesson_id is None:
+        raise BadRequestException("pageTopicMap и lessonId обязательны")
+    lesson = await get_lesson(db, lesson_id)
     if not lesson.files and not lesson.file_links:
         raise BadRequestException("В уроке нет файлов для разделения")
     content = None
@@ -41,8 +39,8 @@ async def split_book_by_topics(
     content_type = "application/pdf"
     if lesson.files:
         file = None
-        if fileId is not None:
-            file = next((item for item in lesson.files if item.id == fileId), None)
+        if file_id is not None:
+            file = next((item for item in lesson.files if item.id == file_id), None)
             if not file:
                 raise BadRequestException("Файл для разделения не найден в уроке")
         else:
@@ -53,7 +51,7 @@ async def split_book_by_topics(
     else:
         file_link = lesson.file_links[0]
         content, filename, content_type = topic_crud.download_file_from_link(file_link)
-    payload = json.loads(pageTopicMap)
+    payload = json.loads(page_topic_map)
     request = TopicSplitRequest(pageTopicMap=payload)
     lesson.topic_contents = topic_crud.build_topic_contents(request.page_topic_map)
     topics = await topic_crud.split_book_by_topics(
@@ -63,8 +61,58 @@ async def split_book_by_topics(
         filename,
         content_type,
         request.page_topic_map,
+        overwrite=overwrite,
     )
     return [TopicResponse.model_validate(topic, from_attributes=True) for topic in topics]
+
+
+@router.post(
+    "/split/",
+    response_model=List[TopicResponse],
+    dependencies=[Depends(root_admin_moderator_required)],
+)
+async def split_book_by_topics(
+    pageTopicMap: str | None = Form(None),
+    page_topic_map: str | None = Form(None),
+    lessonId: int | None = Form(None),
+    lesson_id: int | None = Form(None),
+    fileId: int | None = Form(None),
+    file_id: int | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    resolved_page_map = pageTopicMap or page_topic_map
+    resolved_lesson_id = lessonId if lessonId is not None else lesson_id
+    resolved_file_id = fileId if fileId is not None else file_id
+    return await _split_topics(resolved_page_map, resolved_lesson_id, resolved_file_id, db, user)
+
+
+@router.put(
+    "/split/",
+    response_model=List[TopicResponse],
+    dependencies=[Depends(root_admin_moderator_required)],
+)
+async def overwrite_split_book_by_topics(
+    pageTopicMap: str | None = Form(None),
+    page_topic_map: str | None = Form(None),
+    lessonId: int | None = Form(None),
+    lesson_id: int | None = Form(None),
+    fileId: int | None = Form(None),
+    file_id: int | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    resolved_page_map = pageTopicMap or page_topic_map
+    resolved_lesson_id = lessonId if lessonId is not None else lesson_id
+    resolved_file_id = fileId if fileId is not None else file_id
+    return await _split_topics(
+        resolved_page_map,
+        resolved_lesson_id,
+        resolved_file_id,
+        db,
+        user,
+        overwrite=True,
+    )
 
 
 @router.get(
@@ -131,3 +179,15 @@ async def search_by_tags(
 ):
     topics = await topic_crud.search_documents_by_tags(db, data.tags)
     return [TopicResponse.model_validate(topic, from_attributes=True) for topic in topics]
+
+
+@router.get(
+    "/search/",
+    response_model=List[str],
+    dependencies=[Depends(authorized_required)],
+)
+async def search_topics(
+    query: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    return await topic_crud.search_topics_by_name(db, query)

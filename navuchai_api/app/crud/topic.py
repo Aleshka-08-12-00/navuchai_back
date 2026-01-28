@@ -391,6 +391,7 @@ async def split_book_by_topics(
     filename: str,
     content_type: str,
     page_topic_map: Dict,
+    overwrite: bool = False,
 ) -> List[Topic]:
     if not page_topic_map:
         raise BadRequestException("page_topic_map не может быть пустым")
@@ -410,7 +411,10 @@ async def split_book_by_topics(
         writer.write(buffer)
         content = buffer.getvalue()
         topic = await _get_or_create_topic(db, topic_name)
-        await db.refresh(topic, attribute_names=["tags"])
+        await db.refresh(topic, attribute_names=["tags", "files"])
+        if overwrite and topic.files:
+            topic.files.clear()
+            await db.flush()
         extension = os.path.splitext(filename)[1] if filename else ".pdf"
         tags = await _get_or_create_tags(db, [topic_name])
         topic_filename = f"{_build_topic_filename(filename, topic_name)}{extension}"
@@ -490,3 +494,17 @@ async def search_documents_by_tags(db: AsyncSession, tags: List[str]) -> List[To
     )
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+async def search_topics_by_name(db: AsyncSession, query: str) -> List[str]:
+    cleaned = (query or "").strip()
+    if not cleaned:
+        raise BadRequestException("Не указан поисковый запрос")
+    normalized = cleaned.lower()
+    stmt = (
+        select(Topic.name)
+        .where(func.lower(Topic.name).like(f"%{normalized}%"))
+        .order_by(Topic.name)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
