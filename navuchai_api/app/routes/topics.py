@@ -100,7 +100,8 @@ async def get_topics_contents(
         raise BadRequestException("Файл должен быть PDF")
     contents = topic_crud.extract_table_of_contents_from_pdf(content)
     total_pages = topic_crud.get_pdf_total_pages(content)
-    items = topic_crud.build_table_of_contents_items(contents, total_pages)
+    first_page_number = topic_crud.get_pdf_first_page_number(content)
+    items = topic_crud.build_table_of_contents_items(contents, total_pages, first_page_number)
     return [TopicContentsItem(name=item["name"], page_from=item["page_from"], page_to=item["page_to"]) for item in items]
 
 
