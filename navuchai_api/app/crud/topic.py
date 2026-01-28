@@ -171,6 +171,23 @@ def _group_pages_by_topic(page_topic_map: Dict) -> Dict[str, List[int]]:
     return grouped
 
 
+def build_topic_contents(page_topic_map: Dict) -> List[Dict[str, int | str]]:
+    grouped = _group_pages_by_topic(page_topic_map)
+    contents: List[Dict[str, int | str]] = []
+    for topic_name, pages in grouped.items():
+        if not pages:
+            continue
+        sorted_pages = sorted(pages)
+        contents.append(
+            {
+                "name": topic_name,
+                "page_from": sorted_pages[0],
+                "page_to": sorted_pages[-1],
+            }
+        )
+    return contents
+
+
 def _sanitize_filename_part(value: str, fallback: str) -> str:
     cleaned = re.sub(r"\s+", " ", value or "").strip()
     cleaned = cleaned.replace("/", "_").replace("\\", "_")
