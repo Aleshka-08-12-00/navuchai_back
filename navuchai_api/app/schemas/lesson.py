@@ -27,6 +27,10 @@ class LessonBase(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
+    file_links: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("fileLinks", "file_links"),
+    )
     topic_contents: Optional[List[LessonTopicContentItem]] = Field(
         default=None,
         validation_alias=AliasChoices("topicContents", "topic_contents"),
@@ -46,6 +50,10 @@ class LessonCreate(BaseModel):
     img_id: Optional[int] = Field(default=None, alias="imgId")
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     file_ids: List[int] = []
+    file_links: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("fileLinks", "file_links"),
+    )
     topic_contents: Optional[List[LessonTopicContentItem]] = Field(
         default=None,
         validation_alias=AliasChoices("topicContents", "topic_contents"),
@@ -70,6 +78,10 @@ class LessonWithoutContent(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
+    file_links: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("fileLinks", "file_links"),
+    )
     topic_contents: Optional[List[LessonTopicContentItem]] = Field(
         default=None,
         validation_alias=AliasChoices("topicContents", "topic_contents"),
@@ -99,6 +111,10 @@ class LessonRead(BaseModel):
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+    file_links: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("fileLinks", "file_links"),
+    )
     topic_contents: Optional[List[LessonTopicContentItem]] = Field(
         default=None,
         validation_alias=AliasChoices("topicContents", "topic_contents"),
