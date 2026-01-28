@@ -17,7 +17,8 @@ async def create_lesson(db: AsyncSession, data: LessonCreate):
     # Если хотите, чтобы метод create_lesson тоже вычислял order, добавьте логику по примеру ниже.
     if data.module_id is None:
         raise ValueError("module_id is required")
-    lesson = Lesson(**data.model_dump())
+    lesson_data = data.model_dump(exclude={"file_ids"})
+    lesson = Lesson(**lesson_data)
     db.add(lesson)
     if data.file_ids:
         stmt_files = select(File).where(File.id.in_(data.file_ids))
@@ -57,6 +58,8 @@ async def update_lesson(db: AsyncSession, lesson_id: int, data: LessonCreate):
     lesson.img_id = data.img_id
     lesson.thumbnail_id = data.thumbnail_id
     lesson.topic_contents = data.topic_contents
+    if data.file_links is not None:
+        lesson.file_links = data.file_links
     if data.file_ids:
         stmt_files = select(File).where(File.id.in_(data.file_ids))
         files_result = await db.execute(stmt_files)
@@ -139,7 +142,8 @@ async def create_lesson_for_module(
         video=lesson_in.video,
         img_id=lesson_in.img_id,
         thumbnail_id=lesson_in.thumbnail_id,
-        topic_contents=lesson_in.topic_contents,
+        topic_contents=getattr(lesson_in, "topic_contents", None),
+        file_links=getattr(lesson_in, "file_links", None),
         order=new_order,
         module_id=module_id
     )
