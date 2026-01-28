@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Table
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from app.models.lesson_progress import LessonProgress
 from app.models.base import Base
@@ -25,6 +25,7 @@ class Lesson(Base):
     img_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
     thumbnail_id = Column(Integer, ForeignKey('file.id', ondelete='SET NULL'), nullable=True)
     file_links = Column(ARRAY(Text))
+    topic_contents = Column(JSONB, nullable=True)
     module = relationship('Module', back_populates='lessons')
     tests = relationship('LessonTest', back_populates='lesson', cascade='all, delete-orphan')
     progress = relationship('LessonProgress', back_populates='lesson', cascade='all, delete-orphan')

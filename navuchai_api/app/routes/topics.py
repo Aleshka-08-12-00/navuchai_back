@@ -55,6 +55,7 @@ async def split_book_by_topics(
         content, filename, content_type = topic_crud.download_file_from_link(file_link)
     payload = json.loads(pageTopicMap)
     request = TopicSplitRequest(pageTopicMap=payload)
+    lesson.topic_contents = topic_crud.build_topic_contents(request.page_topic_map)
     topics = await topic_crud.split_book_by_topics(
         db,
         user.id,

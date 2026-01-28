@@ -6,6 +6,15 @@ from pydantic import BaseModel, Field
 from .file import FileInDB
 
 
+class LessonTopicContentItem(BaseModel):
+    name: str
+    page_from: int = Field(alias="pageFrom")
+    page_to: int = Field(alias="pageTo")
+
+    class Config:
+        populate_by_name = True
+
+
 class LessonBase(BaseModel):
     id: int
     module_id: int
@@ -19,6 +28,7 @@ class LessonBase(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
+    topic_contents: Optional[List[LessonTopicContentItem]] = Field(default=None, alias="topicContents")
     completed: Optional[bool] = None
 
     class Config:
@@ -36,6 +46,7 @@ class LessonCreate(BaseModel):
     img_id: Optional[int] = Field(default=None, alias="imgId")
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     file_ids: List[int] = []
+    topic_contents: Optional[List[LessonTopicContentItem]] = Field(default=None, alias="topicContents")
 
     class Config:
         populate_by_name = True
@@ -57,6 +68,7 @@ class LessonWithoutContent(BaseModel):
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
     files: List[FileInDB] = []
+    topic_contents: Optional[List[LessonTopicContentItem]] = Field(default=None, alias="topicContents")
     completed: Optional[bool] = None
 
     class Config:
@@ -86,6 +98,7 @@ class LessonRead(BaseModel):
     thumbnail_id: Optional[int] = Field(default=None, alias="thumbnailId")
     image: Optional[FileInDB] = None
     thumbnail: Optional[FileInDB] = None
+    topic_contents: Optional[List[LessonTopicContentItem]] = Field(default=None, alias="topicContents")
     completed: Optional[bool] = None
 
     model_config = {"from_attributes": True, "populate_by_name": True}

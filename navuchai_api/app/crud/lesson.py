@@ -56,6 +56,7 @@ async def update_lesson(db: AsyncSession, lesson_id: int, data: LessonCreate):
     lesson.video = data.video
     lesson.img_id = data.img_id
     lesson.thumbnail_id = data.thumbnail_id
+    lesson.topic_contents = data.topic_contents
     if data.file_ids:
         stmt_files = select(File).where(File.id.in_(data.file_ids))
         files_result = await db.execute(stmt_files)
@@ -138,6 +139,7 @@ async def create_lesson_for_module(
         video=lesson_in.video,
         img_id=lesson_in.img_id,
         thumbnail_id=lesson_in.thumbnail_id,
+        topic_contents=lesson_in.topic_contents,
         order=new_order,
         module_id=module_id
     )
