@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from fastapi import APIRouter, Depends, Form, Query
+from fastapi import APIRouter, Body, Depends, Form, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import authorized_required, get_current_user, root_admin_moderator_required
@@ -14,6 +14,7 @@ from app.schemas.topic import (
     TopicResponse,
     TopicSearchRequest,
     TopicSplitRequest,
+    TopicSplitBodyRequest,
     TopicTagsUpdateRequest,
 )
 from app.crud import topic as topic_crud
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api/topics", tags=["Topics"])
 
 
 async def _split_topics(
-    page_topic_map: str | None,
+    page_topic_map: str | dict | None,
     lesson_id: int | None,
     file_id: int | None,
     db: AsyncSession,
@@ -51,7 +52,11 @@ async def _split_topics(
     else:
         file_link = lesson.file_links[0]
         content, filename, content_type = topic_crud.download_file_from_link(file_link)
-    payload = json.loads(page_topic_map)
+    payload = (
+        page_topic_map
+        if isinstance(page_topic_map, dict)
+        else json.loads(page_topic_map)
+    )
     request = TopicSplitRequest(pageTopicMap=payload)
     lesson.topic_contents = topic_crud.build_topic_contents(request.page_topic_map)
     topics = await topic_crud.split_book_by_topics(
@@ -78,12 +83,33 @@ async def split_book_by_topics(
     lesson_id: int | None = Form(None),
     fileId: int | None = Form(None),
     file_id: int | None = Form(None),
+    body: TopicSplitBodyRequest | None = Body(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolved_page_map = pageTopicMap or page_topic_map
-    resolved_lesson_id = lessonId if lessonId is not None else lesson_id
-    resolved_file_id = fileId if fileId is not None else file_id
+    resolved_page_map = (
+        pageTopicMap
+        or page_topic_map
+        or (body.page_topic_map if body is not None else None)
+    )
+    resolved_lesson_id = (
+        lessonId
+        if lessonId is not None
+        else lesson_id
+        if lesson_id is not None
+        else body.lesson_id
+        if body is not None
+        else None
+    )
+    resolved_file_id = (
+        fileId
+        if fileId is not None
+        else file_id
+        if file_id is not None
+        else body.file_id
+        if body is not None
+        else None
+    )
     return await _split_topics(resolved_page_map, resolved_lesson_id, resolved_file_id, db, user)
 
 
@@ -99,12 +125,33 @@ async def overwrite_split_book_by_topics(
     lesson_id: int | None = Form(None),
     fileId: int | None = Form(None),
     file_id: int | None = Form(None),
+    body: TopicSplitBodyRequest | None = Body(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolved_page_map = pageTopicMap or page_topic_map
-    resolved_lesson_id = lessonId if lessonId is not None else lesson_id
-    resolved_file_id = fileId if fileId is not None else file_id
+    resolved_page_map = (
+        pageTopicMap
+        or page_topic_map
+        or (body.page_topic_map if body is not None else None)
+    )
+    resolved_lesson_id = (
+        lessonId
+        if lessonId is not None
+        else lesson_id
+        if lesson_id is not None
+        else body.lesson_id
+        if body is not None
+        else None
+    )
+    resolved_file_id = (
+        fileId
+        if fileId is not None
+        else file_id
+        if file_id is not None
+        else body.file_id
+        if body is not None
+        else None
+    )
     return await _split_topics(
         resolved_page_map,
         resolved_lesson_id,
