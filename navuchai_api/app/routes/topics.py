@@ -30,7 +30,9 @@ async def _split_topics(
     user: User,
     overwrite: bool = False,
 ) -> List[TopicResponse]:
-    if not page_topic_map or lesson_id is None:
+    if page_topic_map is None or (
+        isinstance(page_topic_map, str) and not page_topic_map.strip()
+    ) or lesson_id is None:
         raise BadRequestException("pageTopicMap и lessonId обязательны")
     lesson = await get_lesson(db, lesson_id)
     if not lesson.files and not lesson.file_links:
