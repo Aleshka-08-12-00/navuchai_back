@@ -303,8 +303,41 @@ def get_pdf_total_pages(book_pdf: bytes) -> int:
     reader = PdfReader(BytesIO(book_pdf))
     return len(reader.pages)
 
+def _guess_first_page_number(text: str) -> int | None:
+    if not text:
+        return None
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in reversed(lines):
+        cleaned = re.sub(r"[—–-]+", " ", line).strip()
+        if cleaned.isdigit():
+            return int(cleaned)
+    return None
 
-def build_table_of_contents_items(contents: Dict[str, str], total_pages: int) -> List[Dict[str, int | str]]:
+
+def get_pdf_first_page_number(book_pdf: bytes) -> int | None:
+    if not book_pdf:
+        return None
+    reader = PdfReader(BytesIO(book_pdf))
+    if not reader.pages:
+        return None
+    return _guess_first_page_number(reader.pages[0].extract_text() or "")
+
+
+def _apply_page_offset(items: List[Dict[str, int | str]], offset: int) -> None:
+    if offset <= 0:
+        return
+    for item in items:
+        if isinstance(item["page_from"], int):
+            item["page_from"] = max(1, item["page_from"] - offset)
+        if isinstance(item["page_to"], int):
+            item["page_to"] = max(1, item["page_to"] - offset)
+
+
+def build_table_of_contents_items(
+    contents: Dict[str, str],
+    total_pages: int,
+    first_page_number: int | None = None,
+) -> List[Dict[str, int | str]]:
     parsed: List[Dict[str, int | str]] = []
     for title, pages in contents.items():
         tokens = (pages or "").split(",")
@@ -318,15 +351,13 @@ def build_table_of_contents_items(contents: Dict[str, str], total_pages: int) ->
                 "page_to": max(page_numbers),
             }
         )
+    if parsed and first_page_number and first_page_number > 1:
+        _apply_page_offset(parsed, first_page_number - 1)
     if parsed and total_pages > 0:
         max_toc_page = max(item["page_to"] for item in parsed if isinstance(item["page_to"], int))
         offset = max(max_toc_page - total_pages, 0)
         if offset:
-            for item in parsed:
-                if isinstance(item["page_from"], int):
-                    item["page_from"] = max(1, item["page_from"] - offset)
-                if isinstance(item["page_to"], int):
-                    item["page_to"] = max(1, item["page_to"] - offset)
+            _apply_page_offset(parsed, offset)
     for index, item in enumerate(parsed):
         if index >= len(parsed) - 1:
             continue
